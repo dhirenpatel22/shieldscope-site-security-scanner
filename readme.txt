@@ -1,4 +1,4 @@
-=== WordPress Ultimate Security Scan ===
+=== Site Security Audit ===
 Contributors: dhirenpatel
 Tags: security, scanner, malware, hardening, audit
 Requires at least: 5.8
@@ -12,7 +12,7 @@ CPU-throttled WordPress security scanner: audits core integrity, users, plugins,
 
 == Description ==
 
-**WordPress Ultimate Security Scan** performs a deep, read-only audit of your entire WordPress site and produces a prioritised report of security issues grouped by severity (Critical / High / Medium / Low / Info).
+**Site Security Audit** performs a deep, read-only audit of your entire WordPress site and produces a prioritised report of security issues grouped by severity (Critical / High / Medium / Low / Info).
 
 Unlike scanners that lock up your server, this plugin is designed to be a polite neighbour:
 
@@ -60,7 +60,7 @@ If you enter a WPScan API key in Settings, the Vulnerability Database check send
 
 == Installation ==
 
-1. Upload the `wp-ultimate-security-scan` folder to `/wp-content/plugins/`, or install the zip via **Plugins → Add New → Upload Plugin**.
+1. Upload the `site-security-audit` folder to `/wp-content/plugins/`, or install the zip via **Plugins → Add New → Upload Plugin**.
 2. Activate the plugin.
 3. Navigate to **Security Scan** in the admin menu.
 4. Review settings (CPU limit, chunk size, max file size, focus-lock, optional WPScan API key) and click **Start Scan**.

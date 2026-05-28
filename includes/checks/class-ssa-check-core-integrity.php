@@ -1,0 +1,419 @@
+<?php
+/**
+ * Core integrity check.
+ *
+ * Verifies that every shipped WordPress core file matches the official
+ * checksums published at api.wordpress.org. Also flags any unknown .php
+ * files sitting inside wp-admin/ or wp-includes/ — a classic post-exploit
+ * persistence pattern.
+ *
+ * The WordPress.org checksums API returns a map of
+ * { path-relative-to-ABSPATH => md5 }.
+ *
+ * @package Site_Security_Audit
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Class SSA_Check_Core_Integrity
+ */
+class SSA_Check_Core_Integrity extends SSA_Check_Base {
+
+	/**
+	 * Transient name where the fetched checksums are cached for the duration
+	 * of the scan (and a bit beyond, so repeat scans don't hammer the API).
+	 */
+	const CHECKSUMS_TRANSIENT = 'ssa_core_checksums';
+
+	/**
+	 * Cache TTL — 12 hours. Core version rarely changes within that window.
+	 */
+	const CHECKSUMS_TTL = 12 * HOUR_IN_SECONDS;
+
+	/**
+	 * Batch size for file verification per invocation.
+	 *
+	 * Kept conservative — each file is a disk read + md5_file.
+	 */
+	const VERIFY_BATCH = 80;
+
+	/**
+	 * Batch size for the unknown-files walker.
+	 */
+	const EXTRAS_BATCH = 200;
+
+	/**
+	 * ID used in findings.
+	 *
+	 * @return string
+	 */
+	public function get_id() {
+		return 'core_integrity';
+	}
+
+	/**
+	 * Label.
+	 *
+	 * @return string
+	 */
+	public function get_label() {
+		return __( 'WordPress Core Integrity', 'site-security-audit' );
+	}
+
+	/**
+	 * Steps.
+	 *
+	 * fetch   — pull the checksums JSON from api.wordpress.org
+	 * verify  — walk checksums, verify each file's md5 (resumable, batched)
+	 * extras  — walk wp-admin / wp-includes for files NOT in checksums
+	 *
+	 * @return array
+	 */
+	public function get_steps() {
+		return array( 'fetch', 'verify', 'extras' );
+	}
+
+	/**
+	 * Run step.
+	 *
+	 * @param string $step   Step.
+	 * @param array  $cursor Cursor.
+	 * @return array
+	 */
+	public function run_step( $step, array $cursor = array() ) {
+		switch ( $step ) {
+			case 'fetch':
+				$this->step_fetch();
+				return array( 'continue' => false, 'cursor' => array() );
+
+			case 'verify':
+				return $this->step_verify( $cursor );
+
+			case 'extras':
+				return $this->step_extras( $cursor );
+		}
+		return array( 'continue' => false, 'cursor' => array() );
+	}
+
+	/**
+	 * Fetch checksums from api.wordpress.org and cache them.
+	 *
+	 * @return void
+	 */
+	private function step_fetch() {
+		global $wp_version, $wp_local_package;
+
+		$version = isset( $wp_version ) ? $wp_version : '';
+		if ( '' === $version ) {
+			$this->finding(
+				SSA_Logger::SEVERITY_INFO,
+				__( 'Core version not detected', 'site-security-audit' ),
+				__( 'Could not read $wp_version — skipping core integrity verification.', 'site-security-audit' ),
+				'',
+				ABSPATH
+			);
+			return;
+		}
+
+		// Stale cache from a previous major-version? Bust it.
+		$cached = get_transient( self::CHECKSUMS_TRANSIENT );
+		if ( is_array( $cached ) && isset( $cached['version'] ) && $cached['version'] === $version ) {
+			return; // Already have the right ones cached.
+		}
+
+		$locale = is_string( $wp_local_package ) && '' !== $wp_local_package ? $wp_local_package : 'en_US';
+		$url    = add_query_arg(
+			array(
+				'version' => rawurlencode( $version ),
+				'locale'  => rawurlencode( $locale ),
+			),
+			'https://api.wordpress.org/core/checksums/1.0/'
+		);
+
+		$response = wp_remote_get(
+			$url,
+			array(
+				'timeout' => 15,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			$this->finding(
+				SSA_Logger::SEVERITY_INFO,
+				__( 'Core integrity check skipped', 'site-security-audit' ),
+				sprintf(
+					/* translators: %s: error message */
+					__( 'Could not reach the WordPress.org checksums API: %s', 'site-security-audit' ),
+					$response->get_error_message()
+				),
+				__( 'Ensure outbound HTTPS to api.wordpress.org is allowed, then re-run the scan.', 'site-security-audit' ),
+				$url
+			);
+			return;
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$body = wp_remote_retrieve_body( $response );
+
+		if ( 200 !== $code || '' === $body ) {
+			$this->finding(
+				SSA_Logger::SEVERITY_INFO,
+				__( 'Core integrity check skipped', 'site-security-audit' ),
+				sprintf(
+					/* translators: %d: HTTP status */
+					__( 'WordPress.org returned HTTP %d with no usable checksum data. This usually means the exact WP version / locale combination is not indexed (e.g. nightly builds).', 'site-security-audit' ),
+					$code
+				),
+				'',
+				$url
+			);
+			return;
+		}
+
+		$decoded = json_decode( $body, true );
+		if ( ! is_array( $decoded ) || empty( $decoded['checksums'] ) || ! is_array( $decoded['checksums'] ) ) {
+			$this->finding(
+				SSA_Logger::SEVERITY_INFO,
+				__( 'Core integrity check skipped', 'site-security-audit' ),
+				__( 'The WordPress.org checksums response was malformed or empty.', 'site-security-audit' ),
+				'',
+				$url
+			);
+			return;
+		}
+
+		set_transient(
+			self::CHECKSUMS_TRANSIENT,
+			array(
+				'version'   => $version,
+				'locale'    => $locale,
+				'checksums' => $decoded['checksums'],
+			),
+			self::CHECKSUMS_TTL
+		);
+	}
+
+	/**
+	 * Walk the checksums list and MD5-verify each file.
+	 *
+	 * Cursor:
+	 *   keys    — remaining relative paths to verify (array shifted from)
+	 *   total   — total count (for info only)
+	 *   bad     — running count of mismatches (for a summary finding)
+	 *   missing — running count of missing-from-disk files
+	 *
+	 * @param array $cursor Cursor.
+	 * @return array
+	 */
+	private function step_verify( array $cursor ) {
+		$cached = get_transient( self::CHECKSUMS_TRANSIENT );
+		if ( ! is_array( $cached ) || empty( $cached['checksums'] ) ) {
+			// No checksums available (fetch step failed). Nothing to verify.
+			return array( 'continue' => false, 'cursor' => array() );
+		}
+		$checksums = $cached['checksums'];
+
+		if ( ! isset( $cursor['keys'] ) ) {
+			// Filter out entries we deliberately don't want to police.
+			$skip_prefixes = array(
+				'wp-content/', // User content — owned by the user, not core.
+			);
+			$skip_paths = array(
+				'wp-config-sample.php',
+				'readme.html',
+				'license.txt',
+			);
+
+			$keys = array();
+			foreach ( $checksums as $path => $hash ) {
+				if ( ! is_string( $path ) || ! is_string( $hash ) ) {
+					continue;
+				}
+				$skip = false;
+				foreach ( $skip_prefixes as $p ) {
+					if ( 0 === strpos( $path, $p ) ) {
+						$skip = true;
+						break;
+					}
+				}
+				if ( $skip || in_array( $path, $skip_paths, true ) ) {
+					continue;
+				}
+				$keys[] = $path;
+			}
+
+			$cursor = array(
+				'keys'    => $keys,
+				'total'   => count( $keys ),
+				'bad'     => 0,
+				'missing' => 0,
+			);
+		}
+
+		$seen = 0;
+		while ( ! empty( $cursor['keys'] ) && $seen < self::VERIFY_BATCH ) {
+			$path     = array_shift( $cursor['keys'] );
+			$expected = isset( $checksums[ $path ] ) ? $checksums[ $path ] : '';
+			$full     = ABSPATH . $path;
+
+			if ( ! file_exists( $full ) ) {
+				// Core file is missing — unusual; worth noting.
+				$cursor['missing']++;
+				$this->finding(
+					SSA_Logger::SEVERITY_MEDIUM,
+					__( 'Missing WordPress core file', 'site-security-audit' ),
+					sprintf(
+						/* translators: %s: relative path */
+						__( 'The core file %s is listed in the WordPress.org checksums but is not present on disk. It may have been deleted or the installation is incomplete.', 'site-security-audit' ),
+						$path
+					),
+					__( 'Reinstall WordPress from Dashboard → Updates → Re-install, or upload a fresh copy of the missing file.', 'site-security-audit' ),
+					$path
+				);
+				$seen++;
+				continue;
+			}
+
+			if ( ! is_readable( $full ) ) {
+				$seen++;
+				continue;
+			}
+
+			$actual = md5_file( $full );
+			if ( false !== $actual && $actual !== $expected ) {
+				$cursor['bad']++;
+				$this->finding(
+					SSA_Logger::SEVERITY_HIGH,
+					__( 'Modified WordPress core file', 'site-security-audit' ),
+					sprintf(
+						/* translators: 1: path, 2: expected hash, 3: actual hash */
+						__( 'The core file %1$s does not match the hash published on WordPress.org. Expected %2$s, got %3$s. This is almost always a sign of either a manual edit (don\'t do that) or a compromise.', 'site-security-audit' ),
+						$path,
+						$expected,
+						$actual
+					),
+					__( 'Compare the file against a clean copy of the same WordPress version. If you did not modify it intentionally, reinstall WordPress from Dashboard → Updates → Re-install.', 'site-security-audit' ),
+					$path,
+					array(
+						'expected' => $expected,
+						'actual'   => $actual,
+					)
+				);
+			}
+			$seen++;
+		}
+
+		// More files left? Ask the scanner to call us again with the cursor.
+		if ( ! empty( $cursor['keys'] ) ) {
+			return array( 'continue' => true, 'cursor' => $cursor );
+		}
+
+		return array( 'continue' => false, 'cursor' => array() );
+	}
+
+	/**
+	 * Walk wp-admin / wp-includes looking for suspicious extra files
+	 * (files NOT present in the WordPress.org checksums list).
+	 *
+	 * Uses a two-queue approach so no files are lost when a batch boundary
+	 * falls in the middle of a directory:
+	 *   - dirs  — directories still to expand (via scandir)
+	 *   - files — individual file paths waiting to be checked this batch
+	 *
+	 * Directories are expanded eagerly into the files queue, so the batch
+	 * limit only applies to file processing.  On resume the files queue
+	 * carries any leftover entries from the last expanded directory.
+	 *
+	 * Cursor:
+	 *   dirs  — directories still to expand
+	 *   files — file paths pending inspection
+	 *   known — associative array of known core paths (from checksums)
+	 *   seen  — cumulative files examined across all batches
+	 *
+	 * @param array $cursor Cursor.
+	 * @return array
+	 */
+	private function step_extras( array $cursor ) {
+		$cached = get_transient( self::CHECKSUMS_TRANSIENT );
+		if ( ! is_array( $cached ) || empty( $cached['checksums'] ) ) {
+			return array( 'continue' => false, 'cursor' => array() );
+		}
+
+		if ( ! isset( $cursor['dirs'] ) ) {
+			$cursor = array(
+				'dirs'  => array_values( array_filter(
+					array( ABSPATH . 'wp-admin', ABSPATH . 'wp-includes' ),
+					'is_dir'
+				) ),
+				'files' => array(),
+				'known' => $cached['checksums'], // path => md5 map.
+				'seen'  => 0,
+			);
+		}
+
+		$abs_path = wp_normalize_path( ABSPATH );
+		$seen     = 0;
+
+		while ( $seen < self::EXTRAS_BATCH ) {
+			// Drain the file queue before expanding another directory.
+			if ( ! empty( $cursor['files'] ) ) {
+				$full  = array_shift( $cursor['files'] );
+				$entry = basename( $full );
+				$rel   = ltrim( str_replace( $abs_path, '', wp_normalize_path( $full ) ), '/' );
+
+				if ( ! isset( $cursor['known'][ $rel ] ) ) {
+					// Only flag code-executing files — images, translations, etc.
+					// can legitimately appear in core dirs via plugins.
+					if ( preg_match( '/\.(php|phtml|php5|php7|phar|inc)$/i', $entry ) ) {
+						$this->finding(
+							SSA_Logger::SEVERITY_HIGH,
+							__( 'Unknown file inside WordPress core directory', 'site-security-audit' ),
+							sprintf(
+								/* translators: %s: relative path */
+								__( 'The file %s is inside a core WordPress directory but is not part of the official WordPress.org checksums for this version. This is frequently how backdoors hide.', 'site-security-audit' ),
+								$rel
+							),
+							__( 'Inspect the file. If it wasn\'t installed by you deliberately, quarantine it and reinstall WordPress core from Dashboard → Updates → Re-install.', 'site-security-audit' ),
+							$rel
+						);
+					}
+				}
+				$seen++;
+				continue;
+			}
+
+			// File queue empty — expand the next directory.
+			if ( empty( $cursor['dirs'] ) ) {
+				break;
+			}
+
+			$dir     = array_shift( $cursor['dirs'] );
+			$entries = @scandir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			if ( false === $entries ) {
+				continue;
+			}
+
+			foreach ( $entries as $entry_name ) {
+				if ( '.' === $entry_name || '..' === $entry_name ) {
+					continue;
+				}
+				$full = $dir . DIRECTORY_SEPARATOR . $entry_name;
+				if ( is_dir( $full ) ) {
+					$cursor['dirs'][] = $full;
+				} else {
+					$cursor['files'][] = $full;
+				}
+			}
+			// Directory expansion does not count against the batch limit.
+		}
+
+		$cursor['seen'] = (int) $cursor['seen'] + $seen;
+
+		if ( ! empty( $cursor['dirs'] ) || ! empty( $cursor['files'] ) ) {
+			return array( 'continue' => true, 'cursor' => $cursor );
+		}
+
+		return array( 'continue' => false, 'cursor' => array() );
+	}
+}

@@ -1,11 +1,11 @@
 <?php
 /**
- * Uninstall handler for WPUSS.
+ * Uninstall handler for SSA.
  *
  * Runs only when the plugin is deleted through the WP UI (not deactivated).
  * Removes all persistent data created by the plugin.
  *
- * @package WP_Ultimate_Security_Scan
+ * @package Site_Security_Audit
  */
 
 // Fired only by WordPress when plugin is deleted.
@@ -16,10 +16,10 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 global $wpdb;
 
 $options = array(
-	'wpuss_version',
-	'wpuss_settings',
-	'wpuss_last_scan',
-	'wpuss_scan_state',
+	'ssa_version',
+	'ssa_settings',
+	'ssa_last_scan',
+	'ssa_scan_state',
 );
 
 /**
@@ -39,13 +39,13 @@ $clean_site = function ( $db, $prefix ) use ( $options ) {
 	$db->query(
 		$db->prepare(
 			"DELETE FROM {$db->options} WHERE option_name LIKE %s OR option_name LIKE %s",
-			$db->esc_like( '_transient_wpuss_' ) . '%',
-			$db->esc_like( '_transient_timeout_wpuss_' ) . '%'
+			$db->esc_like( '_transient_ssa_' ) . '%',
+			$db->esc_like( '_transient_timeout_ssa_' ) . '%'
 		)
 	);
 
 	// Clear scheduled cron events.
-	$crons = array( 'wpuss_run_scan_chunk', 'wpuss_daily_maintenance' );
+	$crons = array( 'ssa_run_scan_chunk', 'ssa_daily_maintenance' );
 	foreach ( $crons as $cron ) {
 		$timestamp = wp_next_scheduled( $cron );
 		while ( false !== $timestamp ) {
@@ -55,7 +55,7 @@ $clean_site = function ( $db, $prefix ) use ( $options ) {
 	}
 
 	// Drop findings table.
-	$table = $prefix . 'wpuss_findings';
+	$table = $prefix . 'ssa_findings';
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
 	$db->query( "DROP TABLE IF EXISTS {$table}" );
 };

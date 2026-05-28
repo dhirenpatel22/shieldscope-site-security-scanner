@@ -1,0 +1,188 @@
+<?php
+/**
+ * Plugin-level security checks.
+ *
+ * @package Site_Security_Audit
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Class SSA_Check_Plugins
+ */
+class SSA_Check_Plugins extends SSA_Check_Base {
+
+	/**
+	 * ID.
+	 *
+	 * @return string
+	 */
+	public function get_id() {
+		return 'plugins';
+	}
+
+	/**
+	 * Label.
+	 *
+	 * @return string
+	 */
+	public function get_label() {
+		return __( 'Plugins', 'site-security-audit' );
+	}
+
+	/**
+	 * Steps.
+	 *
+	 * @return array
+	 */
+	public function get_steps() {
+		return array( 'updates', 'inactive', 'unknown_source', 'abandoned' );
+	}
+
+	/**
+	 * Run step.
+	 *
+	 * @param string $step   Step.
+	 * @param array  $cursor Cursor.
+	 * @return array
+	 */
+	public function run_step( $step, array $cursor = array() ) {
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		switch ( $step ) {
+			case 'updates':
+				$this->check_updates();
+				break;
+			case 'inactive':
+				$this->check_inactive();
+				break;
+			case 'unknown_source':
+				$this->check_unknown_source();
+				break;
+			case 'abandoned':
+				$this->check_abandoned();
+				break;
+		}
+		return array( 'continue' => false, 'cursor' => array() );
+	}
+
+	/**
+	 * Pending plugin updates.
+	 *
+	 * @return void
+	 */
+	private function check_updates() {
+		$updates = get_site_transient( 'update_plugins' );
+		if ( ! $updates || empty( $updates->response ) ) {
+			return;
+		}
+		foreach ( $updates->response as $plugin_file => $info ) {
+			$data = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin_file, false, false );
+			$this->finding(
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'Plugin update available', 'site-security-audit' ),
+				sprintf(
+					/* translators: 1: name, 2: current, 3: new */
+					__( 'Plugin "%1$s" is at version %2$s; %3$s is available. Outdated plugins are the single most common WordPress compromise vector.', 'site-security-audit' ),
+					$data['Name'],
+					$data['Version'],
+					isset( $info->new_version ) ? $info->new_version : 'latest'
+				),
+				__( 'Review the changelog and apply the update.', 'site-security-audit' ),
+				'plugin:' . $plugin_file,
+				array( 'plugin_name' => $data['Name'] )
+			);
+		}
+	}
+
+	/**
+	 * Inactive plugins still present.
+	 *
+	 * @return void
+	 */
+	private function check_inactive() {
+		$all    = get_plugins();
+		$active = (array) get_option( 'active_plugins', array() );
+		if ( is_multisite() ) {
+			$active = array_merge( $active, array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) );
+		}
+		foreach ( $all as $file => $data ) {
+			if ( ! in_array( $file, $active, true ) ) {
+				$this->finding(
+					SSA_Logger::SEVERITY_LOW,
+					__( 'Inactive plugin present on disk', 'site-security-audit' ),
+					sprintf(
+						/* translators: %s: name */
+						__( 'Plugin "%s" is installed but not active. Its code is still on disk and could be exploited if it has a vulnerability.', 'site-security-audit' ),
+						$data['Name']
+					),
+					__( 'Delete plugins you do not intend to use.', 'site-security-audit' ),
+					'plugin:' . $file,
+					array( 'plugin_name' => $data['Name'] )
+				);
+			}
+		}
+	}
+
+	/**
+	 * Plugins without a WordPress.org URI (heuristic: possibly nulled/unknown).
+	 *
+	 * @return void
+	 */
+	private function check_unknown_source() {
+		$plugins = get_plugins();
+		foreach ( $plugins as $file => $data ) {
+			$slug = dirname( $file );
+			if ( '.' === $slug || '' === $slug ) {
+				continue; // Single-file plugins.
+			}
+			if ( empty( $data['PluginURI'] ) && empty( $data['UpdateURI'] ) ) {
+				$this->finding(
+					SSA_Logger::SEVERITY_LOW,
+					__( 'Plugin has no update source declared', 'site-security-audit' ),
+					sprintf(
+						/* translators: %s: name */
+						__( 'Plugin "%s" declares neither a PluginURI nor an UpdateURI. If this is not a custom plugin, verify it came from a trusted source.', 'site-security-audit' ),
+						$data['Name']
+					),
+					__( 'Confirm the plugin origin. Remove if unknown or nulled.', 'site-security-audit' ),
+					'plugin:' . $file,
+					array( 'plugin_name' => $data['Name'] )
+				);
+			}
+		}
+	}
+
+	/**
+	 * Plugins that have not been updated in a long time (abandoned heuristic).
+	 *
+	 * @return void
+	 */
+	private function check_abandoned() {
+		$plugins = get_plugins();
+		foreach ( $plugins as $file => $data ) {
+			$full_path = WP_PLUGIN_DIR . '/' . $file;
+			if ( ! file_exists( $full_path ) ) {
+				continue;
+			}
+			$mtime = filemtime( $full_path );
+			if ( $mtime && ( time() - $mtime ) > ( 2 * YEAR_IN_SECONDS ) ) {
+				$this->finding(
+					SSA_Logger::SEVERITY_MEDIUM,
+					__( 'Plugin appears abandoned', 'site-security-audit' ),
+					sprintf(
+						/* translators: 1: name, 2: date */
+						__( 'Plugin "%1$s" has not been updated on disk since %2$s. Unmaintained plugins accumulate unfixed vulnerabilities.', 'site-security-audit' ),
+						$data['Name'],
+						gmdate( 'Y-m-d', $mtime )
+					),
+					__( 'Check the plugin directory page. If unmaintained, find a replacement.', 'site-security-audit' ),
+					'plugin:' . $file,
+					array( 'plugin_name' => $data['Name'] )
+				);
+			}
+		}
+	}
+}

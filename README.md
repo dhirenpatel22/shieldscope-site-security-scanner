@@ -1,4 +1,4 @@
-# WordPress Ultimate Security Scan
+# Site Security Audit
 
 A deep, read-only security scanner for WordPress that audits **core, users, filesystem, plugins, themes, code patterns, HTTP headers, injection vulnerabilities, access control, SSRF, and the database** — and does it without hogging your server.
 
@@ -43,14 +43,14 @@ Findings are grouped by severity: **Critical / High / Medium / Low / Info**.
 
 ### From a zip
 
-1. Download `wp-ultimate-security-scan.zip`.
+1. Download `site-security-audit.zip`.
 2. In WP admin, go to **Plugins → Add New → Upload Plugin**.
 3. Choose the zip and click **Install Now**, then **Activate**.
 
 ### Manually via SFTP
 
 1. Unzip the archive.
-2. Upload the `wp-ultimate-security-scan/` folder to `wp-content/plugins/`.
+2. Upload the `site-security-audit/` folder to `wp-content/plugins/`.
 3. Activate from the **Plugins** screen.
 
 ## Usage
@@ -79,9 +79,9 @@ So at `cpu_limit = 20`, it sleeps `work_seconds × 4`. Combined with AJAX chunki
 
 The admin JS listens for `window.blur`, `window.focus`, and `visibilitychange`. When the scan tab is no longer the active tab:
 
-1. JS calls `wpuss_pause` — the server stops doing work.
+1. JS calls `ssa_pause` — the server stops doing work.
 2. A friendly banner appears on the page. The document title changes to `⏸ Scan paused — come back!` so you see it in the tab bar.
-3. On focus return, JS calls `wpuss_resume` and the scan continues from where it stopped.
+3. On focus return, JS calls `ssa_resume` and the scan continues from where it stopped.
 
 You can disable this in **Settings → Pause when tab is hidden** if you prefer the scan to continue in the background.
 
@@ -93,47 +93,47 @@ You can disable this in **Settings → Pause when tab is hidden** if you prefer 
 - All queries use `$wpdb->prepare()`; schema built via `dbDelta()`.
 - All output escaped (`esc_html`, `esc_attr`, `esc_url`, `wp_kses_post`).
 - Singleton with `__clone` / `__wakeup` guards.
-- Autoloader scoped to the `WPUSS_` prefix.
+- Autoloader scoped to the `SSA_` prefix.
 - `uninstall.php` removes the findings table, options, transients, and cron events cleanly.
 
 ## File layout
 
 ```
-wp-ultimate-security-scan/
-├── wp-ultimate-security-scan.php          # bootstrap, constants, autoloader
+site-security-audit/
+├── site-security-audit.php          # bootstrap, constants, autoloader
 ├── uninstall.php                          # clean DB on plugin delete
 ├── readme.txt                             # WP.org-style readme
 ├── README.md                              # this file
 ├── includes/
-│   ├── class-wpuss-core.php               # singleton controller, activation hooks
-│   ├── class-wpuss-scanner.php            # chunked scan engine + resumable state
-│   ├── class-wpuss-throttle.php           # CPU sleep logic
-│   ├── class-wpuss-logger.php             # findings persistence
-│   ├── class-wpuss-ajax.php               # AJAX endpoints
-│   ├── class-wpuss-admin.php              # menus, enqueue, settings save
+│   ├── class-ssa-core.php               # singleton controller, activation hooks
+│   ├── class-ssa-scanner.php            # chunked scan engine + resumable state
+│   ├── class-ssa-throttle.php           # CPU sleep logic
+│   ├── class-ssa-logger.php             # findings persistence
+│   ├── class-ssa-ajax.php               # AJAX endpoints
+│   ├── class-ssa-admin.php              # menus, enqueue, settings save
 │   └── checks/                            # one file per check module
-│       ├── class-wpuss-check-base.php
-│       ├── class-wpuss-check-core.php
-│       ├── class-wpuss-check-core-integrity.php
-│       ├── class-wpuss-check-users.php
-│       ├── class-wpuss-check-database.php
-│       ├── class-wpuss-check-filesystem.php
-│       ├── class-wpuss-check-plugins.php
-│       ├── class-wpuss-check-themes.php
-│       ├── class-wpuss-check-config.php
-│       ├── class-wpuss-check-code-patterns.php
-│       ├── class-wpuss-check-injection.php
-│       ├── class-wpuss-check-access-control.php
-│       ├── class-wpuss-check-security-config.php
-│       ├── class-wpuss-check-ssrf.php
-│       ├── class-wpuss-check-components.php
-│       └── class-wpuss-check-vuln-db.php
+│       ├── class-ssa-check-base.php
+│       ├── class-ssa-check-core.php
+│       ├── class-ssa-check-core-integrity.php
+│       ├── class-ssa-check-users.php
+│       ├── class-ssa-check-database.php
+│       ├── class-ssa-check-filesystem.php
+│       ├── class-ssa-check-plugins.php
+│       ├── class-ssa-check-themes.php
+│       ├── class-ssa-check-config.php
+│       ├── class-ssa-check-code-patterns.php
+│       ├── class-ssa-check-injection.php
+│       ├── class-ssa-check-access-control.php
+│       ├── class-ssa-check-security-config.php
+│       ├── class-ssa-check-ssrf.php
+│       ├── class-ssa-check-components.php
+│       └── class-ssa-check-vuln-db.php
 ├── admin/
 │   ├── views/                             # scan.php, report.php, settings.php
 │   ├── js/admin.js
 │   └── css/admin.css
 └── languages/
-    └── wp-ultimate-security-scan.pot
+    └── site-security-audit.pot
 ```
 
 ## Requirements
