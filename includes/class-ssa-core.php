@@ -2,41 +2,41 @@
 /**
  * Core plugin class — singleton controller.
  *
- * @package WP_Ultimate_Security_Scan
+ * @package Site_Security_Audit
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class WPUSS_Core
+ * Class SSA_Core
  */
-final class WPUSS_Core {
+final class SSA_Core {
 
 	/**
 	 * Singleton instance.
 	 *
-	 * @var WPUSS_Core|null
+	 * @var SSA_Core|null
 	 */
 	private static $instance = null;
 
 	/**
 	 * Admin handler.
 	 *
-	 * @var WPUSS_Admin|null
+	 * @var SSA_Admin|null
 	 */
 	public $admin = null;
 
 	/**
 	 * AJAX handler.
 	 *
-	 * @var WPUSS_Ajax|null
+	 * @var SSA_Ajax|null
 	 */
 	public $ajax = null;
 
 	/**
 	 * Get singleton.
 	 *
-	 * @return WPUSS_Core
+	 * @return SSA_Core
 	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -74,16 +74,16 @@ final class WPUSS_Core {
 	public function init() {
 		// Admin surfaces only load for users who can manage options.
 		if ( is_admin() ) {
-			$this->admin = new WPUSS_Admin();
+			$this->admin = new SSA_Admin();
 			$this->admin->register();
 
-			$this->ajax = new WPUSS_Ajax();
+			$this->ajax = new SSA_Ajax();
 			$this->ajax->register();
 		}
 
 		// Cron handler — runs regardless of admin context.
-		add_action( 'wpuss_run_scan_chunk', array( $this, 'run_scheduled_chunk' ) );
-		add_action( 'wpuss_daily_maintenance', array( $this, 'run_daily_maintenance' ) );
+		add_action( 'ssa_run_scan_chunk', array( $this, 'run_scheduled_chunk' ) );
+		add_action( 'ssa_daily_maintenance', array( $this, 'run_daily_maintenance' ) );
 	}
 
 	/**
@@ -92,7 +92,7 @@ final class WPUSS_Core {
 	 * @return void
 	 */
 	public function run_scheduled_chunk() {
-		$scanner = new WPUSS_Scanner();
+		$scanner = new SSA_Scanner();
 		$scanner->run_chunk( true );
 	}
 
@@ -102,7 +102,7 @@ final class WPUSS_Core {
 	 * @return void
 	 */
 	public function run_daily_maintenance() {
-		$logger = new WPUSS_Logger();
+		$logger = new SSA_Logger();
 		$logger->prune_old( 30 * DAY_IN_SECONDS );
 	}
 
@@ -117,17 +117,17 @@ final class WPUSS_Core {
 			return;
 		}
 
-		if ( ! wp_next_scheduled( 'wpuss_daily_maintenance' ) ) {
-			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'wpuss_daily_maintenance' );
+		if ( ! wp_next_scheduled( 'ssa_daily_maintenance' ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'ssa_daily_maintenance' );
 		}
 
 		// Create findings table.
-		WPUSS_Logger::create_table();
+		SSA_Logger::create_table();
 
 		// Seed defaults.
-		if ( false === get_option( 'wpuss_settings' ) ) {
+		if ( false === get_option( 'ssa_settings' ) ) {
 			add_option(
-				'wpuss_settings',
+				'ssa_settings',
 				array(
 					'cpu_limit'          => 20, // percent.
 					'chunk_time_limit'   => 2,  // seconds per chunk.
@@ -137,7 +137,7 @@ final class WPUSS_Core {
 			);
 		}
 
-		update_option( 'wpuss_version', WPUSS_VERSION );
+		update_option( 'ssa_version', SSA_VERSION );
 	}
 
 	/**
@@ -150,7 +150,7 @@ final class WPUSS_Core {
 			return;
 		}
 
-		$crons = array( 'wpuss_run_scan_chunk', 'wpuss_daily_maintenance' );
+		$crons = array( 'ssa_run_scan_chunk', 'ssa_daily_maintenance' );
 		foreach ( $crons as $cron ) {
 			$timestamp = wp_next_scheduled( $cron );
 			while ( false !== $timestamp ) {

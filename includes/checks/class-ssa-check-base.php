@@ -6,15 +6,15 @@
  * and can be broken into discrete "steps" so the scanner can yield
  * between them and keep CPU usage low.
  *
- * @package WP_Ultimate_Security_Scan
+ * @package Site_Security_Audit
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class WPUSS_Check_Base
+ * Class SSA_Check_Base
  */
-abstract class WPUSS_Check_Base {
+abstract class SSA_Check_Base {
 
 	/**
 	 * Scan identifier.
@@ -26,7 +26,7 @@ abstract class WPUSS_Check_Base {
 	/**
 	 * Logger.
 	 *
-	 * @var WPUSS_Logger
+	 * @var SSA_Logger
 	 */
 	protected $logger;
 
@@ -34,9 +34,9 @@ abstract class WPUSS_Check_Base {
 	 * Constructor.
 	 *
 	 * @param string       $scan_id Current scan ID.
-	 * @param WPUSS_Logger $logger  Logger instance.
+	 * @param SSA_Logger $logger  Logger instance.
 	 */
-	public function __construct( $scan_id, WPUSS_Logger $logger ) {
+	public function __construct( $scan_id, SSA_Logger $logger ) {
 		$this->scan_id = $scan_id;
 		$this->logger  = $logger;
 	}

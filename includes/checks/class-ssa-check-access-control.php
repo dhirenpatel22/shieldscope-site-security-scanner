@@ -6,15 +6,15 @@
  * unauthenticated REST API writes, application passwords, author enumeration,
  * unprotected login page, and AJAX handlers lacking nonce or capability checks.
  *
- * @package WP_Ultimate_Security_Scan
+ * @package Site_Security_Audit
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class WPUSS_Check_Access_Control
+ * Class SSA_Check_Access_Control
  */
-class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
+class SSA_Check_Access_Control extends SSA_Check_Base {
 
 	/**
 	 * Max file size to scan.
@@ -27,11 +27,11 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 	 * Constructor.
 	 *
 	 * @param string       $scan_id Scan ID.
-	 * @param WPUSS_Logger $logger  Logger.
+	 * @param SSA_Logger $logger  Logger.
 	 */
-	public function __construct( $scan_id, WPUSS_Logger $logger ) {
+	public function __construct( $scan_id, SSA_Logger $logger ) {
 		parent::__construct( $scan_id, $logger );
-		$settings            = (array) get_option( 'wpuss_settings', array() );
+		$settings            = (array) get_option( 'ssa_settings', array() );
 		$this->max_file_size = isset( $settings['max_scan_file_size'] )
 			? (int) $settings['max_scan_file_size']
 			: 2 * MB_IN_BYTES;
@@ -44,7 +44,7 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 
 	/** @return string */
 	public function get_label() {
-		return __( 'Access Control', 'wp-ultimate-security-scan' );
+		return __( 'Access Control', 'site-security-audit' );
 	}
 
 	/** @return array */
@@ -54,6 +54,7 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 			'app_passwords',
 			'author_enum',
 			'login_page',
+			'login_error_enum',
 			'scan_plugins',
 		);
 	}
@@ -78,6 +79,9 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 				break;
 			case 'login_page':
 				$this->check_login_page();
+				break;
+			case 'login_error_enum':
+				$this->check_login_error_enumeration();
 				break;
 			case 'scan_plugins':
 				return $this->scan_plugins_for_auth( $cursor );
@@ -117,10 +121,10 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 		$code = wp_remote_retrieve_response_code( $response );
 		if ( in_array( $code, array( 200, 201 ), true ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_CRITICAL,
-				__( 'REST API allows unauthenticated content creation', 'wp-ultimate-security-scan' ),
-				__( 'A POST to /wp-json/wp/v2/posts with no credentials returned 200/201. Attackers can create, edit, or delete content without a valid account.', 'wp-ultimate-security-scan' ),
-				__( 'Audit plugins that modify REST API authentication. Ensure no code removes the authentication callbacks from REST endpoints.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_CRITICAL,
+				__( 'REST API allows unauthenticated content creation', 'site-security-audit' ),
+				__( 'A POST to /wp-json/wp/v2/posts with no credentials returned 200/201. Attackers can create, edit, or delete content without a valid account.', 'site-security-audit' ),
+				__( 'Audit plugins that modify REST API authentication. Ensure no code removes the authentication callbacks from REST endpoints.', 'site-security-audit' ),
 				'/wp-json/wp/v2/posts'
 			);
 
@@ -147,6 +151,7 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 
 		$users_with_app_pw = get_users(
 			array(
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- meta_key is indexed; required to identify users with application passwords.
 				'meta_key'     => '_application_passwords',
 				'meta_compare' => 'EXISTS',
 				'number'       => 20,
@@ -167,28 +172,28 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 
 		if ( ! empty( $admin_logins ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_HIGH,
-				__( 'Administrator accounts have Application Passwords configured', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'Administrator accounts have Application Passwords configured', 'site-security-audit' ),
 				sprintf(
 					/* translators: %s: comma-separated list of usernames */
-					__( 'The following administrator accounts have application passwords: %s. Each app password is an independent credential — if leaked it grants full API access with no 2FA challenge.', 'wp-ultimate-security-scan' ),
+					__( 'The following administrator accounts have application passwords: %s. Each app password is an independent credential — if leaked it grants full API access with no 2FA challenge.', 'site-security-audit' ),
 					implode( ', ', $admin_logins )
 				),
-				__( 'Review and revoke unused application passwords via Users → Profile. Apply the principle of least privilege — avoid granting admin-level app passwords.', 'wp-ultimate-security-scan' ),
+				__( 'Review and revoke unused application passwords via Users → Profile. Apply the principle of least privilege — avoid granting admin-level app passwords.', 'site-security-audit' ),
 				'',
 				array( 'admin_users' => $admin_logins )
 			);
 		} else {
 			$logins = wp_list_pluck( $users_with_app_pw, 'user_login' );
 			$this->finding(
-				WPUSS_Logger::SEVERITY_MEDIUM,
-				__( 'Application Passwords are active on user accounts', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_MEDIUM,
+				__( 'Application Passwords are active on user accounts', 'site-security-audit' ),
 				sprintf(
 					/* translators: %s: comma-separated list of usernames */
-					__( 'Users with application passwords configured: %s. Review and revoke any that are unused or unrecognised.', 'wp-ultimate-security-scan' ),
+					__( 'Users with application passwords configured: %s. Review and revoke any that are unused or unrecognised.', 'site-security-audit' ),
 					implode( ', ', $logins )
 				),
-				__( 'Audit application passwords in Users → Profile and remove any that are no longer needed.', 'wp-ultimate-security-scan' ),
+				__( 'Audit application passwords in Users → Profile and remove any that are no longer needed.', 'site-security-audit' ),
 				'',
 				array( 'users' => $logins )
 			);
@@ -220,14 +225,14 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 
 		if ( in_array( $code, array( 301, 302 ), true ) && false !== strpos( (string) $location, '/author/' ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_MEDIUM,
-				__( 'Username exposed via author archive redirect', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_MEDIUM,
+				__( 'Username exposed via author archive redirect', 'site-security-audit' ),
 				sprintf(
 					/* translators: %s: redirect URL */
-					__( '/?author=1 redirects to %s, leaking a username to unauthenticated visitors and aiding brute-force targeting.', 'wp-ultimate-security-scan' ),
+					__( '/?author=1 redirects to %s, leaking a username to unauthenticated visitors and aiding brute-force targeting.', 'site-security-audit' ),
 					$location
 				),
-				__( 'Redirect numeric author URLs to the homepage using a rewrite rule, or replace user display names with aliases distinct from login names.', 'wp-ultimate-security-scan' ),
+				__( 'In Users → All Users, set each author\'s "Display name publicly as" to a first name or nickname that differs from their login. To also block the redirect itself, add to functions.php: add_action(\'template_redirect\', function(){ if(is_author()){ wp_redirect(home_url(\'/\'), 301); exit; } });', 'site-security-audit' ),
 				'/?author=1',
 				array( 'redirect' => $location )
 			);
@@ -283,10 +288,10 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 
 		if ( ! $active_bf ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_MEDIUM,
-				__( 'Login page is publicly accessible without brute-force protection', 'wp-ultimate-security-scan' ),
-				__( 'wp-login.php is reachable and no recognised login-protection plugin is active. Bots continuously run credential-stuffing attacks against WordPress login pages.', 'wp-ultimate-security-scan' ),
-				__( 'Install a login-protection plugin (Limit Login Attempts Reloaded, Wordfence, etc.), add HTTP Basic Auth in front of wp-login.php, or move the login URL.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_MEDIUM,
+				__( 'Login page is publicly accessible without brute-force protection', 'site-security-audit' ),
+				__( 'wp-login.php is reachable and no recognised login-protection plugin is active. Bots continuously run credential-stuffing attacks against WordPress login pages.', 'site-security-audit' ),
+				__( 'Protect your login page by enabling rate limiting at the webserver or firewall level, or by moving wp-login.php to a custom URL (so bots cannot find the default path). Check your hosting dashboard — many managed hosts include brute-force protection built in.', 'site-security-audit' ),
 				$login_url
 			);
 		}
@@ -310,10 +315,107 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 
 		if ( ! $has_2fa ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_LOW,
-				__( 'No two-factor authentication plugin detected', 'wp-ultimate-security-scan' ),
-				__( 'No recognised 2FA plugin is active. Without a second factor, a stolen password is sufficient to compromise any account.', 'wp-ultimate-security-scan' ),
-				__( 'Install a 2FA plugin (Two Factor, WP 2FA, Wordfence) and enforce it for all administrator accounts.', 'wp-ultimate-security-scan' )
+				SSA_Logger::SEVERITY_LOW,
+				__( 'No two-factor authentication plugin detected', 'site-security-audit' ),
+				__( 'No recognised 2FA plugin is active. Without a second factor, a stolen password is sufficient to compromise any account.', 'site-security-audit' ),
+				__( 'Enable two-factor authentication for all administrator accounts. With 2FA, a stolen password alone is not enough to access an account. Search for "two-factor" on wordpress.org/plugins to find a suitable option, or check whether your hosting provider includes 2FA tools in their dashboard.', 'site-security-audit' )
+			);
+		}
+	}
+
+	/**
+	 * Test whether WordPress login error messages reveal valid usernames.
+	 *
+	 * WordPress default behaviour returns different error messages for
+	 * "username does not exist" vs "incorrect password for <username>".
+	 * This lets attackers confirm whether a username is registered before
+	 * starting a password brute-force — halving their work.
+	 *
+	 * The check submits a login attempt with a known-valid admin username and
+	 * a clearly bogus password, then inspects the error message. If the message
+	 * names the username or says "incorrect password", username enumeration is
+	 * possible via login errors.
+	 *
+	 * @return void
+	 */
+	private function check_login_error_enumeration() {
+		// Get the first administrator username to use as the test subject.
+		$admins = get_users(
+			array(
+				'role'   => 'administrator',
+				'number' => 1,
+				'fields' => 'user_login',
+			)
+		);
+
+		if ( empty( $admins ) ) {
+			return;
+		}
+
+		$username = is_object( $admins[0] ) ? $admins[0]->user_login : (string) $admins[0];
+		if ( '' === $username ) {
+			return;
+		}
+
+		// Use a password that will never match, but looks realistic.
+		$fake_password = 'SSA_test_' . wp_generate_password( 12, false, false ) . '_probe';
+
+		$login_url = wp_login_url();
+		$response  = wp_remote_post(
+			$login_url,
+			array(
+				'timeout'     => 8,
+				'redirection' => 5,
+				'sslverify'   => apply_filters( 'https_local_ssl_verify', false ),
+				'body'        => array(
+					'log'       => $username,
+					'pwd'       => $fake_password,
+					'wp-submit' => 'Log In',
+					'testcookie' => '1',
+				),
+				'cookies'     => array(
+					new WP_Http_Cookie(
+						array(
+							'name'  => 'wordpress_test_cookie',
+							'value' => 'WP Cookie check',
+						)
+					),
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return;
+		}
+
+		$body = wp_remote_retrieve_body( $response );
+		if ( ! $body ) {
+			return;
+		}
+
+		// WordPress default strings that confirm the username exists:
+		//   "The password you entered for the username <b>xxx</b> is incorrect."
+		//   "incorrect password" (some translations)
+		//   "Error: The password you entered"
+		$username_confirmed = (
+			false !== stripos( $body, 'incorrect password' ) ||
+			false !== stripos( $body, 'the password you entered' ) ||
+			false !== stripos( $body, htmlspecialchars( $username, ENT_QUOTES ) )
+		);
+
+		// If the response contains the exact username or a password-specific
+		// error message, username enumeration via login errors is possible.
+		if ( $username_confirmed ) {
+			$this->finding(
+				SSA_Logger::SEVERITY_LOW,
+				__( 'Login error messages reveal valid usernames', 'site-security-audit' ),
+				sprintf(
+					/* translators: %s: the admin username used in the test */
+					__( 'The login error response for username "%s" confirms that the account exists by returning a password-specific error. Attackers can exploit this to enumerate valid accounts before brute-forcing passwords.', 'site-security-audit' ),
+					esc_html( $username )
+				),
+				__( 'Add a filter to return a generic error for both bad usernames and bad passwords: add_filter(\'login_errors\', function(){ return \'Invalid credentials.\'; }); This prevents confirming whether a username exists without affecting the login process.', 'site-security-audit' ),
+				$login_url
 			);
 		}
 	}
@@ -347,7 +449,7 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 					continue;
 				}
 				$full = $current . DIRECTORY_SEPARATOR . $entry;
-				if ( false !== strpos( $full, 'wp-ultimate-security-scan' ) ) {
+				if ( false !== strpos( $full, 'site-security-audit' ) ) {
 					continue;
 				}
 				if ( is_dir( $full ) ) {
@@ -395,19 +497,19 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 			$has_nonce = (bool) preg_match( '/check_ajax_referer|wp_verify_nonce|check_admin_referer/i', $contents );
 			if ( ! $has_nonce ) {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_HIGH,
-					__( 'Unauthenticated AJAX handler without nonce verification', 'wp-ultimate-security-scan' ),
+					SSA_Logger::SEVERITY_HIGH,
+					__( 'Unauthenticated AJAX handler without nonce verification', 'site-security-audit' ),
 					sprintf(
 						/* translators: %d: number of hooks found */
 						_n(
 							'Found %d wp_ajax_nopriv_ hook in a file with no nonce checks. Unauthenticated AJAX handlers without CSRF protection can be exploited by any visitor.',
 							'Found %d wp_ajax_nopriv_ hooks in a file with no nonce checks. Unauthenticated AJAX handlers without CSRF protection can be exploited by any visitor.',
 							$nopriv_count,
-							'wp-ultimate-security-scan'
+							'site-security-audit'
 						),
 						$nopriv_count
 					),
-					__( 'Add check_ajax_referer() or wp_verify_nonce() to all AJAX handlers, including public ones, to prevent cross-site request forgery.', 'wp-ultimate-security-scan' ),
+					__( 'Add check_ajax_referer() or wp_verify_nonce() to all AJAX handlers, including public ones, to prevent cross-site request forgery.', 'site-security-audit' ),
 					$path
 				);
 			}
@@ -422,19 +524,19 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 			$has_auth = (bool) preg_match( '/current_user_can|check_ajax_referer|wp_verify_nonce|check_admin_referer/i', $contents );
 			if ( ! $has_auth ) {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_MEDIUM,
-					__( 'Admin AJAX handler may lack capability or nonce check', 'wp-ultimate-security-scan' ),
+					SSA_Logger::SEVERITY_MEDIUM,
+					__( 'Admin AJAX handler may lack capability or nonce check', 'site-security-audit' ),
 					sprintf(
 						/* translators: %d: number of hooks found */
 						_n(
 							'Found %d wp_ajax_ hook in a file with no current_user_can() or nonce check. Any logged-in user could trigger privileged actions.',
 							'Found %d wp_ajax_ hooks in a file with no current_user_can() or nonce check. Any logged-in user could trigger privileged actions.',
 							$priv_count,
-							'wp-ultimate-security-scan'
+							'site-security-audit'
 						),
 						$priv_count
 					),
-					__( 'Call current_user_can() with the required capability and use check_ajax_referer() or wp_verify_nonce() to prevent CSRF.', 'wp-ultimate-security-scan' ),
+					__( 'Call current_user_can() with the required capability and use check_ajax_referer() or wp_verify_nonce() to prevent CSRF.', 'site-security-audit' ),
 					$path
 				);
 			}
@@ -444,10 +546,10 @@ class WPUSS_Check_Access_Control extends WPUSS_Check_Base {
 		if ( preg_match( "/add_(?:menu|submenu)_page\s*\(/i", $contents ) ) {
 			if ( ! preg_match( '/current_user_can\s*\(/i', $contents ) ) {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_MEDIUM,
-					__( 'Admin page registered without a visible current_user_can() check', 'wp-ultimate-security-scan' ),
-					__( 'add_menu_page() or add_submenu_page() found without current_user_can() in the page callback. The capability parameter in add_menu_page() only hides the menu item — it does not block direct URL access to the callback.', 'wp-ultimate-security-scan' ),
-					__( 'Add current_user_can( \'manage_options\' ) (or the required capability) at the top of every admin page callback and call wp_die() if it returns false.', 'wp-ultimate-security-scan' ),
+					SSA_Logger::SEVERITY_MEDIUM,
+					__( 'Admin page registered without a visible current_user_can() check', 'site-security-audit' ),
+					__( 'add_menu_page() or add_submenu_page() found without current_user_can() in the page callback. The capability parameter in add_menu_page() only hides the menu item — it does not block direct URL access to the callback.', 'site-security-audit' ),
+					__( 'Add current_user_can( \'manage_options\' ) (or the required capability) at the top of every admin page callback and call wp_die() if it returns false.', 'site-security-audit' ),
 					$path
 				);
 			}

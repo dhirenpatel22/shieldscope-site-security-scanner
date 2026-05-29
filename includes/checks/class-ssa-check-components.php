@@ -6,15 +6,15 @@
  * version (MySQL/MariaDB EOL), WordPress known-CVE version windows, HSTS
  * enforcement, and plugins with a high historical CVE count.
  *
- * @package WP_Ultimate_Security_Scan
+ * @package Site_Security_Audit
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class WPUSS_Check_Components
+ * Class SSA_Check_Components
  */
-class WPUSS_Check_Components extends WPUSS_Check_Base {
+class SSA_Check_Components extends SSA_Check_Base {
 
 	/** @return string */
 	public function get_id() {
@@ -23,7 +23,7 @@ class WPUSS_Check_Components extends WPUSS_Check_Base {
 
 	/** @return string */
 	public function get_label() {
-		return __( 'Vulnerable & Outdated Components', 'wp-ultimate-security-scan' );
+		return __( 'Vulnerable & Outdated Components', 'site-security-audit' );
 	}
 
 	/** @return array */
@@ -97,23 +97,23 @@ class WPUSS_Check_Components extends WPUSS_Check_Base {
 
 			if ( $is_eol ) {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_HIGH,
-					__( 'MariaDB version is end-of-life', 'wp-ultimate-security-scan' ),
+					SSA_Logger::SEVERITY_HIGH,
+					__( 'MariaDB version is end-of-life', 'site-security-audit' ),
 					sprintf(
 						/* translators: %s: MariaDB version */
-						__( 'MariaDB %s no longer receives security patches. Known CVEs will remain permanently unpatched.', 'wp-ultimate-security-scan' ),
+						__( 'MariaDB %s no longer receives security patches. Known CVEs will remain permanently unpatched.', 'site-security-audit' ),
 						$ver
 					),
-					__( 'Upgrade to MariaDB 10.11 LTS or 11.x. Contact your hosting provider or upgrade via your database control panel.', 'wp-ultimate-security-scan' ),
+					__( 'Upgrade to MariaDB 10.11 LTS or 11.x. Contact your hosting provider or upgrade via your database control panel.', 'site-security-audit' ),
 					'database',
 					array( 'version' => $ver, 'engine' => 'MariaDB' )
 				);
 			} else {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_INFO,
+					SSA_Logger::SEVERITY_INFO,
 					sprintf(
 						/* translators: %s: MariaDB version */
-						__( 'MariaDB %s is a supported version', 'wp-ultimate-security-scan' ),
+						__( 'MariaDB %s is a supported version', 'site-security-audit' ),
 						$ver
 					),
 					'',
@@ -130,23 +130,23 @@ class WPUSS_Check_Components extends WPUSS_Check_Base {
 
 			if ( $major < 8 ) {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_HIGH,
-					__( 'MySQL version is end-of-life', 'wp-ultimate-security-scan' ),
+					SSA_Logger::SEVERITY_HIGH,
+					__( 'MySQL version is end-of-life', 'site-security-audit' ),
 					sprintf(
 						/* translators: %s: MySQL version */
-						__( 'MySQL %s no longer receives security patches. Known CVEs will remain permanently unpatched.', 'wp-ultimate-security-scan' ),
+						__( 'MySQL %s no longer receives security patches. Known CVEs will remain permanently unpatched.', 'site-security-audit' ),
 						$ver
 					),
-					__( 'Upgrade to MySQL 8.0 or 8.4 LTS. Contact your hosting provider.', 'wp-ultimate-security-scan' ),
+					__( 'Upgrade to MySQL 8.0 or 8.4 LTS. Contact your hosting provider.', 'site-security-audit' ),
 					'database',
 					array( 'version' => $ver, 'engine' => 'MySQL' )
 				);
 			} else {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_INFO,
+					SSA_Logger::SEVERITY_INFO,
 					sprintf(
 						/* translators: %s: MySQL version */
-						__( 'MySQL %s is a supported version', 'wp-ultimate-security-scan' ),
+						__( 'MySQL %s is a supported version', 'site-security-audit' ),
 						$ver
 					),
 					'',
@@ -173,14 +173,14 @@ class WPUSS_Check_Components extends WPUSS_Check_Base {
 
 		if ( $version_float < 4.7 ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_CRITICAL,
-				__( 'WordPress version contains critical publicly-known CVEs', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_CRITICAL,
+				__( 'WordPress version contains critical publicly-known CVEs', 'site-security-audit' ),
 				sprintf(
 					/* translators: %s: WordPress version */
-					__( 'WordPress %s is within a version range that includes unauthenticated remote code execution CVEs (e.g. CVE-2017-1000600). These are actively exploited in the wild.', 'wp-ultimate-security-scan' ),
+					__( 'WordPress %s is within a version range that includes unauthenticated remote code execution CVEs (e.g. CVE-2017-1000600). These are actively exploited in the wild.', 'site-security-audit' ),
 					$wp_version
 				),
-				__( 'Update WordPress immediately via Dashboard → Updates. Back up your database and files first.', 'wp-ultimate-security-scan' ),
+				__( 'Update WordPress immediately via Dashboard → Updates. Back up your database and files first.', 'site-security-audit' ),
 				'wordpress-core',
 				array( 'version' => $wp_version )
 			);
@@ -189,19 +189,19 @@ class WPUSS_Check_Components extends WPUSS_Check_Base {
 
 		if ( $version_float < 5.0 ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_HIGH,
-				__( 'WordPress version is significantly out of date with known high-severity CVEs', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'WordPress version is significantly out of date with known high-severity CVEs', 'site-security-audit' ),
 				sprintf(
 					/* translators: %s: WordPress version */
-					__( 'WordPress %s is well below the current major version and within a range with multiple documented high-severity vulnerabilities.', 'wp-ultimate-security-scan' ),
+					__( 'WordPress %s is well below the current major version and within a range with multiple documented high-severity vulnerabilities.', 'site-security-audit' ),
 					$wp_version
 				),
-				__( 'Update WordPress via Dashboard → Updates.', 'wp-ultimate-security-scan' ),
+				__( 'Update WordPress via Dashboard → Updates.', 'site-security-audit' ),
 				'wordpress-core',
 				array( 'version' => $wp_version )
 			);
 		}
-		// Current update availability is already reported by WPUSS_Check_Core.
+		// Current update availability is already reported by SSA_Check_Core.
 	}
 
 	/**
@@ -237,14 +237,14 @@ class WPUSS_Check_Components extends WPUSS_Check_Base {
 
 		if ( ! empty( $flagged ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_MEDIUM,
-				__( 'Plugins with high historical CVE count detected', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_MEDIUM,
+				__( 'Plugins with high historical CVE count detected', 'site-security-audit' ),
 				sprintf(
 					/* translators: %s: comma-separated list of plugin names and versions */
-					__( 'The following installed plugins have historically had critical security vulnerabilities and are common attack targets: %s. Keeping them updated and monitoring security advisories is essential.', 'wp-ultimate-security-scan' ),
+					__( 'The following installed plugins have historically had critical security vulnerabilities and are common attack targets: %s. Keeping them updated and monitoring security advisories is essential.', 'site-security-audit' ),
 					implode( ', ', $flagged )
 				),
-				__( 'Ensure these plugins are fully updated. Subscribe to WPScan (wpscan.com) or Patchstack advisories to receive early notification of new CVEs.', 'wp-ultimate-security-scan' ),
+				__( 'Ensure these plugins are fully updated. Subscribe to WPScan (wpscan.com) or Patchstack advisories to receive early notification of new CVEs.', 'site-security-audit' ),
 				'',
 				array( 'plugins' => $flagged )
 			);
@@ -259,7 +259,7 @@ class WPUSS_Check_Components extends WPUSS_Check_Base {
 	private function check_http_to_https_redirect() {
 		$site_url = get_site_url();
 		if ( 0 !== stripos( $site_url, 'https://' ) ) {
-			return; // Site not on HTTPS — WPUSS_Check_Core already flags this.
+			return; // Site not on HTTPS — SSA_Check_Core already flags this.
 		}
 
 		$http_url = 'http://' . preg_replace( '/^https:\/\//i', '', $site_url ) . '/';
@@ -287,22 +287,22 @@ class WPUSS_Check_Components extends WPUSS_Check_Base {
 
 		if ( ! $redirects_to_https ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_MEDIUM,
-				__( 'HTTP requests are not redirected to HTTPS', 'wp-ultimate-security-scan' ),
-				__( 'The site uses HTTPS but plain HTTP requests are not automatically redirected. Visitors who type the address without "https://" will have an unencrypted connection.', 'wp-ultimate-security-scan' ),
-				__( 'Add a permanent HTTP-to-HTTPS redirect in your webserver config (.htaccess RewriteRule for Apache, return 301 for Nginx). This is separate from FORCE_SSL_ADMIN.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_MEDIUM,
+				__( 'HTTP requests are not redirected to HTTPS', 'site-security-audit' ),
+				__( 'The site uses HTTPS but plain HTTP requests are not automatically redirected. Visitors who type the address without "https://" will have an unencrypted connection.', 'site-security-audit' ),
+				__( 'Add a permanent HTTP-to-HTTPS redirect in your webserver config (.htaccess RewriteRule for Apache, return 301 for Nginx). This is separate from FORCE_SSL_ADMIN.', 'site-security-audit' ),
 				$http_url
 			);
 		} elseif ( 301 !== $code ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_LOW,
-				__( 'HTTP-to-HTTPS redirect uses a non-permanent status code', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_LOW,
+				__( 'HTTP-to-HTTPS redirect uses a non-permanent status code', 'site-security-audit' ),
 				sprintf(
 					/* translators: %d: HTTP status code */
-					__( 'The HTTP-to-HTTPS redirect uses a %d (temporary) status code instead of 301. Browsers will not cache it and search engines will not pass full link equity.', 'wp-ultimate-security-scan' ),
+					__( 'The HTTP-to-HTTPS redirect uses a %d (temporary) status code instead of 301. Browsers will not cache it and search engines will not pass full link equity.', 'site-security-audit' ),
 					$code
 				),
-				__( 'Change the redirect to a 301 Permanent in your webserver configuration.', 'wp-ultimate-security-scan' ),
+				__( 'Change the redirect to a 301 Permanent in your webserver configuration.', 'site-security-audit' ),
 				$http_url
 			);
 		}

@@ -1,5 +1,5 @@
 /**
- * WP Ultimate Security Scan — admin controller.
+ * Site Security Audit — admin controller.
  *
  * Implements:
  *  - Start / pause / resume / abort buttons
@@ -8,18 +8,18 @@
  *  - Auto-pause on blur / visibilitychange (matches server-side settings)
  *  - beforeunload warning while a scan is in progress
  *
- * @package WP_Ultimate_Security_Scan
+ * @package Site_Security_Audit
  */
 
 ( function ( $ ) {
 	'use strict';
 
-	if ( typeof window.WPUSS === 'undefined' ) {
+	if ( typeof window.SSA === 'undefined' ) {
 		return;
 	}
 
-	var cfg = window.WPUSS;
-	var $panel = $( '#wpuss-scan-panel' );
+	var cfg = window.SSA;
+	var $panel = $( '#ssa-scan-panel' );
 	if ( ! $panel.length ) {
 		return;
 	}
@@ -30,21 +30,21 @@
 	var lastStatus = $panel.data( 'status' ) || 'idle';
 	var awaitingResume = false; // user-intent flag: scan should continue once tab refocused.
 
-	var $status    = $( '#wpuss-status-text' );
-	var $msg       = $( '#wpuss-message' );
-	var $fill      = $( '#wpuss-progress-fill' );
-	var $pct       = $( '#wpuss-progress-pct' );
-	var $steps     = $( '#wpuss-progress-steps' );
-	var $summary   = $( '#wpuss-summary' );
-	var $btnStart  = $( '#wpuss-btn-start' );
-	var $btnPause  = $( '#wpuss-btn-pause' );
-	var $btnResume = $( '#wpuss-btn-resume' );
-	var $btnAbort  = $( '#wpuss-btn-abort' );
+	var $status    = $( '#ssa-status-text' );
+	var $msg       = $( '#ssa-message' );
+	var $fill      = $( '#ssa-progress-fill' );
+	var $pct       = $( '#ssa-progress-pct' );
+	var $steps     = $( '#ssa-progress-steps' );
+	var $summary   = $( '#ssa-summary' );
+	var $btnStart  = $( '#ssa-btn-start' );
+	var $btnPause  = $( '#ssa-btn-pause' );
+	var $btnResume = $( '#ssa-btn-resume' );
+	var $btnAbort  = $( '#ssa-btn-abort' );
 
 	// Friendly focus-loss banner + title handling.
-	var $blurBanner = $( '#wpuss-blur-banner' );
-	var $blurTitle  = $( '#wpuss-blur-title' );
-	var $blurBody   = $( '#wpuss-blur-body' );
+	var $blurBanner = $( '#ssa-blur-banner' );
+	var $blurTitle  = $( '#ssa-blur-title' );
+	var $blurBody   = $( '#ssa-blur-body' );
 	var originalTitle = document.title;
 
 	function setDocTitle( key ) {
@@ -106,7 +106,7 @@
 		$steps.text( ( data.done_steps || 0 ) + ' of ' + ( data.total_steps || 0 ) + ' checks' );
 
 		if ( data.summary ) {
-			$summary.removeClass( 'wpuss-hidden' );
+			$summary.removeClass( 'ssa-hidden' );
 			$summary.find( '.count' ).each( function () {
 				var sev = $( this ).data( 'sev' );
 				$( this ).text( data.summary[ sev ] || 0 );
@@ -137,7 +137,7 @@
 			method: 'POST',
 			dataType: 'json',
 			data: {
-				action: 'wpuss_' + action,
+				action: 'ssa_' + action,
 				_wpnonce: cfg.nonce
 			}
 		} );
@@ -359,25 +359,25 @@
 ( function () {
 	'use strict';
 
-	var nav = document.querySelector( '.wpuss-tab-nav' );
+	var nav = document.querySelector( '.ssa-tab-nav' );
 	if ( ! nav ) {
 		return;
 	}
 
 	function activateTab( tabKey ) {
-		nav.querySelectorAll( '.wpuss-tab-btn' ).forEach( function ( btn ) {
+		nav.querySelectorAll( '.ssa-tab-btn' ).forEach( function ( btn ) {
 			var isThis = btn.dataset.tab === tabKey;
 			btn.classList.toggle( 'is-active', isThis );
 			btn.setAttribute( 'aria-selected', isThis ? 'true' : 'false' );
 		} );
-		document.querySelectorAll( '.wpuss-tab-panel' ).forEach( function ( panel ) {
-			panel.classList.toggle( 'is-active', panel.id === 'wpuss-tab-' + tabKey );
+		document.querySelectorAll( '.ssa-tab-panel' ).forEach( function ( panel ) {
+			panel.classList.toggle( 'is-active', panel.id === 'ssa-tab-' + tabKey );
 		} );
 	}
 
 	// Tab button clicks.
 	nav.addEventListener( 'click', function ( e ) {
-		var btn = e.target.closest( '.wpuss-tab-btn' );
+		var btn = e.target.closest( '.ssa-tab-btn' );
 		if ( ! btn || btn.disabled ) {
 			return;
 		}
@@ -385,10 +385,10 @@
 	} );
 
 	// Summary grid tiles: click jumps to the matching tab and scrolls to it.
-	document.querySelectorAll( '.wpuss-summary-grid li[data-tab]' ).forEach( function ( tile ) {
+	document.querySelectorAll( '.ssa-summary-grid li[data-tab]' ).forEach( function ( tile ) {
 		tile.addEventListener( 'click', function () {
 			activateTab( tile.dataset.tab );
-			var tabsEl = document.querySelector( '.wpuss-tabs' );
+			var tabsEl = document.querySelector( '.ssa-tabs' );
 			if ( tabsEl ) {
 				tabsEl.scrollIntoView( { behavior: 'smooth', block: 'start' } );
 			}

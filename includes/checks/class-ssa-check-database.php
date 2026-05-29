@@ -2,15 +2,15 @@
 /**
  * Database configuration checks.
  *
- * @package WP_Ultimate_Security_Scan
+ * @package Site_Security_Audit
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class WPUSS_Check_Database
+ * Class SSA_Check_Database
  */
-class WPUSS_Check_Database extends WPUSS_Check_Base {
+class SSA_Check_Database extends SSA_Check_Base {
 
 	/**
 	 * ID.
@@ -27,7 +27,7 @@ class WPUSS_Check_Database extends WPUSS_Check_Base {
 	 * @return string
 	 */
 	public function get_label() {
-		return __( 'Database', 'wp-ultimate-security-scan' );
+		return __( 'Database', 'site-security-audit' );
 	}
 
 	/**
@@ -79,15 +79,15 @@ class WPUSS_Check_Database extends WPUSS_Check_Base {
 
 		foreach ( (array) $recent as $u ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_MEDIUM,
-				__( 'Administrator created in the last 7 days', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_MEDIUM,
+				__( 'Administrator created in the last 7 days', 'site-security-audit' ),
 				sprintf(
 					/* translators: 1: login, 2: date */
-					__( "Administrator '%1\$s' was created on %2\$s. If you did not create this account, your site may be compromised.", 'wp-ultimate-security-scan' ),
+					__( "Administrator '%1\$s' was created on %2\$s. If you did not create this account, your site may be compromised.", 'site-security-audit' ),
 					$u->user_login,
 					$u->user_registered
 				),
-				__( 'Verify with your team. If unfamiliar, revoke access, rotate all admin passwords, and scan for backdoors.', 'wp-ultimate-security-scan' ),
+				__( 'If you did not create this account, treat it as a compromise. Delete it via Users → All Users, change all admin passwords, and regenerate your auth salts in wp-config.php (get fresh keys at https://api.wordpress.org/secret-key/1.1/salt/). Contact your host if you cannot determine how the account was created.', 'site-security-audit' ),
 				'user:' . $u->ID
 			);
 		}
@@ -102,10 +102,10 @@ class WPUSS_Check_Database extends WPUSS_Check_Base {
 		// Admins registerable to anyone is risky.
 		if ( get_option( 'users_can_register' ) && 'administrator' === get_option( 'default_role' ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_CRITICAL,
-				__( 'Open registration with administrator default role', 'wp-ultimate-security-scan' ),
-				__( 'Anyone can register and is automatically granted administrator. This is almost certainly a compromise.', 'wp-ultimate-security-scan' ),
-				__( 'Disable public registration or set the default role to Subscriber in Settings → General.', 'wp-ultimate-security-scan' )
+				SSA_Logger::SEVERITY_CRITICAL,
+				__( 'Open registration with administrator default role', 'site-security-audit' ),
+				__( 'Anyone can register and is automatically granted administrator. This is almost certainly a compromise.', 'site-security-audit' ),
+				__( 'Go to Settings → General and either disable "Anyone can register" or change the default role from Administrator to Subscriber. Then go to Users → All Users, filter by Administrator, and delete any accounts you do not recognise.', 'site-security-audit' )
 			);
 		}
 
@@ -117,15 +117,15 @@ class WPUSS_Check_Database extends WPUSS_Check_Base {
 			$home_host = wp_parse_url( $home, PHP_URL_HOST );
 			if ( $site_host && $home_host && $site_host !== $home_host ) {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_HIGH,
-					__( 'siteurl and home point to different domains', 'wp-ultimate-security-scan' ),
+					SSA_Logger::SEVERITY_HIGH,
+					__( 'siteurl and home point to different domains', 'site-security-audit' ),
 					sprintf(
 						/* translators: 1: siteurl, 2: home */
-						__( 'siteurl (%1$s) and home (%2$s) resolve to different hosts. Malware often sets one of these to an attacker-controlled domain.', 'wp-ultimate-security-scan' ),
+						__( 'siteurl (%1$s) and home (%2$s) resolve to different hosts. Malware often sets one of these to an attacker-controlled domain.', 'site-security-audit' ),
 						$site_url,
 						$home
 					),
-					__( 'Confirm both values in Settings → General are correct. If not, revert and investigate.', 'wp-ultimate-security-scan' )
+					__( 'Go to Settings → General and verify both WordPress Address and Site Address point to your own domain. If either was changed to an unknown domain, revert it and change all admin passwords immediately. Also check wp-config.php for WP_HOME or WP_SITEURL constants that may be overriding the values.', 'site-security-audit' )
 				);
 			}
 		}

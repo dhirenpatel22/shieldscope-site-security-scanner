@@ -9,15 +9,15 @@
  * Example: if cpu_limit = 20 (%), the scanner will sleep 4× the time
  * the last unit of work took (work / total = 20%).
  *
- * @package WP_Ultimate_Security_Scan
+ * @package Site_Security_Audit
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class WPUSS_Throttle
+ * Class SSA_Throttle
  */
-class WPUSS_Throttle {
+class SSA_Throttle {
 
 	/**
 	 * Max percentage of CPU the scanner is allowed to use (1-100).

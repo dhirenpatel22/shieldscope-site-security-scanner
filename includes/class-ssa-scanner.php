@@ -8,17 +8,17 @@
  * State is kept in an option so a scan can survive page reloads, cron runs,
  * or AJAX pauses.
  *
- * @package WP_Ultimate_Security_Scan
+ * @package Site_Security_Audit
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class WPUSS_Scanner
+ * Class SSA_Scanner
  */
-class WPUSS_Scanner {
+class SSA_Scanner {
 
-	const STATE_OPTION = 'wpuss_scan_state';
+	const STATE_OPTION = 'ssa_scan_state';
 
 	const STATUS_IDLE      = 'idle';
 	const STATUS_RUNNING   = 'running';
@@ -29,14 +29,14 @@ class WPUSS_Scanner {
 	/**
 	 * Logger.
 	 *
-	 * @var WPUSS_Logger
+	 * @var SSA_Logger
 	 */
 	private $logger;
 
 	/**
 	 * Throttle.
 	 *
-	 * @var WPUSS_Throttle
+	 * @var SSA_Throttle
 	 */
 	private $throttle;
 
@@ -44,13 +44,13 @@ class WPUSS_Scanner {
 	 * Constructor.
 	 */
 	public function __construct() {
-		$this->logger = new WPUSS_Logger();
+		$this->logger = new SSA_Logger();
 
-		$settings = (array) get_option( 'wpuss_settings', array() );
+		$settings = (array) get_option( 'ssa_settings', array() );
 		$cpu      = isset( $settings['cpu_limit'] ) ? (int) $settings['cpu_limit'] : 20;
 		$chunk    = isset( $settings['chunk_time_limit'] ) ? (float) $settings['chunk_time_limit'] : 2.0;
 
-		$this->throttle = new WPUSS_Throttle( $cpu, $chunk );
+		$this->throttle = new SSA_Throttle( $cpu, $chunk );
 	}
 
 	/**
@@ -60,21 +60,22 @@ class WPUSS_Scanner {
 	 */
 	public function get_check_classes() {
 		return array(
-			'WPUSS_Check_Core',
-			'WPUSS_Check_Core_Integrity',
-			'WPUSS_Check_Users',
-			'WPUSS_Check_Database',
-			'WPUSS_Check_Filesystem',
-			'WPUSS_Check_Plugins',
-			'WPUSS_Check_Themes',
-			'WPUSS_Check_Config',
-			'WPUSS_Check_Code_Patterns',
-			'WPUSS_Check_Injection',
-			'WPUSS_Check_Access_Control',
-			'WPUSS_Check_Security_Config',
-			'WPUSS_Check_Components',
-			'WPUSS_Check_SSRF',
-			'WPUSS_Check_Vuln_DB',
+			'SSA_Check_Core',
+			'SSA_Check_Core_Integrity',
+			'SSA_Check_Users',
+			'SSA_Check_Database',
+			'SSA_Check_Filesystem',
+			'SSA_Check_Plugins',
+			'SSA_Check_Themes',
+			'SSA_Check_Config',
+			'SSA_Check_SSL',
+			'SSA_Check_Code_Patterns',
+			'SSA_Check_Injection',
+			'SSA_Check_Access_Control',
+			'SSA_Check_Security_Config',
+			'SSA_Check_Components',
+			'SSA_Check_SSRF',
+			'SSA_Check_Vuln_DB',
 		);
 	}
 
@@ -151,7 +152,7 @@ class WPUSS_Scanner {
 			'cursor'       => array(),
 			'total_steps'  => $total,
 			'done_steps'   => 0,
-			'last_message' => __( 'Scan started.', 'wp-ultimate-security-scan' ),
+			'last_message' => __( 'Scan started.', 'site-security-audit' ),
 			'owner_id'     => get_current_user_id(),
 		);
 		$this->save_state( $state );
@@ -167,7 +168,7 @@ class WPUSS_Scanner {
 		$state = $this->get_state();
 		if ( self::STATUS_RUNNING === $state['status'] ) {
 			$state['status']       = self::STATUS_PAUSED;
-			$state['last_message'] = __( 'Scan paused.', 'wp-ultimate-security-scan' );
+			$state['last_message'] = __( 'Scan paused.', 'site-security-audit' );
 			$this->save_state( $state );
 		}
 		return $state;
@@ -182,7 +183,7 @@ class WPUSS_Scanner {
 		$state = $this->get_state();
 		if ( self::STATUS_PAUSED === $state['status'] ) {
 			$state['status']       = self::STATUS_RUNNING;
-			$state['last_message'] = __( 'Scan resumed.', 'wp-ultimate-security-scan' );
+			$state['last_message'] = __( 'Scan resumed.', 'site-security-audit' );
 			$this->save_state( $state );
 		}
 		return $state;
@@ -197,7 +198,7 @@ class WPUSS_Scanner {
 		$state = $this->get_state();
 		if ( in_array( $state['status'], array( self::STATUS_RUNNING, self::STATUS_PAUSED ), true ) ) {
 			$state['status']       = self::STATUS_ABORTED;
-			$state['last_message'] = __( 'Scan aborted by user.', 'wp-ultimate-security-scan' );
+			$state['last_message'] = __( 'Scan aborted by user.', 'site-security-audit' );
 			$this->save_state( $state );
 		}
 		return $state;
@@ -241,7 +242,7 @@ class WPUSS_Scanner {
 			$step = $steps[ $state['step_index'] ];
 			$state['last_message'] = sprintf(
 				/* translators: 1: check label, 2: step id */
-				__( 'Running %1$s → %2$s', 'wp-ultimate-security-scan' ),
+				__( 'Running %1$s → %2$s', 'site-security-audit' ),
 				$check->get_label(),
 				$step
 			);
@@ -254,8 +255,8 @@ class WPUSS_Scanner {
 				$this->logger->record(
 					$state['scan_id'],
 					$check->get_id(),
-					WPUSS_Logger::SEVERITY_INFO,
-					__( 'Check module error', 'wp-ultimate-security-scan' ),
+					SSA_Logger::SEVERITY_INFO,
+					__( 'Check module error', 'site-security-audit' ),
 					$e->getMessage()
 				);
 				$result = array( 'continue' => false, 'cursor' => array() );
@@ -289,17 +290,17 @@ class WPUSS_Scanner {
 		// Done?
 		if ( self::STATUS_RUNNING === $state['status'] && $state['check_index'] >= count( $classes ) ) {
 			$state['status']       = self::STATUS_COMPLETED;
-			$state['last_message'] = __( 'Scan complete.', 'wp-ultimate-security-scan' );
+			$state['last_message'] = __( 'Scan complete.', 'site-security-audit' );
 			$state['done_steps']   = $state['total_steps'];
 
-			update_option( 'wpuss_last_scan', $state['scan_id'], false );
+			update_option( 'ssa_last_scan', $state['scan_id'], false );
 		}
 
 		$this->save_state( $state );
 
 		// If we were called from cron and the scan is still running, re-schedule.
-		if ( $from_cron && self::STATUS_RUNNING === $state['status'] && ! wp_next_scheduled( 'wpuss_run_scan_chunk' ) ) {
-			wp_schedule_single_event( time() + 10, 'wpuss_run_scan_chunk' );
+		if ( $from_cron && self::STATUS_RUNNING === $state['status'] && ! wp_next_scheduled( 'ssa_run_scan_chunk' ) ) {
+			wp_schedule_single_event( time() + 10, 'ssa_run_scan_chunk' );
 		}
 
 		return $state;

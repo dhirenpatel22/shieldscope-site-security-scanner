@@ -1,10 +1,10 @@
-=== WordPress Ultimate Security Scan ===
+=== SSA – Site Security Audit, Self-Hosted & Private ===
 Contributors: dhirenpatel
 Tags: security, scanner, malware, hardening, audit
 Requires at least: 5.8
-Tested up to: 6.8
+Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,7 +12,7 @@ CPU-throttled WordPress security scanner: audits core integrity, users, plugins,
 
 == Description ==
 
-**WordPress Ultimate Security Scan** performs a deep, read-only audit of your entire WordPress site and produces a prioritised report of security issues grouped by severity (Critical / High / Medium / Low / Info).
+**SSA – Site Security Audit, Self-Hosted & Private** performs a deep, read-only audit of your entire WordPress site and produces a prioritised report of security issues grouped by severity (Critical / High / Medium / Low / Info).
 
 Unlike scanners that lock up your server, this plugin is designed to be a polite neighbour:
 
@@ -30,6 +30,7 @@ Unlike scanners that lock up your server, this plugin is designed to be a polite
 * **Plugins** — pending updates, inactive plugins, missing PluginURI/UpdateURI, abandoned plugins.
 * **Themes** — pending updates, extra inactive themes, default-theme fallback.
 * **Code patterns** — `eval` + `base64_decode`/`gzinflate` backdoors, dangerous exec calls (`shell_exec`, `passthru`, etc.), include/require on superglobals, missing `ABSPATH` guards, unprepared `$wpdb` queries, unescaped echo of superglobals, `file_put_contents` on user input, long base64 payloads.
+* **SSL/TLS** — certificate validity and expiry (flags certs expiring within 30 days), protocol version (flags TLS 1.0/1.1), mixed-content detection on the homepage, HSTS header presence, and HTTP-to-HTTPS redirect verification.
 * **HTTP config** — security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, HSTS), WP generator meta leak, presence of a login brute-force throttle plugin.
 * **Database** — open registration with administrator default role, `siteurl` vs `home` host mismatch, recently-created administrator accounts.
 * **Injection vulnerabilities** — PHP object injection (direct + multi-line taint tracking), variable-variable injection, `extract()` on superglobals, `create_function()`, `preg_replace()` `/e` modifier, `call_user_func()` on user input, SQL injection via `sprintf`/`$wpdb`, XSS via `printf`/`echo`, LDAP injection, XXE, co-occurrence heuristics (unauthenticated AJAX + deserialization), PHP `register_globals`/`allow_url_include`.
@@ -60,7 +61,7 @@ If you enter a WPScan API key in Settings, the Vulnerability Database check send
 
 == Installation ==
 
-1. Upload the `wp-ultimate-security-scan` folder to `/wp-content/plugins/`, or install the zip via **Plugins → Add New → Upload Plugin**.
+1. Upload the `site-security-audit` folder to `/wp-content/plugins/`, or install the zip via **Plugins → Add New → Upload Plugin**.
 2. Activate the plugin.
 3. Navigate to **Security Scan** in the admin menu.
 4. Review settings (CPU limit, chunk size, max file size, focus-lock, optional WPScan API key) and click **Start Scan**.
@@ -82,7 +83,19 @@ Under **Security Scan → Last Report**. Findings are grouped by severity.
 = What is the WPScan API key for? =
 When you enter a WPScan API key in Settings, the Vulnerability Database check queries wpscan.com for up-to-date CVE data on every installed plugin and theme. The free tier allows 25 requests/day; results are cached for 24 hours to stay well within the limit. Without a key, only the built-in curated CVE list is used.
 
+== Screenshots ==
+
+1. **Scan dashboard** — start, pause, or resume a scan with a live progress bar and real-time status messages.
+2. **Security report** — findings grouped by severity (Critical → Info) with title, description, and a concise actionable recommendation for every issue.
+3. **Settings page** — configure CPU throttle, chunk time, max file size, focus-lock, and optional WPScan API key.
+
 == Changelog ==
+
+= 1.3.0 =
+* New: SSL/TLS check — certificate validity and expiry warning (≤30 days), TLS protocol version (flags TLS 1.0/1.1), mixed-content detection, HSTS header check, and HTTP-to-HTTPS redirect verification.
+* Improved: All recommendation strings shortened to 2–3 concise, actionable lines with no third-party plugin name suggestions.
+* Improved: Admin pages (Scan, Report, Settings) feature redesigned FAQ sections with animated accordions, gradient headers, severity chips, and privacy footers.
+* Cleanup: Removed legacy class files from previous plugin rename.
 
 = 1.2.0 =
 * New: Injection vulnerability scanner — PHP object injection (direct + multi-line taint tracking + co-occurrence heuristics), variable-variable injection, `extract()` on superglobals, SQL/XSS/LDAP/XXE patterns, `create_function()`, `preg_replace()` `/e` modifier, PHP `register_globals`/`allow_url_include` checks.
@@ -104,6 +117,9 @@ When you enter a WPScan API key in Settings, the Vulnerability Database check qu
 * Initial release.
 
 == Upgrade Notice ==
+
+= 1.3.0 =
+Adds SSL/TLS certificate and protocol checks. Improves all recommendation text and admin UI FAQ sections.
 
 = 1.2.0 =
 Adds six major new check modules: injection vulnerabilities, access control, security misconfiguration, SSRF, vulnerable components, and a vulnerability database with WPScan API integration.

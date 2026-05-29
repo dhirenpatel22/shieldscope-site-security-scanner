@@ -20,15 +20,15 @@
  * All findings are heuristic. False positives are possible; the goal is to
  * direct a human reviewer to the suspicious location.
  *
- * @package WP_Ultimate_Security_Scan
+ * @package Site_Security_Audit
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class WPUSS_Check_Injection
+ * Class SSA_Check_Injection
  */
-class WPUSS_Check_Injection extends WPUSS_Check_Base {
+class SSA_Check_Injection extends SSA_Check_Base {
 
 	/**
 	 * Max file size to scan (bytes).
@@ -41,11 +41,11 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 	 * Constructor.
 	 *
 	 * @param string       $scan_id Scan ID.
-	 * @param WPUSS_Logger $logger  Logger.
+	 * @param SSA_Logger $logger  Logger.
 	 */
-	public function __construct( $scan_id, WPUSS_Logger $logger ) {
+	public function __construct( $scan_id, SSA_Logger $logger ) {
 		parent::__construct( $scan_id, $logger );
-		$settings            = (array) get_option( 'wpuss_settings', array() );
+		$settings            = (array) get_option( 'ssa_settings', array() );
 		$this->max_file_size = isset( $settings['max_scan_file_size'] )
 			? (int) $settings['max_scan_file_size']
 			: 2 * MB_IN_BYTES;
@@ -58,7 +58,7 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 
 	/** @return string */
 	public function get_label() {
-		return __( 'Injection Vulnerabilities', 'wp-ultimate-security-scan' );
+		return __( 'Injection Vulnerabilities', 'site-security-audit' );
 	}
 
 	/** @return array */
@@ -119,7 +119,7 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 					continue;
 				}
 				$full = $current . DIRECTORY_SEPARATOR . $entry;
-				if ( false !== strpos( $full, 'wp-ultimate-security-scan' ) ) {
+				if ( false !== strpos( $full, 'site-security-audit' ) ) {
 					continue;
 				}
 				if ( is_dir( $full ) ) {
@@ -184,10 +184,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// PHP Object Injection — unserialize() / maybe_unserialize() directly on superglobal.
 		if ( preg_match( '/\b(?:unserialize|maybe_unserialize)\s*\([^;]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_CRITICAL,
-				__( 'PHP Object Injection: deserialization of direct user input', 'wp-ultimate-security-scan' ),
-				__( 'unserialize() or maybe_unserialize() is called directly on a superglobal. An attacker can craft a serialized payload that triggers object instantiation leading to RCE or privilege escalation via gadget chains.', 'wp-ultimate-security-scan' ),
-				__( 'Never deserialize user-controlled data. Use json_decode() / wp_json_encode() for data interchange. If deserialization is unavoidable, use allowed_classes to restrict instantiable classes.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_CRITICAL,
+				__( 'PHP Object Injection: deserialization of direct user input', 'site-security-audit' ),
+				__( 'unserialize() or maybe_unserialize() is called directly on a superglobal. An attacker can craft a serialized payload that triggers object instantiation leading to RCE or privilege escalation via gadget chains.', 'site-security-audit' ),
+				__( 'Never deserialize user-controlled data. Use json_decode() / wp_json_encode() for data interchange. If deserialization is unavoidable, use allowed_classes to restrict instantiable classes.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -195,10 +195,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// Variable variable injection: $$_GET / $$_POST.
 		if ( preg_match( '/\$\$_(?:GET|POST|REQUEST|COOKIE)\[/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_CRITICAL,
-				__( 'Variable variable injection from user input', 'wp-ultimate-security-scan' ),
-				__( 'Using $$_GET or $$_POST creates variable names from user input, letting attackers overwrite any variable in scope.', 'wp-ultimate-security-scan' ),
-				__( 'Remove variable variables on user-controlled names. Access keys explicitly using a strict allowlist.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_CRITICAL,
+				__( 'Variable variable injection from user input', 'site-security-audit' ),
+				__( 'Using $$_GET or $$_POST creates variable names from user input, letting attackers overwrite any variable in scope.', 'site-security-audit' ),
+				__( 'Remove variable variables on user-controlled names. Access keys explicitly using a strict allowlist.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -206,10 +206,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// Mass variable injection via extract() on superglobals.
 		if ( preg_match( '/\bextract\s*\(\s*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_CRITICAL,
-				__( 'Mass variable extraction from user input', 'wp-ultimate-security-scan' ),
-				__( 'extract($_POST) injects attacker-controlled keys into the current variable scope, enabling overwrite attacks.', 'wp-ultimate-security-scan' ),
-				__( "Remove extract() on user input. Access keys explicitly: \$foo = sanitize_text_field( \$_POST['foo'] ?? '' );", 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_CRITICAL,
+				__( 'Mass variable extraction from user input', 'site-security-audit' ),
+				__( 'extract($_POST) injects attacker-controlled keys into the current variable scope, enabling overwrite attacks.', 'site-security-audit' ),
+				__( "Remove extract() on user input. Access keys explicitly: \$foo = sanitize_text_field( \$_POST['foo'] ?? '' );", 'site-security-audit' ),
 				$path
 			);
 		}
@@ -217,10 +217,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// Code injection — create_function() is eval() in disguise, removed in PHP 8.
 		if ( preg_match( '/\bcreate_function\s*\(/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_HIGH,
-				__( 'Deprecated create_function() — potential code injection', 'wp-ultimate-security-scan' ),
-				__( 'create_function() is essentially eval() and was removed in PHP 8. If user input reaches its arguments it enables arbitrary code execution.', 'wp-ultimate-security-scan' ),
-				__( 'Replace with a proper closure (anonymous function).', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'Deprecated create_function() — potential code injection', 'site-security-audit' ),
+				__( 'create_function() is essentially eval() and was removed in PHP 8. If user input reaches its arguments it enables arbitrary code execution.', 'site-security-audit' ),
+				__( 'Replace with a proper closure (anonymous function).', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -228,10 +228,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// Code injection — preg_replace() with /e modifier (removed in PHP 7.0).
 		if ( preg_match( '/preg_replace\s*\(\s*["\'][^"\']*\/e[imsuUxAJD]*["\'][^,]*,/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_CRITICAL,
-				__( 'preg_replace() /e modifier — code injection', 'wp-ultimate-security-scan' ),
-				__( 'The /e modifier executes the replacement string as PHP code. This is a critical RCE vector, removed in PHP 7.0.', 'wp-ultimate-security-scan' ),
-				__( 'Replace with preg_replace_callback() and a safe callback.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_CRITICAL,
+				__( 'preg_replace() /e modifier — code injection', 'site-security-audit' ),
+				__( 'The /e modifier executes the replacement string as PHP code. This is a critical RCE vector, removed in PHP 7.0.', 'site-security-audit' ),
+				__( 'Replace with preg_replace_callback() and a safe callback.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -239,10 +239,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// Code injection — call_user_func() with user-controlled callable.
 		if ( preg_match( '/\bcall_user_func(?:_array)?\s*\([^;]*\$_(?:GET|POST|REQUEST)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_CRITICAL,
-				__( 'call_user_func() with user-controlled callable', 'wp-ultimate-security-scan' ),
-				__( 'Passing user input as the function name to call_user_func() lets attackers invoke any PHP function including exec(), system(), eval().', 'wp-ultimate-security-scan' ),
-				__( 'Validate the callable against a strict allowlist before calling.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_CRITICAL,
+				__( 'call_user_func() with user-controlled callable', 'site-security-audit' ),
+				__( 'Passing user input as the function name to call_user_func() lets attackers invoke any PHP function including exec(), system(), eval().', 'site-security-audit' ),
+				__( 'Validate the callable against a strict allowlist before calling.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -250,10 +250,11 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// SQL injection — sprintf() in $wpdb query with superglobal.
 		if ( preg_match( '/\$wpdb\s*->\s*(?:query|get_(?:row|results|var|col))\s*\(\s*(?:sprintf|vsprintf)\s*\([^;]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_HIGH,
-				__( 'SQL injection: sprintf() building $wpdb query with user input', 'wp-ultimate-security-scan' ),
-				__( 'sprintf() with user input inside a $wpdb query is SQL injection — sprintf() does not escape SQL values.', 'wp-ultimate-security-scan' ),
-				__( 'Use $wpdb->prepare() with %s / %d / %f placeholders.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'SQL injection: sprintf() building $wpdb query with user input', 'site-security-audit' ),
+				__( 'sprintf() with user input inside a $wpdb query is SQL injection — sprintf() does not escape SQL values.', 'site-security-audit' ),
+				// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment,WordPress.WP.I18n.UnorderedPlaceholdersText -- %s/%d/%f are code examples in the advice text, not sprintf() arguments.
+				__( 'Use $wpdb->prepare() with %s / %d / %f placeholders.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -261,10 +262,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// SQL injection — string interpolation of superglobal in $wpdb query.
 		if ( preg_match( '/\$wpdb\s*->\s*(?:query|get_(?:row|results|var|col))\s*\(\s*"[^"]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_CRITICAL,
-				__( 'SQL injection: superglobal interpolated in $wpdb query string', 'wp-ultimate-security-scan' ),
-				__( 'A superglobal is directly interpolated into a $wpdb query — this is textbook SQL injection.', 'wp-ultimate-security-scan' ),
-				__( 'Use $wpdb->prepare() — never interpolate user data into SQL.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_CRITICAL,
+				__( 'SQL injection: superglobal interpolated in $wpdb query string', 'site-security-audit' ),
+				__( 'A superglobal is directly interpolated into a $wpdb query — this is textbook SQL injection.', 'site-security-audit' ),
+				__( 'Use $wpdb->prepare() — never interpolate user data into SQL.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -272,10 +273,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// XSS — printf() / vprintf() with superglobal.
 		if ( preg_match( '/\b(?:printf|vprintf)\s*\([^;]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_HIGH,
-				__( 'XSS: printf() echoing unescaped user input', 'wp-ultimate-security-scan' ),
-				__( 'printf() / vprintf() with user-supplied arguments outputs raw HTML — reflected XSS.', 'wp-ultimate-security-scan' ),
-				__( 'Escape with esc_html(), esc_attr(), or esc_url() before passing to printf().', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'XSS: printf() echoing unescaped user input', 'site-security-audit' ),
+				__( 'printf() / vprintf() with user-supplied arguments outputs raw HTML — reflected XSS.', 'site-security-audit' ),
+				__( 'Escape with esc_html(), esc_attr(), or esc_url() before passing to printf().', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -283,10 +284,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// XSS — string interpolation of superglobal inside echo.
 		if ( preg_match( '/echo\s+"[^"]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_HIGH,
-				__( 'XSS: superglobal interpolated inside echoed string', 'wp-ultimate-security-scan' ),
-				__( 'Interpolating a superglobal directly inside a double-quoted echo string is reflected XSS.', 'wp-ultimate-security-scan' ),
-				__( 'Wrap in esc_html(), esc_attr(), or esc_url() depending on context.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'XSS: superglobal interpolated inside echoed string', 'site-security-audit' ),
+				__( 'Interpolating a superglobal directly inside a double-quoted echo string is reflected XSS.', 'site-security-audit' ),
+				__( 'Wrap in esc_html(), esc_attr(), or esc_url() depending on context.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -294,10 +295,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// LDAP injection.
 		if ( preg_match( '/\b(?:ldap_search|ldap_list|ldap_read)\s*\([^;]*\$_(?:GET|POST|REQUEST)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_HIGH,
-				__( 'LDAP injection: LDAP query function called with user input', 'wp-ultimate-security-scan' ),
-				__( 'Passing unsanitised user input to LDAP functions allows query manipulation.', 'wp-ultimate-security-scan' ),
-				__( 'Escape with ldap_escape() (LDAP_ESCAPE_FILTER or LDAP_ESCAPE_DN).', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'LDAP injection: LDAP query function called with user input', 'site-security-audit' ),
+				__( 'Passing unsanitised user input to LDAP functions allows query manipulation.', 'site-security-audit' ),
+				__( 'Escape with ldap_escape() (LDAP_ESCAPE_FILTER or LDAP_ESCAPE_DN).', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -305,10 +306,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// XXE — SimpleXML with user-supplied XML string.
 		if ( preg_match( '/\bsimplexml_load_string\s*\([^;]*\$_(?:GET|POST|REQUEST)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_HIGH,
-				__( 'XXE risk: SimpleXML parsing user-supplied XML', 'wp-ultimate-security-scan' ),
-				__( 'Parsing attacker-controlled XML without disabling external entities can expose local files or enable SSRF.', 'wp-ultimate-security-scan' ),
-				__( 'Use libxml_disable_entity_loader(true) and LIBXML_NONET | LIBXML_NOENT flags.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'XXE risk: SimpleXML parsing user-supplied XML', 'site-security-audit' ),
+				__( 'Parsing attacker-controlled XML without disabling external entities can expose local files or enable SSRF.', 'site-security-audit' ),
+				__( 'Use libxml_disable_entity_loader(true) and LIBXML_NONET | LIBXML_NOENT flags.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -343,18 +344,18 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 			// Deserialization of tainted variable.
 			if ( preg_match( '/\b(?:unserialize|maybe_unserialize)\s*\([^;]*\$' . $v . '\b/i', $contents ) ) {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_CRITICAL,
+					SSA_Logger::SEVERITY_CRITICAL,
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( 'PHP Object Injection: $%s from user input reaches unserialize()/maybe_unserialize()', 'wp-ultimate-security-scan' ),
+						__( 'PHP Object Injection: $%s from user input reaches unserialize()/maybe_unserialize()', 'site-security-audit' ),
 						$var
 					),
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( '$%s is derived from user-controlled input (superglobal or sanitized wrapper) and is later passed to unserialize() or maybe_unserialize(). This enables PHP object injection — attackers can trigger arbitrary class instantiation via gadget chains.', 'wp-ultimate-security-scan' ),
+						__( '$%s is derived from user-controlled input (superglobal or sanitized wrapper) and is later passed to unserialize() or maybe_unserialize(). This enables PHP object injection — attackers can trigger arbitrary class instantiation via gadget chains.', 'site-security-audit' ),
 						$var
 					),
-					__( 'Never deserialize user data. Replace with json_decode(). If deserialization is unavoidable, restrict classes with the allowed_classes option.', 'wp-ultimate-security-scan' ),
+					__( 'Never deserialize user data. Replace with json_decode(). If deserialization is unavoidable, restrict classes with the allowed_classes option.', 'site-security-audit' ),
 					$path,
 					array( 'tainted_var' => '$' . $var )
 				);
@@ -363,18 +364,23 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 			// SQL injection via tainted variable in $wpdb query.
 			if ( preg_match( '/\$wpdb\s*->\s*(?:query|get_(?:row|results|var|col))\s*\([^;]*\$' . $v . '\b/i', $contents ) ) {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_CRITICAL,
+					SSA_Logger::SEVERITY_CRITICAL,
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( 'SQL Injection: $%s from user input used in $wpdb query', 'wp-ultimate-security-scan' ),
+						__( 'SQL Injection: $%s from user input used in $wpdb query', 'site-security-audit' ),
 						$var
 					),
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( '$%s is derived from user input and appears inside a $wpdb query method call. If this is string concatenation rather than a $wpdb->prepare() placeholder, it is SQL injection.', 'wp-ultimate-security-scan' ),
+						__( '$%s is derived from user input and appears inside a $wpdb query method call. If this is string concatenation rather than a $wpdb->prepare() placeholder, it is SQL injection.', 'site-security-audit' ),
 						$var
 					),
-					__( 'Use $wpdb->prepare() with typed placeholders (%s, %d, %f). Verify no string concatenation of $' . $var . ' reaches the SQL string.', 'wp-ultimate-security-scan' ),
+					// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment,WordPress.WP.I18n.UnorderedPlaceholdersText -- %s/%d/%f are code examples; %s placeholder is for a PHP variable name.
+					sprintf(
+						/* translators: %s: PHP variable name (e.g. "userInput") */
+						__( 'Use $wpdb->prepare() with typed placeholders (%%s, %%d, %%f). Verify no string concatenation of $%s reaches the SQL string.', 'site-security-audit' ),
+						$var
+					),
 					$path,
 					array( 'tainted_var' => '$' . $var )
 				);
@@ -383,18 +389,18 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 			// eval() on tainted variable.
 			if ( preg_match( '/\beval\s*\([^;]*\$' . $v . '\b/i', $contents ) ) {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_CRITICAL,
+					SSA_Logger::SEVERITY_CRITICAL,
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( 'Code Injection: $%s from user input passed to eval()', 'wp-ultimate-security-scan' ),
+						__( 'Code Injection: $%s from user input passed to eval()', 'site-security-audit' ),
 						$var
 					),
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( '$%s originates from user input and reaches eval(). This is direct remote code execution.', 'wp-ultimate-security-scan' ),
+						__( '$%s originates from user input and reaches eval(). This is direct remote code execution.', 'site-security-audit' ),
 						$var
 					),
-					__( 'Remove eval() entirely. There is almost never a legitimate use for eval() in plugin code.', 'wp-ultimate-security-scan' ),
+					__( 'Remove eval() entirely. There is almost never a legitimate use for eval() in plugin code.', 'site-security-audit' ),
 					$path,
 					array( 'tainted_var' => '$' . $var )
 				);
@@ -403,18 +409,18 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 			// Shell execution of tainted variable.
 			if ( preg_match( '/\b(?:shell_exec|exec|system|passthru|proc_open|popen)\s*\([^;]*\$' . $v . '\b/i', $contents ) ) {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_CRITICAL,
+					SSA_Logger::SEVERITY_CRITICAL,
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( 'Command Injection: $%s from user input in shell execution function', 'wp-ultimate-security-scan' ),
+						__( 'Command Injection: $%s from user input in shell execution function', 'site-security-audit' ),
 						$var
 					),
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( '$%s is from user input and reaches a shell execution function. Attackers can run arbitrary OS commands on the server.', 'wp-ultimate-security-scan' ),
+						__( '$%s is from user input and reaches a shell execution function. Attackers can run arbitrary OS commands on the server.', 'site-security-audit' ),
 						$var
 					),
-					__( 'Never pass user input to shell functions. If unavoidable, use escapeshellarg() and escapeshellcmd() and validate against a strict allowlist.', 'wp-ultimate-security-scan' ),
+					__( 'Never pass user input to shell functions. If unavoidable, use escapeshellarg() and escapeshellcmd() and validate against a strict allowlist.', 'site-security-audit' ),
 					$path,
 					array( 'tainted_var' => '$' . $var )
 				);
@@ -423,18 +429,18 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 			// File inclusion from tainted variable.
 			if ( preg_match( '/\b(?:include|require)(?:_once)?\s*\(?\s*\$' . $v . '\b/i', $contents ) ) {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_CRITICAL,
+					SSA_Logger::SEVERITY_CRITICAL,
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( 'File Inclusion: $%s from user input in include/require', 'wp-ultimate-security-scan' ),
+						__( 'File Inclusion: $%s from user input in include/require', 'site-security-audit' ),
 						$var
 					),
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( '$%s originates from user input and is used in a file inclusion statement. This enables local or remote file inclusion attacks.', 'wp-ultimate-security-scan' ),
+						__( '$%s originates from user input and is used in a file inclusion statement. This enables local or remote file inclusion attacks.', 'site-security-audit' ),
 						$var
 					),
-					__( 'Validate file paths against an explicit allowlist. Never include files whose name is user-controlled.', 'wp-ultimate-security-scan' ),
+					__( 'Validate file paths against an explicit allowlist. Never include files whose name is user-controlled.', 'site-security-audit' ),
 					$path,
 					array( 'tainted_var' => '$' . $var )
 				);
@@ -445,18 +451,18 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 			// Detect: echo $var (bare), echo "$var", echo $var . "something".
 			if ( preg_match( '/\becho\s+\$' . $v . '\b(?!\s*\))/i', $contents ) ) {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_HIGH,
+					SSA_Logger::SEVERITY_HIGH,
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( 'XSS: $%s from user input echoed without escaping', 'wp-ultimate-security-scan' ),
+						__( 'XSS: $%s from user input echoed without escaping', 'site-security-audit' ),
 						$var
 					),
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( '$%s is derived from user input and is directly echoed without an escaping function. This is a stored or reflected XSS vulnerability.', 'wp-ultimate-security-scan' ),
+						__( '$%s is derived from user input and is directly echoed without an escaping function. This is a stored or reflected XSS vulnerability.', 'site-security-audit' ),
 						$var
 					),
-					__( 'Wrap in esc_html() for HTML context, esc_attr() for attribute context, or esc_url() for URL context before echoing.', 'wp-ultimate-security-scan' ),
+					__( 'Wrap in esc_html() for HTML context, esc_attr() for attribute context, or esc_url() for URL context before echoing.', 'site-security-audit' ),
 					$path,
 					array( 'tainted_var' => '$' . $var )
 				);
@@ -465,18 +471,18 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 			// call_user_func with tainted callable.
 			if ( preg_match( '/\bcall_user_func(?:_array)?\s*\(\s*\$' . $v . '\b/i', $contents ) ) {
 				$this->finding(
-					WPUSS_Logger::SEVERITY_CRITICAL,
+					SSA_Logger::SEVERITY_CRITICAL,
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( 'Code Injection: $%s from user input used as callable in call_user_func()', 'wp-ultimate-security-scan' ),
+						__( 'Code Injection: $%s from user input used as callable in call_user_func()', 'site-security-audit' ),
 						$var
 					),
 					sprintf(
 						/* translators: %s: PHP variable name */
-						__( '$%s is from user input and is the first argument to call_user_func(), allowing attackers to invoke any PHP function.', 'wp-ultimate-security-scan' ),
+						__( '$%s is from user input and is the first argument to call_user_func(), allowing attackers to invoke any PHP function.', 'site-security-audit' ),
 						$var
 					),
-					__( 'Validate the callable against a strict allowlist before calling.', 'wp-ultimate-security-scan' ),
+					__( 'Validate the callable against a strict allowlist before calling.', 'site-security-audit' ),
 					$path,
 					array( 'tainted_var' => '$' . $var )
 				);
@@ -578,28 +584,28 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// --- Unauthenticated AJAX + deserialization ---
 		if ( $has_nopriv_ajax && ( $has_maybe_unserialize || $has_unserialize ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_HIGH,
-				__( 'Unauthenticated AJAX handler co-located with deserialization — PHP Object Injection risk', 'wp-ultimate-security-scan' ),
-				__( 'This file registers a wp_ajax_nopriv_ AJAX action (accessible to unauthenticated visitors) AND calls unserialize() or maybe_unserialize(). If request data flows into the deserialization call without a separate authentication gate, this is an unauthenticated PHP object injection vulnerability.', 'wp-ultimate-security-scan' ),
-				__( 'Trace the data flow from the nopriv AJAX handler to every unserialize/maybe_unserialize call. Ensure all paths require proper authentication and never pass user-controlled data to deserialization functions.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'Unauthenticated AJAX handler co-located with deserialization — PHP Object Injection risk', 'site-security-audit' ),
+				__( 'This file registers a wp_ajax_nopriv_ AJAX action (accessible to unauthenticated visitors) AND calls unserialize() or maybe_unserialize(). If request data flows into the deserialization call without a separate authentication gate, this is an unauthenticated PHP object injection vulnerability.', 'site-security-audit' ),
+				__( 'Trace the data flow from the nopriv AJAX handler to every unserialize/maybe_unserialize call. Ensure all paths require proper authentication and never pass user-controlled data to deserialization functions.', 'site-security-audit' ),
 				$path
 			);
 		} elseif ( $has_user_input && $has_maybe_unserialize && ! $safe_deserialize_context ) {
 			// User input read + maybe_unserialize on a non-trivially-safe value.
 			$this->finding(
-				WPUSS_Logger::SEVERITY_MEDIUM,
-				__( 'User input and maybe_unserialize() co-located — review for PHP Object Injection', 'wp-ultimate-security-scan' ),
-				__( 'This file reads user-supplied data via a superglobal AND calls maybe_unserialize() on a variable. If user input flows (directly or via intermediate variables) to the deserialization call, this is a PHP object injection vulnerability. This pattern matches vulnerabilities such as CVE-2023-3681 (Formidable Forms) and similar plugin bugs.', 'wp-ultimate-security-scan' ),
-				__( 'Audit every call to maybe_unserialize() in this file. Confirm each argument originates from a trusted source (database result, get_option, etc.) and never from $_POST, $_GET, or related wrappers.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_MEDIUM,
+				__( 'User input and maybe_unserialize() co-located — review for PHP Object Injection', 'site-security-audit' ),
+				__( 'This file reads user-supplied data via a superglobal AND calls maybe_unserialize() on a variable. If user input flows (directly or via intermediate variables) to the deserialization call, this is a PHP object injection vulnerability. This pattern matches vulnerabilities such as CVE-2023-3681 (Formidable Forms) and similar plugin bugs.', 'site-security-audit' ),
+				__( 'Audit every call to maybe_unserialize() in this file. Confirm each argument originates from a trusted source (database result, get_option, etc.) and never from $_POST, $_GET, or related wrappers.', 'site-security-audit' ),
 				$path
 			);
 		} elseif ( $has_any_ajax && $has_maybe_unserialize && ! $safe_deserialize_context ) {
 			// Authenticated AJAX + deserialization — lower severity but worth flagging.
 			$this->finding(
-				WPUSS_Logger::SEVERITY_LOW,
-				__( 'AJAX handler and maybe_unserialize() co-located — verify no privilege escalation path', 'wp-ultimate-security-scan' ),
-				__( 'This file registers an AJAX hook and calls maybe_unserialize(). If a subscriber-level user can reach a code path that calls maybe_unserialize() on their own input, this is a PHP object injection bug even without direct admin access.', 'wp-ultimate-security-scan' ),
-				__( 'Verify the deserialization call is on DB-retrieved data only, and that the AJAX handler performs proper capability checks.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_LOW,
+				__( 'AJAX handler and maybe_unserialize() co-located — verify no privilege escalation path', 'site-security-audit' ),
+				__( 'This file registers an AJAX hook and calls maybe_unserialize(). If a subscriber-level user can reach a code path that calls maybe_unserialize() on their own input, this is a PHP object injection bug even without direct admin access.', 'site-security-audit' ),
+				__( 'Verify the deserialization call is on DB-retrieved data only, and that the AJAX handler performs proper capability checks.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -607,10 +613,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// --- wp_parse_str mass assignment ---
 		if ( preg_match( '/\bwp_parse_str\s*\([^,]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_MEDIUM,
-				__( 'wp_parse_str() on user input — potential mass assignment', 'wp-ultimate-security-scan' ),
-				__( 'wp_parse_str() parses a query string into named variables. When called on user input it can populate arbitrary variable names, similar to extract() or parse_str().', 'wp-ultimate-security-scan' ),
-				__( 'Validate the resulting array against an allowlist of expected keys. Do not use the output variables without sanitising each one individually.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_MEDIUM,
+				__( 'wp_parse_str() on user input — potential mass assignment', 'site-security-audit' ),
+				__( 'wp_parse_str() parses a query string into named variables. When called on user input it can populate arbitrary variable names, similar to extract() or parse_str().', 'site-security-audit' ),
+				__( 'Validate the resulting array against an allowlist of expected keys. Do not use the output variables without sanitising each one individually.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -630,10 +636,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// but some legacy hosts re-enable it via user.ini.
 		if ( ini_get( 'register_globals' ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_CRITICAL,
-				__( 'PHP register_globals is enabled', 'wp-ultimate-security-scan' ),
-				__( 'register_globals automatically injects GET/POST/COOKIE values as global variables, enabling variable injection across the entire codebase.', 'wp-ultimate-security-scan' ),
-				__( 'Disable register_globals in php.ini immediately. It was removed from PHP 5.4.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_CRITICAL,
+				__( 'PHP register_globals is enabled', 'site-security-audit' ),
+				__( 'register_globals automatically injects GET/POST/COOKIE values as global variables, enabling variable injection across the entire codebase.', 'site-security-audit' ),
+				__( 'Disable register_globals in php.ini immediately. It was removed from PHP 5.4.', 'site-security-audit' ),
 				'php.ini'
 			);
 		}
@@ -641,10 +647,10 @@ class WPUSS_Check_Injection extends WPUSS_Check_Base {
 		// allow_url_include — turns file inclusion bugs into remote code execution.
 		if ( ini_get( 'allow_url_include' ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_CRITICAL,
-				__( 'PHP allow_url_include is enabled', 'wp-ultimate-security-scan' ),
-				__( 'allow_url_include lets include/require load code from remote URLs. Any local file inclusion bug becomes remote code execution.', 'wp-ultimate-security-scan' ),
-				__( 'Set allow_url_include = Off in php.ini.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_CRITICAL,
+				__( 'PHP allow_url_include is enabled', 'site-security-audit' ),
+				__( 'allow_url_include lets include/require load code from remote URLs. Any local file inclusion bug becomes remote code execution.', 'site-security-audit' ),
+				__( 'Set allow_url_include = Off in php.ini.', 'site-security-audit' ),
 				'php.ini'
 			);
 		}

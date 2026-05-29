@@ -12,15 +12,15 @@
  * finding is low confidence by design — the scanner's job is to point a
  * human at suspicious spots, not to judge them.
  *
- * @package WP_Ultimate_Security_Scan
+ * @package Site_Security_Audit
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class WPUSS_Check_Code_Patterns
+ * Class SSA_Check_Code_Patterns
  */
-class WPUSS_Check_Code_Patterns extends WPUSS_Check_Base {
+class SSA_Check_Code_Patterns extends SSA_Check_Base {
 
 	/**
 	 * Maximum file size to inspect (bytes).
@@ -33,11 +33,11 @@ class WPUSS_Check_Code_Patterns extends WPUSS_Check_Base {
 	 * Constructor — reads max file size from settings.
 	 *
 	 * @param string       $scan_id Scan ID.
-	 * @param WPUSS_Logger $logger  Logger.
+	 * @param SSA_Logger $logger  Logger.
 	 */
-	public function __construct( $scan_id, WPUSS_Logger $logger ) {
+	public function __construct( $scan_id, SSA_Logger $logger ) {
 		parent::__construct( $scan_id, $logger );
-		$settings            = (array) get_option( 'wpuss_settings', array() );
+		$settings            = (array) get_option( 'ssa_settings', array() );
 		$this->max_file_size = isset( $settings['max_scan_file_size'] )
 			? (int) $settings['max_scan_file_size']
 			: 2 * MB_IN_BYTES;
@@ -58,7 +58,7 @@ class WPUSS_Check_Code_Patterns extends WPUSS_Check_Base {
 	 * @return string
 	 */
 	public function get_label() {
-		return __( 'Code Pattern Analysis', 'wp-ultimate-security-scan' );
+		return __( 'Code Pattern Analysis', 'site-security-audit' );
 	}
 
 	/**
@@ -118,7 +118,7 @@ class WPUSS_Check_Code_Patterns extends WPUSS_Check_Base {
 				}
 				$full = $current . DIRECTORY_SEPARATOR . $entry;
 				// Skip our own plugin to avoid false-positive recursion on our regex strings.
-				if ( false !== strpos( $full, 'wp-ultimate-security-scan' ) ) {
+				if ( false !== strpos( $full, 'site-security-audit' ) ) {
 					continue;
 				}
 				if ( is_dir( $full ) ) {
@@ -165,10 +165,10 @@ class WPUSS_Check_Code_Patterns extends WPUSS_Check_Base {
 		// eval() on a base64 or gzinflate payload is very rarely benign.
 		if ( preg_match( '/eval\s*\(\s*(?:base64_decode|gzinflate|str_rot13|gzuncompress)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_CRITICAL,
-				__( 'Possible obfuscated backdoor', 'wp-ultimate-security-scan' ),
-				__( 'Found eval() wrapping a decode/decompress function. This is a standard shape for PHP backdoors.', 'wp-ultimate-security-scan' ),
-				__( 'Compare against the original plugin/theme source. If not legitimate, remove the file and investigate for further compromise.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_CRITICAL,
+				__( 'Possible obfuscated backdoor', 'site-security-audit' ),
+				__( 'Found eval() wrapping a decode/decompress function. This is a standard shape for PHP backdoors.', 'site-security-audit' ),
+				__( 'Compare against the original plugin/theme source. If not legitimate, remove the file and investigate for further compromise.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -176,10 +176,10 @@ class WPUSS_Check_Code_Patterns extends WPUSS_Check_Base {
 		// Direct exec calls are rarely legitimate in plugin/theme code.
 		if ( preg_match( '/\b(?:shell_exec|passthru|proc_open|popen|system)\s*\(/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_HIGH,
-				__( 'Use of shell execution function', 'wp-ultimate-security-scan' ),
-				__( 'The file calls shell_exec / passthru / proc_open / popen / system. WordPress plugins and themes should never need to run shell commands.', 'wp-ultimate-security-scan' ),
-				__( 'Verify the call. If dynamic user input reaches it, this is a command-injection bug.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'Use of shell execution function', 'site-security-audit' ),
+				__( 'The file calls shell_exec / passthru / proc_open / popen / system. WordPress plugins and themes should never need to run shell commands.', 'site-security-audit' ),
+				__( 'Verify the call. If dynamic user input reaches it, this is a command-injection bug.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -187,10 +187,10 @@ class WPUSS_Check_Code_Patterns extends WPUSS_Check_Base {
 		// Dangerous file inclusion on user input.
 		if ( preg_match( '/\b(?:include|require)(?:_once)?\s*\(?\s*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_CRITICAL,
-				__( 'File inclusion from user input', 'wp-ultimate-security-scan' ),
-				__( 'include/require with a superglobal — classic local/remote file inclusion vulnerability.', 'wp-ultimate-security-scan' ),
-				__( 'Rewrite to whitelist allowed paths. Never pass user input directly into include/require.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_CRITICAL,
+				__( 'File inclusion from user input', 'site-security-audit' ),
+				__( 'include/require with a superglobal — classic local/remote file inclusion vulnerability.', 'site-security-audit' ),
+				__( 'Rewrite to whitelist allowed paths. Never pass user input directly into include/require.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -207,10 +207,10 @@ class WPUSS_Check_Code_Patterns extends WPUSS_Check_Base {
 		//     preg_match( '/\b(?:function|class)\s+\w/i', $contents )
 		// ) {
 		//     $this->finding(
-		//         WPUSS_Logger::SEVERITY_LOW,
-		//         __( 'PHP file without direct-access guard', 'wp-ultimate-security-scan' ),
-		//         __( "This file does not check for ABSPATH. ...", 'wp-ultimate-security-scan' ),
-		//         __( "Add at the top: if ( ! defined( 'ABSPATH' ) ) { exit; }", 'wp-ultimate-security-scan' ),
+		//         SSA_Logger::SEVERITY_LOW,
+		//         __( 'PHP file without direct-access guard', 'site-security-audit' ),
+		//         __( "This file does not check for ABSPATH. ...", 'site-security-audit' ),
+		//         __( "Add at the top: if ( ! defined( 'ABSPATH' ) ) { exit; }", 'site-security-audit' ),
 		//         $path
 		//     );
 		// }
@@ -218,10 +218,11 @@ class WPUSS_Check_Code_Patterns extends WPUSS_Check_Base {
 		// Heuristic: raw $wpdb->query with string concatenation of superglobals.
 		if ( preg_match( '/\$wpdb\s*->\s*(?:query|get_(?:row|results|var|col))\s*\(\s*["\'][^"\']*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_HIGH,
-				__( 'Likely unprepared SQL with user input', 'wp-ultimate-security-scan' ),
-				__( 'A $wpdb query string appears to concatenate superglobal data directly. This is very likely SQL injection.', 'wp-ultimate-security-scan' ),
-				__( 'Use $wpdb->prepare() with placeholders (%s, %d, %f). Never concatenate user input into SQL.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'Likely unprepared SQL with user input', 'site-security-audit' ),
+				__( 'A $wpdb query string appears to concatenate superglobal data directly. This is very likely SQL injection.', 'site-security-audit' ),
+				// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment,WordPress.WP.I18n.UnorderedPlaceholdersText -- %s/%d/%f are code examples in the advice text, not sprintf() arguments.
+				__( 'Use $wpdb->prepare() with placeholders (%s, %d, %f). Never concatenate user input into SQL.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -229,10 +230,10 @@ class WPUSS_Check_Code_Patterns extends WPUSS_Check_Base {
 		// Unescaped echo of superglobals (reflected XSS heuristic).
 		if ( preg_match( '/echo\s+\$_(?:GET|POST|REQUEST|COOKIE)\b/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_HIGH,
-				__( 'Unescaped output of user input', 'wp-ultimate-security-scan' ),
-				__( 'Directly echoing $_GET / $_POST without escaping is a reflected XSS bug.', 'wp-ultimate-security-scan' ),
-				__( 'Wrap the value in esc_html(), esc_attr() or wp_kses() depending on the context.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'Unescaped output of user input', 'site-security-audit' ),
+				__( 'Directly echoing $_GET / $_POST without escaping is a reflected XSS bug.', 'site-security-audit' ),
+				__( 'Wrap the value in esc_html(), esc_attr() or wp_kses() depending on the context.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -240,10 +241,10 @@ class WPUSS_Check_Code_Patterns extends WPUSS_Check_Base {
 		// File writes from user input (upload / arbitrary file write).
 		if ( preg_match( '/\bfile_put_contents\s*\([^)]*\$_(?:GET|POST|REQUEST|FILES)/i', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_HIGH,
-				__( 'File write from user input', 'wp-ultimate-security-scan' ),
-				__( 'file_put_contents receiving user-controlled data is a classic arbitrary-file-write / RCE vector.', 'wp-ultimate-security-scan' ),
-				__( 'Use wp_handle_upload() and validate destination paths with realpath against an allowed base.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_HIGH,
+				__( 'File write from user input', 'site-security-audit' ),
+				__( 'file_put_contents receiving user-controlled data is a classic arbitrary-file-write / RCE vector.', 'site-security-audit' ),
+				__( 'Use wp_handle_upload() and validate destination paths with realpath against an allowed base.', 'site-security-audit' ),
 				$path
 			);
 		}
@@ -251,10 +252,10 @@ class WPUSS_Check_Code_Patterns extends WPUSS_Check_Base {
 		// Check for long base64 strings (possible payload).
 		if ( preg_match( '/[A-Za-z0-9+\/=]{400,}/', $contents ) ) {
 			$this->finding(
-				WPUSS_Logger::SEVERITY_MEDIUM,
-				__( 'Long opaque string — possible embedded payload', 'wp-ultimate-security-scan' ),
-				__( 'The file contains a base64-shaped string 400+ characters long. This is sometimes legitimate (SVG, fonts), sometimes a hidden payload.', 'wp-ultimate-security-scan' ),
-				__( 'Open the file and inspect the string context.', 'wp-ultimate-security-scan' ),
+				SSA_Logger::SEVERITY_MEDIUM,
+				__( 'Long opaque string — possible embedded payload', 'site-security-audit' ),
+				__( 'The file contains a base64-shaped string 400+ characters long. This is sometimes legitimate (SVG, fonts), sometimes a hidden payload.', 'site-security-audit' ),
+				__( 'Open the file and inspect the string context.', 'site-security-audit' ),
 				$path
 			);
 		}
