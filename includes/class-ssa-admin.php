@@ -37,8 +37,8 @@ class SSA_Admin {
 	 */
 	public function register_menu() {
 		$this->hook_suffix = add_menu_page(
-			__( 'Security Scan', 'site-security-audit' ),
-			__( 'Security Scan', 'site-security-audit' ),
+			__( 'SSA - Security Audit', 'site-security-audit' ),
+			__( 'SSA - Security Audit', 'site-security-audit' ),
 			SSA_MIN_CAP,
 			SSA_SLUG,
 			array( $this, 'render_scan_page' ),
@@ -204,6 +204,7 @@ class SSA_Admin {
 	 * @return void
 	 */
 	private function maybe_save_settings() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce is verified on the very next line.
 		if ( empty( $_POST['ssa_settings_submit'] ) ) {
 			return;
 		}
@@ -215,9 +216,11 @@ class SSA_Admin {
 			wp_die( esc_html__( 'Insufficient permissions.', 'site-security-audit' ) );
 		}
 
+		// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- each key in $raw is individually sanitized/cast in the $clean array below.
 		$raw = isset( $_POST['ssa_settings'] ) && is_array( $_POST['ssa_settings'] )
 			? wp_unslash( $_POST['ssa_settings'] )
 			: array();
+		// phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		// Max file size: the form submits MB (1-20); we store bytes internally so every
 		// consumer can continue to reason in bytes without change.

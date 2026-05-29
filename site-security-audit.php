@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name:       Site Security Audit
+ * Plugin Name:       SSA – Site Security Audit, Self-Hosted & Private
  * Plugin URI:        https://github.com/dhirenpatel22/site-security-audit
  * Description:       Comprehensive background security scanner for WordPress core, themes, plugins, filesystem, database, users and code patterns. CPU-throttled and non-blocking.
- * Version:           1.2.0
+ * Version:           1.3.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Dhiren Patel
@@ -26,7 +26,7 @@ if ( defined( 'SSA_VERSION' ) ) {
 }
 
 // Plugin constants.
-define( 'SSA_VERSION', '1.2.0' );
+define( 'SSA_VERSION', '1.3.0' );
 define( 'SSA_PLUGIN_FILE', __FILE__ );
 define( 'SSA_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SSA_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -76,12 +76,8 @@ register_deactivation_hook( __FILE__, array( 'SSA_Core', 'on_deactivate' ) );
  * @return void
  */
 function ssa_bootstrap() {
-	load_plugin_textdomain(
-		'site-security-audit',
-		false,
-		dirname( SSA_PLUGIN_BASENAME ) . '/languages'
-	);
-
+	// Text domain is loaded automatically by WordPress when the plugin is hosted
+	// on wordpress.org — no manual load_plugin_textdomain() call needed (WP 4.6+).
 	SSA_Core::instance()->init();
 }
 add_action( 'plugins_loaded', 'ssa_bootstrap' );

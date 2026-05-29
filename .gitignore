@@ -1,3 +1,18 @@
 # Log files
 *.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / editor
 .claude
+.vscode/
+.idea/
+
+# Node / Composer artifacts
+node_modules/
+vendor/
+
+# Build output
+*.zip

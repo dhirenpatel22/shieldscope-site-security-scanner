@@ -106,7 +106,7 @@ class SSA_Check_Core extends SSA_Check_Base {
 							$wp_version,
 							isset( $u->current ) ? $u->current : 'latest'
 						),
-						__( 'Back up your site and update WordPress core from Dashboard → Updates.', 'site-security-audit' ),
+						__( 'Back up your site first (use your host\'s backup tool or export a database dump), then go to Dashboard → Updates and click "Update Now". Core updates are safe and usually take under 2 minutes.', 'site-security-audit' ),
 						'wordpress-core'
 					);
 					return;
@@ -166,7 +166,7 @@ class SSA_Check_Core extends SSA_Check_Base {
 				SSA_Logger::SEVERITY_MEDIUM,
 				__( 'Automatic updates are fully disabled', 'site-security-audit' ),
 				__( 'Automatic minor/security updates are disabled. Unpatched vulnerabilities will stay unpatched.', 'site-security-audit' ),
-				__( 'Remove or set AUTOMATIC_UPDATER_DISABLED to false, or ensure a reliable manual update process.', 'site-security-audit' )
+				__( 'In wp-config.php, remove the line or change it to: define(\'AUTOMATIC_UPDATER_DISABLED\', false); This re-enables automatic security patch updates for minor releases. If intentionally disabled, commit to a regular manual update schedule.', 'site-security-audit' )
 			);
 		}
 	}
@@ -205,7 +205,7 @@ class SSA_Check_Core extends SSA_Check_Base {
 				SSA_Logger::SEVERITY_CRITICAL,
 				__( 'Weak or missing authentication salts', 'site-security-audit' ),
 				__( 'One or more AUTH/NONCE keys in wp-config.php are missing, short, or still set to their placeholder value. An attacker who learns a weak salt may forge cookies.', 'site-security-audit' ),
-				__( 'Replace with fresh values from https://api.wordpress.org/secret-key/1.1/salt/ . Existing users will have to log in again.', 'site-security-audit' ),
+				__( 'Visit https://api.wordpress.org/secret-key/1.1/salt/ to generate 8 fresh random keys, then replace all AUTH_KEY / SALT lines in wp-config.php with the generated block. All active sessions will be logged out — this is expected and safe.', 'site-security-audit' ),
 				'wp-config.php',
 				array( 'failed_keys' => $bad )
 			);
@@ -251,7 +251,7 @@ class SSA_Check_Core extends SSA_Check_Base {
 				SSA_Logger::SEVERITY_LOW,
 				__( "Default database prefix 'wp_' in use", 'site-security-audit' ),
 				__( 'Using the default prefix is not itself a vulnerability, but can make blind SQL injection exploitation marginally easier.', 'site-security-audit' ),
-				__( 'This change requires renaming tables and updating wp-config.php — only undertake it with a tested migration plan.', 'site-security-audit' )
+				__( 'Low priority — only attempt with a full database backup. Rename all tables to a custom prefix via your host\'s phpMyAdmin or database tool, then update $table_prefix in wp-config.php to match. Do not attempt manual SQL renaming without a current backup.', 'site-security-audit' )
 			);
 		}
 	}
@@ -269,7 +269,7 @@ class SSA_Check_Core extends SSA_Check_Base {
 				SSA_Logger::SEVERITY_HIGH,
 				__( 'Site URL is not HTTPS', 'site-security-audit' ),
 				__( 'The home or site URL is configured over HTTP. Traffic, including login credentials, can be intercepted.', 'site-security-audit' ),
-				__( 'Install a TLS certificate and update Settings → General to use https:// for both URLs.', 'site-security-audit' )
+				__( 'Get a free SSL certificate via your hosting panel (cPanel, Plesk, or similar) using Let\'s Encrypt. Once installed, update both WordPress Address and Site Address in Settings → General to https://, and add define(\'FORCE_SSL_ADMIN\', true); to wp-config.php.', 'site-security-audit' )
 			);
 		}
 	}
@@ -285,7 +285,7 @@ class SSA_Check_Core extends SSA_Check_Base {
 				SSA_Logger::SEVERITY_MEDIUM,
 				__( 'XML-RPC is enabled', 'site-security-audit' ),
 				__( 'XML-RPC is commonly abused for password brute-force (system.multicall) and pingback-based DDoS. If you do not use Jetpack, the mobile app, or XML-RPC-based clients, disable it.', 'site-security-audit' ),
-				__( "Add to functions.php or a mu-plugin: add_filter('xmlrpc_enabled', '__return_false'); or block /xmlrpc.php at the webserver.", 'site-security-audit' ),
+				__( 'Add to your theme\'s functions.php or a must-use plugin: add_filter(\'xmlrpc_enabled\', \'__return_false\'); Or block it at the webserver level: Apache .htaccess — <Files xmlrpc.php> deny from all </Files>. Skip this if you use Jetpack or the WordPress mobile app.', 'site-security-audit' ),
 				'/xmlrpc.php'
 			);
 		}
@@ -320,7 +320,7 @@ class SSA_Check_Core extends SSA_Check_Base {
 					SSA_Logger::SEVERITY_MEDIUM,
 					__( 'REST API exposes user list to unauthenticated requests', 'site-security-audit' ),
 					__( 'GET /wp/v2/users returns usernames without authentication, aiding targeted brute-force attempts.', 'site-security-audit' ),
-					__( "Restrict the endpoint with a rest_authentication_errors filter, or require authentication via the rest_user_query filter.", 'site-security-audit' ),
+					__( 'Block the endpoint in functions.php or a must-use plugin: add_filter(\'rest_endpoints\', function($e){ if(!is_user_logged_in()){ unset($e[\'/wp/v2/users\']); unset($e[\'/wp/v2/users/(?P<id>[\\d]+)\']); } return $e; });', 'site-security-audit' ),
 					'/wp-json/wp/v2/users'
 				);
 			}

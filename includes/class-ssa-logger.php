@@ -112,16 +112,13 @@ class SSA_Logger {
 	 */
 	public function get_findings( $scan_id ) {
 		global $wpdb;
-		$table = self::table();
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is a fixed plugin table name, not user input; sanitised via esc_sql().
+		$table = esc_sql( self::table() );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE scan_id = %s ORDER BY FIELD(severity, 'critical','high','medium','low','info'), id ASC",
-				$scan_id
-			),
-			ARRAY_A
-		);
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $table is a fixed plugin table name escaped via esc_sql(); direct query required for plugin-managed table.
+		$sql  = "SELECT * FROM {$table} WHERE scan_id = %s ORDER BY FIELD(severity, 'critical','high','medium','low','info'), id ASC";
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $scan_id ), ARRAY_A );
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return is_array( $rows ) ? $rows : array();
 	}
@@ -134,16 +131,13 @@ class SSA_Logger {
 	 */
 	public function get_summary( $scan_id ) {
 		global $wpdb;
-		$table = self::table();
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is a fixed plugin table name, not user input; sanitised via esc_sql().
+		$table = esc_sql( self::table() );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT severity, COUNT(*) AS total FROM {$table} WHERE scan_id = %s GROUP BY severity",
-				$scan_id
-			),
-			ARRAY_A
-		);
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $table is a fixed plugin table name escaped via esc_sql(); direct query required for plugin-managed table.
+		$sql  = "SELECT severity, COUNT(*) AS total FROM {$table} WHERE scan_id = %s GROUP BY severity";
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $scan_id ), ARRAY_A );
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		$summary = array(
 			self::SEVERITY_CRITICAL => 0,
@@ -166,13 +160,15 @@ class SSA_Logger {
 	 */
 	public function prune_old( $max_age_seconds ) {
 		global $wpdb;
-		$table   = self::table();
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is a fixed plugin table name, not user input; sanitised via esc_sql().
+		$table   = esc_sql( self::table() );
 		$cutoff  = gmdate( 'Y-m-d H:i:s', time() - (int) $max_age_seconds );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->query(
-			$wpdb->prepare( "DELETE FROM {$table} WHERE created_at < %s", $cutoff )
-		);
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $table is a fixed plugin table name escaped via esc_sql(); direct query required for plugin-managed table.
+		$sql = "DELETE FROM {$table} WHERE created_at < %s";
+		$result = (int) $wpdb->query( $wpdb->prepare( $sql, $cutoff ) );
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $result;
 	}
 
 	/**
@@ -183,11 +179,13 @@ class SSA_Logger {
 	 */
 	public function clear_scan( $scan_id ) {
 		global $wpdb;
-		$table = self::table();
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is a fixed plugin table name, not user input; sanitised via esc_sql().
+		$table = esc_sql( self::table() );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->query(
-			$wpdb->prepare( "DELETE FROM {$table} WHERE scan_id = %s", $scan_id )
-		);
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $table is a fixed plugin table name escaped via esc_sql(); direct query required for plugin-managed table.
+		$sql    = "DELETE FROM {$table} WHERE scan_id = %s";
+		$result = (int) $wpdb->query( $wpdb->prepare( $sql, $scan_id ) );
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $result;
 	}
 }

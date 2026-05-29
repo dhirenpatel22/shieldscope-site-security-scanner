@@ -54,6 +54,7 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 			'app_passwords',
 			'author_enum',
 			'login_page',
+			'login_error_enum',
 			'scan_plugins',
 		);
 	}
@@ -78,6 +79,9 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 				break;
 			case 'login_page':
 				$this->check_login_page();
+				break;
+			case 'login_error_enum':
+				$this->check_login_error_enumeration();
 				break;
 			case 'scan_plugins':
 				return $this->scan_plugins_for_auth( $cursor );
@@ -147,6 +151,7 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 
 		$users_with_app_pw = get_users(
 			array(
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- meta_key is indexed; required to identify users with application passwords.
 				'meta_key'     => '_application_passwords',
 				'meta_compare' => 'EXISTS',
 				'number'       => 20,
@@ -227,7 +232,7 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 					__( '/?author=1 redirects to %s, leaking a username to unauthenticated visitors and aiding brute-force targeting.', 'site-security-audit' ),
 					$location
 				),
-				__( 'Redirect numeric author URLs to the homepage using a rewrite rule, or replace user display names with aliases distinct from login names.', 'site-security-audit' ),
+				__( 'In Users → All Users, set each author\'s "Display name publicly as" to a first name or nickname that differs from their login. To also block the redirect itself, add to functions.php: add_action(\'template_redirect\', function(){ if(is_author()){ wp_redirect(home_url(\'/\'), 301); exit; } });', 'site-security-audit' ),
 				'/?author=1',
 				array( 'redirect' => $location )
 			);
@@ -286,7 +291,7 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 				SSA_Logger::SEVERITY_MEDIUM,
 				__( 'Login page is publicly accessible without brute-force protection', 'site-security-audit' ),
 				__( 'wp-login.php is reachable and no recognised login-protection plugin is active. Bots continuously run credential-stuffing attacks against WordPress login pages.', 'site-security-audit' ),
-				__( 'Install a login-protection plugin (Limit Login Attempts Reloaded, Wordfence, etc.), add HTTP Basic Auth in front of wp-login.php, or move the login URL.', 'site-security-audit' ),
+				__( 'Protect your login page by enabling rate limiting at the webserver or firewall level, or by moving wp-login.php to a custom URL (so bots cannot find the default path). Check your hosting dashboard — many managed hosts include brute-force protection built in.', 'site-security-audit' ),
 				$login_url
 			);
 		}
@@ -313,7 +318,104 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 				SSA_Logger::SEVERITY_LOW,
 				__( 'No two-factor authentication plugin detected', 'site-security-audit' ),
 				__( 'No recognised 2FA plugin is active. Without a second factor, a stolen password is sufficient to compromise any account.', 'site-security-audit' ),
-				__( 'Install a 2FA plugin (Two Factor, WP 2FA, Wordfence) and enforce it for all administrator accounts.', 'site-security-audit' )
+				__( 'Enable two-factor authentication for all administrator accounts. With 2FA, a stolen password alone is not enough to access an account. Search for "two-factor" on wordpress.org/plugins to find a suitable option, or check whether your hosting provider includes 2FA tools in their dashboard.', 'site-security-audit' )
+			);
+		}
+	}
+
+	/**
+	 * Test whether WordPress login error messages reveal valid usernames.
+	 *
+	 * WordPress default behaviour returns different error messages for
+	 * "username does not exist" vs "incorrect password for <username>".
+	 * This lets attackers confirm whether a username is registered before
+	 * starting a password brute-force — halving their work.
+	 *
+	 * The check submits a login attempt with a known-valid admin username and
+	 * a clearly bogus password, then inspects the error message. If the message
+	 * names the username or says "incorrect password", username enumeration is
+	 * possible via login errors.
+	 *
+	 * @return void
+	 */
+	private function check_login_error_enumeration() {
+		// Get the first administrator username to use as the test subject.
+		$admins = get_users(
+			array(
+				'role'   => 'administrator',
+				'number' => 1,
+				'fields' => 'user_login',
+			)
+		);
+
+		if ( empty( $admins ) ) {
+			return;
+		}
+
+		$username = is_object( $admins[0] ) ? $admins[0]->user_login : (string) $admins[0];
+		if ( '' === $username ) {
+			return;
+		}
+
+		// Use a password that will never match, but looks realistic.
+		$fake_password = 'SSA_test_' . wp_generate_password( 12, false, false ) . '_probe';
+
+		$login_url = wp_login_url();
+		$response  = wp_remote_post(
+			$login_url,
+			array(
+				'timeout'     => 8,
+				'redirection' => 5,
+				'sslverify'   => apply_filters( 'https_local_ssl_verify', false ),
+				'body'        => array(
+					'log'       => $username,
+					'pwd'       => $fake_password,
+					'wp-submit' => 'Log In',
+					'testcookie' => '1',
+				),
+				'cookies'     => array(
+					new WP_Http_Cookie(
+						array(
+							'name'  => 'wordpress_test_cookie',
+							'value' => 'WP Cookie check',
+						)
+					),
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return;
+		}
+
+		$body = wp_remote_retrieve_body( $response );
+		if ( ! $body ) {
+			return;
+		}
+
+		// WordPress default strings that confirm the username exists:
+		//   "The password you entered for the username <b>xxx</b> is incorrect."
+		//   "incorrect password" (some translations)
+		//   "Error: The password you entered"
+		$username_confirmed = (
+			false !== stripos( $body, 'incorrect password' ) ||
+			false !== stripos( $body, 'the password you entered' ) ||
+			false !== stripos( $body, htmlspecialchars( $username, ENT_QUOTES ) )
+		);
+
+		// If the response contains the exact username or a password-specific
+		// error message, username enumeration via login errors is possible.
+		if ( $username_confirmed ) {
+			$this->finding(
+				SSA_Logger::SEVERITY_LOW,
+				__( 'Login error messages reveal valid usernames', 'site-security-audit' ),
+				sprintf(
+					/* translators: %s: the admin username used in the test */
+					__( 'The login error response for username "%s" confirms that the account exists by returning a password-specific error. Attackers can exploit this to enumerate valid accounts before brute-forcing passwords.', 'site-security-audit' ),
+					esc_html( $username )
+				),
+				__( 'Add a filter to return a generic error for both bad usernames and bad passwords: add_filter(\'login_errors\', function(){ return \'Invalid credentials.\'; }); This prevents confirming whether a username exists without affecting the login process.', 'site-security-audit' ),
+				$login_url
 			);
 		}
 	}

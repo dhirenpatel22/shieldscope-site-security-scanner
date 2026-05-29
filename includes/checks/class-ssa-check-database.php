@@ -87,7 +87,7 @@ class SSA_Check_Database extends SSA_Check_Base {
 					$u->user_login,
 					$u->user_registered
 				),
-				__( 'Verify with your team. If unfamiliar, revoke access, rotate all admin passwords, and scan for backdoors.', 'site-security-audit' ),
+				__( 'If you did not create this account, treat it as a compromise. Delete it via Users → All Users, change all admin passwords, and regenerate your auth salts in wp-config.php (get fresh keys at https://api.wordpress.org/secret-key/1.1/salt/). Contact your host if you cannot determine how the account was created.', 'site-security-audit' ),
 				'user:' . $u->ID
 			);
 		}
@@ -105,7 +105,7 @@ class SSA_Check_Database extends SSA_Check_Base {
 				SSA_Logger::SEVERITY_CRITICAL,
 				__( 'Open registration with administrator default role', 'site-security-audit' ),
 				__( 'Anyone can register and is automatically granted administrator. This is almost certainly a compromise.', 'site-security-audit' ),
-				__( 'Disable public registration or set the default role to Subscriber in Settings → General.', 'site-security-audit' )
+				__( 'Go to Settings → General and either disable "Anyone can register" or change the default role from Administrator to Subscriber. Then go to Users → All Users, filter by Administrator, and delete any accounts you do not recognise.', 'site-security-audit' )
 			);
 		}
 
@@ -125,7 +125,7 @@ class SSA_Check_Database extends SSA_Check_Base {
 						$site_url,
 						$home
 					),
-					__( 'Confirm both values in Settings → General are correct. If not, revert and investigate.', 'site-security-audit' )
+					__( 'Go to Settings → General and verify both WordPress Address and Site Address point to your own domain. If either was changed to an unknown domain, revert it and change all admin passwords immediately. Also check wp-config.php for WP_HOME or WP_SITEURL constants that may be overriding the values.', 'site-security-audit' )
 				);
 			}
 		}

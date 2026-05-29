@@ -68,6 +68,7 @@ class SSA_Scanner {
 			'SSA_Check_Plugins',
 			'SSA_Check_Themes',
 			'SSA_Check_Config',
+			'SSA_Check_SSL',
 			'SSA_Check_Code_Patterns',
 			'SSA_Check_Injection',
 			'SSA_Check_Access_Control',

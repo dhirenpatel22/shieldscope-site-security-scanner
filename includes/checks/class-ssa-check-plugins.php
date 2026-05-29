@@ -90,7 +90,7 @@ class SSA_Check_Plugins extends SSA_Check_Base {
 					$data['Version'],
 					isset( $info->new_version ) ? $info->new_version : 'latest'
 				),
-				__( 'Review the changelog and apply the update.', 'site-security-audit' ),
+				__( 'Go to Dashboard → Updates and update this plugin. Check the changelog for the word "security" to understand what\'s fixed. Outdated plugins are the leading cause of WordPress compromises — do not delay security updates.', 'site-security-audit' ),
 				'plugin:' . $plugin_file,
 				array( 'plugin_name' => $data['Name'] )
 			);
@@ -118,7 +118,7 @@ class SSA_Check_Plugins extends SSA_Check_Base {
 						__( 'Plugin "%s" is installed but not active. Its code is still on disk and could be exploited if it has a vulnerability.', 'site-security-audit' ),
 						$data['Name']
 					),
-					__( 'Delete plugins you do not intend to use.', 'site-security-audit' ),
+					__( 'Go to Plugins → Installed Plugins and click Delete — not just Deactivate. Inactive plugins leave code on disk that can still be exploited if they contain vulnerabilities. Only keep plugins you actively use.', 'site-security-audit' ),
 					'plugin:' . $file,
 					array( 'plugin_name' => $data['Name'] )
 				);
@@ -147,7 +147,7 @@ class SSA_Check_Plugins extends SSA_Check_Base {
 						__( 'Plugin "%s" declares neither a PluginURI nor an UpdateURI. If this is not a custom plugin, verify it came from a trusted source.', 'site-security-audit' ),
 						$data['Name']
 					),
-					__( 'Confirm the plugin origin. Remove if unknown or nulled.', 'site-security-audit' ),
+					__( 'Search wordpress.org/plugins to verify this plugin is legitimate. If it\'s a custom-built plugin, this warning can be ignored. If it came from a "free premium plugin" site, treat it as potentially nulled (pirated software with malware injected) and delete it — replace with the official version from the original developer.', 'site-security-audit' ),
 					'plugin:' . $file,
 					array( 'plugin_name' => $data['Name'] )
 				);
@@ -178,7 +178,7 @@ class SSA_Check_Plugins extends SSA_Check_Base {
 						$data['Name'],
 						gmdate( 'Y-m-d', $mtime )
 					),
-					__( 'Check the plugin directory page. If unmaintained, find a replacement.', 'site-security-audit' ),
+					__( 'Check wordpress.org/plugins for this plugin — if it shows "not tested with the latest 3 major releases" it is likely abandoned. Consider replacing it with a maintained alternative. If you need to keep it, contact the plugin developer via the wordpress.org support forum to ask about continued maintenance.', 'site-security-audit' ),
 					'plugin:' . $file,
 					array( 'plugin_name' => $data['Name'] )
 				);

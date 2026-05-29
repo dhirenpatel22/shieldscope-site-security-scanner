@@ -1,4 +1,4 @@
-# Site Security Audit
+# SSA – Site Security Audit, Self-Hosted & Private
 
 A deep, read-only security scanner for WordPress that audits **core, users, filesystem, plugins, themes, code patterns, HTTP headers, injection vulnerabilities, access control, SSRF, and the database** — and does it without hogging your server.
 

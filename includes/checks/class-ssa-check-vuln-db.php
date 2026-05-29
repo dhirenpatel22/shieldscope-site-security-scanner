@@ -235,6 +235,7 @@ class SSA_Check_Vuln_DB extends SSA_Check_Base {
 				$name,
 				$version,
 				$fixed_in
+					/* translators: %s: version number */
 					? sprintf( __( 'Fixed in version %s.', 'site-security-audit' ), $fixed_in )
 					: __( 'No fix version known — check the plugin/theme page for updates.', 'site-security-audit' )
 			);
@@ -245,7 +246,7 @@ class SSA_Check_Vuln_DB extends SSA_Check_Base {
 					__( 'Update to version %s or later immediately.', 'site-security-audit' ),
 					$fixed_in
 				)
-				: __( 'Deactivate and remove this plugin/theme until a fix is available.', 'site-security-audit' );
+				: __( 'No fix is available yet. Deactivate and remove this plugin/theme until a patch is released. Contact the developer via the wordpress.org support forum to ask for a timeline.', 'site-security-audit' );
 
 			$this->finding(
 				$severity,
@@ -343,7 +344,7 @@ class SSA_Check_Vuln_DB extends SSA_Check_Base {
 				),
 				sprintf(
 					/* translators: %s: fixed version */
-					__( 'Update %s immediately via Dashboard → Plugins → Updates.', 'site-security-audit' ),
+					__( 'Update %s immediately via Dashboard → Plugins → Updates. If an update is not yet available, contact the plugin developer via their wordpress.org support forum to report the issue and ask for a timeline.', 'site-security-audit' ),
 					$name
 				),
 				$target,

@@ -268,7 +268,7 @@ class SSA_Check_Core_Integrity extends SSA_Check_Base {
 						__( 'The core file %s is listed in the WordPress.org checksums but is not present on disk. It may have been deleted or the installation is incomplete.', 'site-security-audit' ),
 						$path
 					),
-					__( 'Reinstall WordPress from Dashboard → Updates → Re-install, or upload a fresh copy of the missing file.', 'site-security-audit' ),
+					__( 'Go to Dashboard → Updates and click "Re-install now" — this re-downloads all core files without touching your content, plugins, or wp-config.php. Alternatively, download the matching WordPress version from wordpress.org/download/releases and upload just the missing file via FTP.', 'site-security-audit' ),
 					$path
 				);
 				$seen++;
@@ -293,7 +293,7 @@ class SSA_Check_Core_Integrity extends SSA_Check_Base {
 						$expected,
 						$actual
 					),
-					__( 'Compare the file against a clean copy of the same WordPress version. If you did not modify it intentionally, reinstall WordPress from Dashboard → Updates → Re-install.', 'site-security-audit' ),
+					__( 'Download a clean copy of the same WordPress version from wordpress.org/download/releases and compare the file. If you see injected or obfuscated code, your site is compromised — change all passwords, regenerate auth salts, and go to Dashboard → Updates to click "Re-install now" to restore all core files safely.', 'site-security-audit' ),
 					$path,
 					array(
 						'expected' => $expected,
@@ -374,7 +374,7 @@ class SSA_Check_Core_Integrity extends SSA_Check_Base {
 								__( 'The file %s is inside a core WordPress directory but is not part of the official WordPress.org checksums for this version. This is frequently how backdoors hide.', 'site-security-audit' ),
 								$rel
 							),
-							__( 'Inspect the file. If it wasn\'t installed by you deliberately, quarantine it and reinstall WordPress core from Dashboard → Updates → Re-install.', 'site-security-audit' ),
+							__( 'Open the file in a text editor (read-only) and look for eval(), base64_decode(), or obfuscated code — these are malware indicators. If you did not put it there, delete it immediately via FTP or File Manager, then go to Dashboard → Updates and click "Re-install now" to verify all core files.', 'site-security-audit' ),
 							$rel
 						);
 					}

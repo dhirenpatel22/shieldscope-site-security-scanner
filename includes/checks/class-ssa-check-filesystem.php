@@ -36,7 +36,7 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 	 * @return array
 	 */
 	public function get_steps() {
-		return array( 'wp_config_perms', 'key_perms', 'readme', 'uploads_php', 'backup_files', 'directory_listing' );
+		return array( 'wp_config_perms', 'key_perms', 'readme', 'uploads_php', 'backup_files', 'directory_listing', 'directory_listing_all', 'wp_config_http', 'sensitive_urls' );
 	}
 
 	/**
@@ -64,6 +64,15 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 				break;
 			case 'directory_listing':
 				$this->check_directory_listing();
+				break;
+			case 'directory_listing_all':
+				$this->check_directory_listing_all();
+				break;
+			case 'wp_config_http':
+				$this->check_wp_config_http();
+				break;
+			case 'sensitive_urls':
+				$this->check_sensitive_urls();
 				break;
 		}
 		return array( 'continue' => false, 'cursor' => array() );
@@ -160,7 +169,7 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 					SSA_Logger::SEVERITY_LOW,
 					__( 'readme.html is publicly accessible', 'site-security-audit' ),
 					__( 'The file discloses the WordPress version, helping attackers match known CVEs.', 'site-security-audit' ),
-					__( 'Delete readme.html or block it at the webserver.', 'site-security-audit' ),
+					__( 'Delete readme.html from your WordPress root via FTP or your hosting File Manager. Since it is recreated on each core update, also block it permanently in Apache .htaccess: <Files readme.html> deny from all </Files>. For Nginx: location = /readme.html { deny all; }', 'site-security-audit' ),
 					$readme
 				);
 			}
@@ -205,7 +214,7 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 						SSA_Logger::SEVERITY_CRITICAL,
 						__( 'Executable PHP file inside uploads', 'site-security-audit' ),
 						__( 'PHP files inside wp-content/uploads are a classic backdoor indicator. Uploads must never execute server-side code.', 'site-security-audit' ),
-						__( 'Inspect the file immediately. Remove if unexpected, and block PHP execution in uploads via .htaccess or webserver rules.', 'site-security-audit' ),
+						__( 'A PHP file in uploads is almost always a web shell. Do NOT open it in a browser — delete it via FTP or your hosting File Manager immediately. Block PHP execution in uploads permanently by adding to wp-content/uploads/.htaccess: <Files *.php> deny from all </Files>. Then change all admin passwords.', 'site-security-audit' ),
 						$full
 					);
 				}
@@ -254,10 +263,143 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 						__( 'Found %s in the site root. Files like these frequently leak database credentials or full site data.', 'site-security-audit' ),
 						$file
 					),
-					__( 'Delete the file or move it outside the webroot immediately.', 'site-security-audit' ),
+					__( 'Delete or move this file outside your webroot immediately via FTP or your hosting File Manager — it likely contains database credentials. After removing it, rotate your database password in both wp-config.php and your hosting control panel.', 'site-security-audit' ),
 					$path
 				);
 			}
+		}
+	}
+
+	/**
+	 * Check whether wp-config.php is served over HTTP (webserver should block it).
+	 *
+	 * Even when file permissions are correct, a misconfigured webserver could
+	 * serve wp-config.php as plain text if PHP processing fails. This check
+	 * performs an actual HTTP request to confirm.
+	 *
+	 * @return void
+	 */
+	private function check_wp_config_http() {
+		$url      = home_url( '/wp-config.php' );
+		$response = wp_remote_get(
+			$url,
+			array(
+				'timeout'   => 5,
+				'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return;
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$body = wp_remote_retrieve_body( $response );
+
+		// A 200 response that contains DB_ constants is a definite credential leak.
+		if ( 200 === $code ) {
+			$has_credentials = $body && preg_match( '/DB_(?:NAME|USER|PASSWORD|HOST)/i', $body );
+
+			if ( $has_credentials ) {
+				$this->finding(
+					SSA_Logger::SEVERITY_CRITICAL,
+					__( 'wp-config.php is publicly readable and contains credentials', 'site-security-audit' ),
+					__( 'A request to /wp-config.php returned HTTP 200 and the response body contains database constants (DB_NAME, DB_USER, DB_PASSWORD). Your database credentials are exposed to anyone on the internet.', 'site-security-audit' ),
+					__( 'Block access to wp-config.php at the webserver level immediately. Apache: add a <Files wp-config.php> deny from all </Files> block. Nginx: add "location ~* wp-config\\.php { deny all; }". Also rotate your database password immediately.', 'site-security-audit' ),
+					$url
+				);
+			} else {
+				$this->finding(
+					SSA_Logger::SEVERITY_HIGH,
+					__( 'wp-config.php returned HTTP 200 (possible exposure)', 'site-security-audit' ),
+					__( 'A request to /wp-config.php returned HTTP 200. Even if PHP processes it as code rather than serving it as text, this indicates the webserver is not explicitly blocking access. A PHP-processing failure could expose database credentials.', 'site-security-audit' ),
+					__( 'Explicitly deny access to wp-config.php at the webserver level. Apache: <Files wp-config.php> deny from all </Files>. Nginx: location ~* wp-config\\.php { deny all; }', 'site-security-audit' ),
+					$url
+				);
+			}
+		}
+		// 403 or 404 are both acceptable; no finding needed.
+	}
+
+	/**
+	 * Check for publicly accessible sensitive WordPress files.
+	 *
+	 * Covers files beyond what SSA_Check_Security_Config checks — specifically
+	 * WordPress-specific files that leak version information or enable abuse:
+	 *  - license.txt       — discloses WordPress version in the copyright year line
+	 *  - wp-activate.php   — activation endpoint; should return 302/403, not 200+content
+	 *  - wp-cron.php       — should not be directly accessible; enables resource abuse
+	 *  - .htaccess         — Apache rewrite rules; may reveal path structure
+	 *
+	 * @return void
+	 */
+	private function check_sensitive_urls() {
+		$base = trailingslashit( home_url() );
+
+		$checks = array(
+			'license.txt'     => array(
+				'severity' => SSA_Logger::SEVERITY_LOW,
+				'title'    => __( 'license.txt is publicly accessible', 'site-security-audit' ),
+				'desc'     => __( 'The WordPress license file is accessible and discloses the WordPress version in its copyright year/version line.', 'site-security-audit' ),
+				'rec'      => __( 'Delete license.txt from the webroot, or block it at the webserver level.', 'site-security-audit' ),
+				'match'    => null, // 200 response is enough.
+			),
+			'wp-activate.php' => array(
+				'severity' => SSA_Logger::SEVERITY_LOW,
+				'title'    => __( 'wp-activate.php is publicly accessible', 'site-security-audit' ),
+				'desc'     => __( 'The wp-activate.php file is reachable from the internet. On single-site WordPress it serves no purpose and its content includes the WordPress version in the page title.', 'site-security-audit' ),
+				'rec'      => __( 'Block access to wp-activate.php at the webserver level unless you are running WordPress Multisite with email-based user activation.', 'site-security-audit' ),
+				'match'    => null,
+			),
+			'wp-cron.php'     => array(
+				'severity' => SSA_Logger::SEVERITY_MEDIUM,
+				'title'    => __( 'wp-cron.php is publicly accessible', 'site-security-audit' ),
+				'desc'     => __( 'wp-cron.php is reachable by any visitor. Repeated requests can trigger all scheduled tasks simultaneously, wasting server resources. Malicious actors use this for denial-of-service and to exhaust hosting CPU quotas.', 'site-security-audit' ),
+				'rec'      => __( "Block direct HTTP access to wp-cron.php at the webserver level and use a real server cron job instead: define('DISABLE_WP_CRON', true); in wp-config.php, then: */5 * * * * php /path/to/wordpress/wp-cron.php", 'site-security-audit' ),
+				'match'    => null,
+			),
+			'.htaccess'       => array(
+				'severity' => SSA_Logger::SEVERITY_MEDIUM,
+				'title'    => __( '.htaccess file is publicly accessible', 'site-security-audit' ),
+				'desc'     => __( 'The .htaccess file returned HTTP 200. It may contain rewrite rules, directory configurations, or access controls that expose your site structure and configuration to attackers.', 'site-security-audit' ),
+				'rec'      => __( "Ensure your webserver is configured to block direct access to dotfiles. For Apache, add: <FilesMatch '^\\.'> deny from all </FilesMatch>", 'site-security-audit' ),
+				'match'    => null,
+			),
+		);
+
+		foreach ( $checks as $file => $meta ) {
+			$response = wp_remote_get(
+				$base . ltrim( $file, '/' ),
+				array(
+					'timeout'   => 5,
+					'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
+				)
+			);
+
+			if ( is_wp_error( $response ) ) {
+				continue;
+			}
+
+			$code = (int) wp_remote_retrieve_response_code( $response );
+			if ( 200 !== $code ) {
+				continue;
+			}
+
+			// Optional body-content match.
+			if ( null !== $meta['match'] ) {
+				$body = wp_remote_retrieve_body( $response );
+				if ( ! $body || false === strpos( $body, $meta['match'] ) ) {
+					continue;
+				}
+			}
+
+			$this->finding(
+				$meta['severity'],
+				$meta['title'],
+				$meta['desc'],
+				$meta['rec'],
+				'/' . $file
+			);
 		}
 	}
 
@@ -292,9 +434,68 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 				SSA_Logger::SEVERITY_MEDIUM,
 				__( 'Directory listing enabled on uploads', 'site-security-audit' ),
 				__( 'Visitors can enumerate every file under wp-content/uploads.', 'site-security-audit' ),
-				__( "Add 'Options -Indexes' to .htaccess (Apache) or 'autoindex off;' (nginx), or place an empty index.php in the directory.", 'site-security-audit' ),
+				__( 'Add "Options -Indexes" to your root .htaccess file to disable directory listings site-wide. For Nginx, add "autoindex off;" inside your server block. You can also place an empty index.php file in the uploads directory as a fallback.', 'site-security-audit' ),
 				$url
 			);
+		}
+	}
+
+	/**
+	 * Directory listing on wp-content, plugins, and themes directories.
+	 *
+	 * If any of these respond with an Apache/Nginx directory index, attackers can
+	 * enumerate installed plugins and themes — a direct path to targeted CVE exploitation.
+	 *
+	 * @return void
+	 */
+	private function check_directory_listing_all() {
+		$dirs = array(
+			content_url( '/' )           => 'wp-content',
+			plugins_url( '/' )           => 'wp-content/plugins',
+			get_theme_root_uri() . '/'   => 'wp-content/themes',
+		);
+
+		foreach ( $dirs as $url => $label ) {
+			$url      = trailingslashit( $url );
+			$response = wp_remote_get(
+				$url,
+				array(
+					'timeout'   => 5,
+					'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
+				)
+			);
+
+			if ( is_wp_error( $response ) ) {
+				continue;
+			}
+
+			$code = (int) wp_remote_retrieve_response_code( $response );
+			if ( 200 !== $code ) {
+				continue;
+			}
+
+			$body = wp_remote_retrieve_body( $response );
+			if ( ! $body ) {
+				continue;
+			}
+
+			if ( false !== stripos( $body, 'Index of /' ) || false !== stripos( $body, '<title>Index of' ) ) {
+				$this->finding(
+					SSA_Logger::SEVERITY_HIGH,
+					sprintf(
+						/* translators: %s: directory label e.g. "wp-content/plugins" */
+						__( 'Directory listing enabled on %s', 'site-security-audit' ),
+						$label
+					),
+					sprintf(
+						/* translators: %s: directory label */
+						__( 'The %s directory returns a browsable file listing. Attackers can enumerate all installed plugins and themes, then match them to known CVEs.', 'site-security-audit' ),
+						$label
+					),
+					__( "Add 'Options -Indexes' to the root .htaccess file (Apache) or 'autoindex off;' in the Nginx server block. Placing an empty index.php in each directory also suppresses listing.", 'site-security-audit' ),
+					$url
+				);
+			}
 		}
 	}
 }

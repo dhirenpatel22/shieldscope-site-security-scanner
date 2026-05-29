@@ -91,7 +91,7 @@ class SSA_Check_Security_Config extends SSA_Check_Base {
 					__( 'PHP %s no longer receives security patches. Known vulnerabilities in this version will never be fixed.', 'site-security-audit' ),
 					$version
 				),
-				__( 'Upgrade to PHP 8.3 or later. Contact your hosting provider or update via your server control panel.', 'site-security-audit' ),
+				__( 'Upgrade to PHP 8.3 via your hosting control panel — look for "PHP Version" or "PHP Selector" under Software or Domain settings (cPanel, Plesk, or your managed host\'s dashboard). Always test on a staging copy first to check plugin compatibility.', 'site-security-audit' ),
 				'php.ini',
 				array( 'php_version' => $version, 'minimum_recommended' => '8.3' )
 			);
@@ -107,7 +107,7 @@ class SSA_Check_Security_Config extends SSA_Check_Base {
 					__( 'PHP %s reached end-of-life in November 2023 and no longer receives security patches.', 'site-security-audit' ),
 					$version
 				),
-				__( 'Upgrade to PHP 8.3 or later.', 'site-security-audit' ),
+				__( 'Upgrade to PHP 8.3 via your hosting control panel — look for "PHP Version" or "PHP Selector" under Software settings (cPanel/Plesk). Test on a staging copy first to check plugin compatibility.', 'site-security-audit' ),
 				'php.ini',
 				array( 'php_version' => $version )
 			);
@@ -123,7 +123,7 @@ class SSA_Check_Security_Config extends SSA_Check_Base {
 					__( 'PHP %s reached end-of-life in December 2024. No further security updates are available.', 'site-security-audit' ),
 					$version
 				),
-				__( 'Upgrade to PHP 8.3 or later.', 'site-security-audit' ),
+				__( 'Upgrade to PHP 8.3 via your hosting control panel — look for "PHP Version" or "PHP Selector" under Software settings (cPanel/Plesk). Test on a staging copy first to check plugin compatibility.', 'site-security-audit' ),
 				'php.ini',
 				array( 'php_version' => $version )
 			);
@@ -373,7 +373,7 @@ class SSA_Check_Security_Config extends SSA_Check_Base {
 					__( 'The following PHP functions are callable: %s. If a plugin or theme has a code injection bug, these can be used for OS command execution.', 'site-security-audit' ),
 					implode( ', ', $not_disabled )
 				),
-				__( 'Add these functions to disable_functions in php.ini. Ask your hosting provider if you cannot modify php.ini directly.', 'site-security-audit' ),
+					__( 'Add to php.ini: disable_functions = exec,passthru,shell_exec,system,proc_open,popen,pcntl_exec. If you cannot edit php.ini directly, create a .user.ini file in your WordPress root with the same line, or ask your host to apply it at the server level.', 'site-security-audit' ),
 				'php.ini',
 				array( 'available_functions' => $not_disabled )
 			);

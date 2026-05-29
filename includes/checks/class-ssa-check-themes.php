@@ -82,7 +82,7 @@ class SSA_Check_Themes extends SSA_Check_Base {
 					$theme->get( 'Name' ),
 					isset( $info['new_version'] ) ? $info['new_version'] : 'latest'
 				),
-				__( 'Update the theme; test child theme / customizations first if in production.', 'site-security-audit' ),
+				__( 'Go to Dashboard → Updates and update this theme. If you have customised the parent theme directly, your changes will be overwritten — migrate them to a child theme first. Child theme customisations are not affected by parent theme updates.', 'site-security-audit' ),
 				'theme:' . $slug
 			);
 		}
@@ -113,7 +113,7 @@ class SSA_Check_Themes extends SSA_Check_Base {
 					__( '%d inactive themes are present. Keep only your active theme, its parent (if any), and one up-to-date default theme as a fallback.', 'site-security-audit' ),
 					$extra
 				),
-				__( 'Delete unused themes via Appearance → Themes.', 'site-security-audit' )
+				__( 'Go to Appearance → Themes and delete all themes you are not using — keep only your active theme, its parent (if any), and one default WordPress theme as a fallback. Inactive themes on disk can still be exploited even without being active.', 'site-security-audit' )
 			);
 		}
 	}

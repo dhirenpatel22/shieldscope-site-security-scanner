@@ -221,6 +221,7 @@ class SSA_Check_Code_Patterns extends SSA_Check_Base {
 				SSA_Logger::SEVERITY_HIGH,
 				__( 'Likely unprepared SQL with user input', 'site-security-audit' ),
 				__( 'A $wpdb query string appears to concatenate superglobal data directly. This is very likely SQL injection.', 'site-security-audit' ),
+				// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment,WordPress.WP.I18n.UnorderedPlaceholdersText -- %s/%d/%f are code examples in the advice text, not sprintf() arguments.
 				__( 'Use $wpdb->prepare() with placeholders (%s, %d, %f). Never concatenate user input into SQL.', 'site-security-audit' ),
 				$path
 			);

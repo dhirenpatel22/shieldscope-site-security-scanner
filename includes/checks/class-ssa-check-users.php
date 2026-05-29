@@ -79,7 +79,7 @@ class SSA_Check_Users extends SSA_Check_Base {
 				SSA_Logger::SEVERITY_HIGH,
 				__( "An administrator named 'admin' exists", 'site-security-audit' ),
 				__( "The username 'admin' is the first target of brute-force attacks. Having a privileged account with this exact name halves the work an attacker needs to do.", 'site-security-audit' ),
-				__( 'Create a new administrator with a non-obvious username, transfer content ownership, and delete the old account.', 'site-security-audit' ),
+				__( 'Go to Users → Add New and create a new Administrator with a unique username. Log in as the new admin, then delete the old "admin" account — on the deletion screen choose "Attribute all content to" your new account to transfer all posts.', 'site-security-audit' ),
 				'user:' . $user->ID
 			);
 		}
@@ -108,7 +108,7 @@ class SSA_Check_Users extends SSA_Check_Base {
 					__( '%d administrator accounts exist. Each is a potential point of compromise.', 'site-security-audit' ),
 					$count
 				),
-				__( 'Review each administrator. Downgrade those who do not strictly need the role to Editor or a custom role.', 'site-security-audit' )
+				__( 'Go to Users → All Users, filter by Administrator, and review each account. Downgrade accounts that do not need full access — change their role to Editor (content management) or Author (own posts only) via their profile.', 'site-security-audit' )
 			);
 		}
 	}
@@ -143,7 +143,7 @@ class SSA_Check_Users extends SSA_Check_Base {
 						__( "User '%s' has a password hash that does not match WordPress' phpass or bcrypt format. This may be a legacy md5/sha1 hash.", 'site-security-audit' ),
 						$row['user_login']
 					),
-					__( 'Force a password reset for this user. Legacy hashes crack orders of magnitude faster than modern ones.', 'site-security-audit' ),
+					__( 'Force a password reset: go to Users → All Users, edit the user, generate a new password, and save — the hash upgrades to a modern format automatically on next login. If the account is unrecognised, delete it immediately and investigate for a compromise.', 'site-security-audit' ),
 					'user:' . $row['ID']
 				);
 			}
@@ -172,7 +172,7 @@ class SSA_Check_Users extends SSA_Check_Base {
 					__( "User '%s' has no password set. This is usually only legitimate for SSO accounts — otherwise it is a critical vulnerability.", 'site-security-audit' ),
 					$row['user_login']
 				),
-				__( "Force a password reset or disable the account.", 'site-security-audit' ),
+				__( 'Go to Users → All Users and set a strong password on this account immediately. If you do not recognise the account, delete it and change all admin passwords — an unrecognised empty-password account is a strong indicator of compromise.', 'site-security-audit' ),
 				'user:' . $row['ID']
 			);
 		}
@@ -201,7 +201,7 @@ class SSA_Check_Users extends SSA_Check_Base {
 						__( "User '%s' has the same display name as login name. This reveals the login to anyone reading a byline.", 'site-security-audit' ),
 						$row['user_login']
 					),
-					__( 'Set the display name to the first name, full name or nickname in the user profile.', 'site-security-audit' ),
+					__( 'Go to Users → All Users, edit the user, and change "Display name publicly as" to a first name or nickname that differs from their login username. This prevents the username from appearing in public bylines and comments.', 'site-security-audit' ),
 					'user:' . $row['ID']
 				);
 			}

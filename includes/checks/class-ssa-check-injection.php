@@ -253,6 +253,7 @@ class SSA_Check_Injection extends SSA_Check_Base {
 				SSA_Logger::SEVERITY_HIGH,
 				__( 'SQL injection: sprintf() building $wpdb query with user input', 'site-security-audit' ),
 				__( 'sprintf() with user input inside a $wpdb query is SQL injection — sprintf() does not escape SQL values.', 'site-security-audit' ),
+				// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment,WordPress.WP.I18n.UnorderedPlaceholdersText -- %s/%d/%f are code examples in the advice text, not sprintf() arguments.
 				__( 'Use $wpdb->prepare() with %s / %d / %f placeholders.', 'site-security-audit' ),
 				$path
 			);
@@ -374,7 +375,12 @@ class SSA_Check_Injection extends SSA_Check_Base {
 						__( '$%s is derived from user input and appears inside a $wpdb query method call. If this is string concatenation rather than a $wpdb->prepare() placeholder, it is SQL injection.', 'site-security-audit' ),
 						$var
 					),
-					__( 'Use $wpdb->prepare() with typed placeholders (%s, %d, %f). Verify no string concatenation of $' . $var . ' reaches the SQL string.', 'site-security-audit' ),
+					// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment,WordPress.WP.I18n.UnorderedPlaceholdersText -- %s/%d/%f are code examples; %s placeholder is for a PHP variable name.
+					sprintf(
+						/* translators: %s: PHP variable name (e.g. "userInput") */
+						__( 'Use $wpdb->prepare() with typed placeholders (%%s, %%d, %%f). Verify no string concatenation of $%s reaches the SQL string.', 'site-security-audit' ),
+						$var
+					),
 					$path,
 					array( 'tainted_var' => '$' . $var )
 				);
