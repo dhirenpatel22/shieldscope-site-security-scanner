@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       SSA – Site Security Audit, Self-Hosted & Private
+ * Plugin Name:       SSA – Site Security Audit
  * Plugin URI:        https://github.com/dhirenpatel22/site-security-audit
  * Description:       Comprehensive background security scanner for WordPress core, themes, plugins, filesystem, database, users and code patterns. CPU-throttled and non-blocking.
  * Version:           1.3.0
