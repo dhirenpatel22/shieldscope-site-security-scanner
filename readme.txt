@@ -89,6 +89,14 @@ When you enter a WPScan API key in Settings, the Vulnerability Database check qu
 2. **Security report** — findings grouped by severity (Critical → Info) with title, description, and a concise actionable recommendation for every issue.
 3. **Settings page** — configure CPU throttle, chunk time, max file size, focus-lock, and optional WPScan API key.
 
+== Disclaimer ==
+
+Results produced by this plugin are based on automated pattern analysis and heuristic checks. Each scan module runs independently — findings related to third-party plugins or themes are indicative only. Please verify with the respective plugin or theme developer before making any changes, and contact them directly if a fix is required.
+
+This plugin is intended to help developers and website owners identify potential security issues on their own websites. It does not guarantee complete coverage of all vulnerabilities.
+
+No scan data, site information, or personal data is stored on external servers or shared with any third party or individual. All analysis is performed locally on your own server. For any concerns or questions, please reach out via the support forum.
+
 == Changelog ==
 
 = 1.3.0 =

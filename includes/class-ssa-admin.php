@@ -157,6 +157,7 @@ class SSA_Admin {
 		$scanner = new SSA_Scanner();
 		$state   = $scanner->get_state();
 		include SSA_PLUGIN_DIR . 'admin/views/scan.php';
+		$this->render_disclaimer();
 	}
 
 	/**
@@ -173,6 +174,7 @@ class SSA_Admin {
 		$findings    = $last_scan ? $logger->get_findings( $last_scan ) : array();
 		$summary     = $last_scan ? $logger->get_summary( $last_scan ) : array();
 		include SSA_PLUGIN_DIR . 'admin/views/report.php';
+		$this->render_disclaimer();
 	}
 
 	/**
@@ -196,6 +198,7 @@ class SSA_Admin {
 			)
 		);
 		include SSA_PLUGIN_DIR . 'admin/views/settings.php';
+		$this->render_disclaimer();
 	}
 
 	/**
@@ -255,5 +258,37 @@ class SSA_Admin {
 			__( 'Settings saved.', 'site-security-audit' ),
 			'updated'
 		);
+	}
+
+	/**
+	 * Render the shared disclaimer footer shown on all admin pages.
+	 *
+	 * @return void
+	 */
+	private function render_disclaimer() {
+		?>
+		<div class="ssa-disclaimer">
+			<div class="ssa-disclaimer__icon">&#9432;</div>
+			<div class="ssa-disclaimer__body">
+				<strong><?php esc_html_e( 'Disclaimer', 'site-security-audit' ); ?></strong>
+				<p>
+					<?php esc_html_e( 'Results produced by this plugin are based on automated pattern analysis and heuristic checks. Each scan module runs independently — findings related to third-party plugins or themes are indicative only. Please verify with the respective plugin or theme developer before making any changes, and contact them directly if a fix is required.', 'site-security-audit' ); ?>
+				</p>
+				<p>
+					<?php esc_html_e( 'This plugin is intended to help developers and website owners identify potential security issues. It does not guarantee complete coverage of all vulnerabilities.', 'site-security-audit' ); ?>
+				</p>
+				<p>
+					<?php esc_html_e( 'No scan data, site information, or personal data is stored on external servers or shared with any third party or individual. All analysis is performed locally on your own server.', 'site-security-audit' ); ?>
+					<?php
+					printf(
+						/* translators: %s: support link */
+						esc_html__( 'For any concerns or questions, please %s.', 'site-security-audit' ),
+						'<a href="https://wordpress.org/support/plugin/site-security-audit" target="_blank" rel="noopener noreferrer">' . esc_html__( 'reach out via the support forum', 'site-security-audit' ) . '</a>'
+					);
+					?>
+				</p>
+			</div>
+		</div>
+		<?php
 	}
 }
