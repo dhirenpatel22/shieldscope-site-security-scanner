@@ -10,7 +10,7 @@
 defined( 'ABSPATH' ) || exit;
 ?>
 <div class="wrap ssa-wrap">
-	<h1><?php esc_html_e( 'SSA – Site Security Audit, Self-Hosted & Private', 'site-security-audit' ); ?></h1>
+	<h1><?php esc_html_e( 'SSA – Site Security Audit', 'site-security-audit' ); ?></h1>
 
 	<p class="description">
 		<?php esc_html_e( 'Run a comprehensive background scan of your WordPress installation, themes, plugins, users and filesystem. The scan is CPU-throttled and will automatically pause if you leave this tab.', 'site-security-audit' ); ?>
