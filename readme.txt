@@ -1,4 +1,4 @@
-=== SSA – Site Security Audit, Self-Hosted & Private ===
+=== SSA – Site Security Audit ===
 Contributors: dhirenpatel
 Tags: security, scanner, malware, hardening, audit
 Requires at least: 5.8
@@ -12,7 +12,7 @@ CPU-throttled WordPress security scanner: audits core integrity, users, plugins,
 
 == Description ==
 
-**SSA – Site Security Audit, Self-Hosted & Private** performs a deep, read-only audit of your entire WordPress site and produces a prioritised report of security issues grouped by severity (Critical / High / Medium / Low / Info).
+**SSA – Site Security Audit** performs a deep, read-only audit of your entire WordPress site and produces a prioritised report of security issues grouped by severity (Critical / High / Medium / Low / Info).
 
 Unlike scanners that lock up your server, this plugin is designed to be a polite neighbour:
 
