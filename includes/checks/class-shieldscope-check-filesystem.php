@@ -2,15 +2,15 @@
 /**
  * Filesystem & permission checks.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Check_Filesystem
+ * Class ShieldScope_Check_Filesystem
  */
-class SSA_Check_Filesystem extends SSA_Check_Base {
+class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 
 	/**
 	 * ID.
@@ -27,7 +27,7 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 	 * @return string
 	 */
 	public function get_label() {
-		return __( 'Filesystem & Permissions', 'site-security-audit' );
+		return __( 'Filesystem & Permissions', 'shieldscope-site-security-scanner' );
 	}
 
 	/**
@@ -95,14 +95,14 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 		$perms = fileperms( $path ) & 0777;
 		if ( $perms & 0044 ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_HIGH,
-				__( 'wp-config.php is world-readable', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_HIGH,
+				__( 'wp-config.php is world-readable', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: octal permissions */
-					__( 'Permissions on wp-config.php are %s. Other users on the server could read the database credentials.', 'site-security-audit' ),
+					__( 'Permissions on wp-config.php are %s. Other users on the server could read the database credentials.', 'shieldscope-site-security-scanner' ),
 					'0' . decoct( $perms )
 				),
-				__( 'Change permissions to 0640 or 0600 (chmod 600 wp-config.php).', 'site-security-audit' ),
+				__( 'Change permissions to 0640 or 0600 (chmod 600 wp-config.php).', 'shieldscope-site-security-scanner' ),
 				$path
 			);
 		}
@@ -114,11 +114,14 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 	 * @return void
 	 */
 	private function check_key_perms() {
+		$upload_info    = wp_upload_dir();
+		$upload_basedir = isset( $upload_info['basedir'] ) && $upload_info['basedir'] ? $upload_info['basedir'] : WP_CONTENT_DIR . '/uploads';
+
 		$targets = array(
 			ABSPATH                => array( 'max' => 0755, 'label' => 'WordPress root' ),
 			ABSPATH . 'wp-admin'   => array( 'max' => 0755, 'label' => 'wp-admin' ),
 			WP_CONTENT_DIR         => array( 'max' => 0755, 'label' => 'wp-content' ),
-			WP_CONTENT_DIR . '/uploads' => array( 'max' => 0755, 'label' => 'uploads' ),
+			$upload_basedir        => array( 'max' => 0755, 'label' => 'uploads' ),
 		);
 		if ( defined( 'WP_PLUGIN_DIR' ) ) {
 			$targets[ WP_PLUGIN_DIR ] = array( 'max' => 0755, 'label' => 'plugins' );
@@ -132,16 +135,16 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 			// World-writable is always bad.
 			if ( $perms & 0002 ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_HIGH,
+					ShieldScope_Logger::SEVERITY_HIGH,
 					/* translators: %s: label */
-					sprintf( __( '%s directory is world-writable', 'site-security-audit' ), $info['label'] ),
+					sprintf( __( '%s directory is world-writable', 'shieldscope-site-security-scanner' ), $info['label'] ),
 					sprintf(
 						/* translators: 1: path, 2: octal */
-						__( 'Directory %1$s has permissions %2$s. Any user on the server can write to it.', 'site-security-audit' ),
+						__( 'Directory %1$s has permissions %2$s. Any user on the server can write to it.', 'shieldscope-site-security-scanner' ),
 						$path,
 						'0' . decoct( $perms )
 					),
-					__( 'Change permissions to 0755 (directories) / 0644 (files) or stricter, owned by the web user.', 'site-security-audit' ),
+					__( 'Change permissions to 0755 (directories) / 0644 (files) or stricter, owned by the web user.', 'shieldscope-site-security-scanner' ),
 					$path
 				);
 			}
@@ -161,15 +164,15 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 				$url,
 				array(
 					'timeout'   => 5,
-					'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
+					'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
 				)
 			);
 			if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_LOW,
-					__( 'readme.html is publicly accessible', 'site-security-audit' ),
-					__( 'The file discloses the WordPress version, helping attackers match known CVEs.', 'site-security-audit' ),
-					__( 'Delete readme.html from your WordPress root via FTP or your hosting File Manager. Since it is recreated on each core update, also block it permanently in Apache .htaccess: <Files readme.html> deny from all </Files>. For Nginx: location = /readme.html { deny all; }', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_LOW,
+					__( 'readme.html is publicly accessible', 'shieldscope-site-security-scanner' ),
+					__( 'The file discloses the WordPress version, helping attackers match known CVEs.', 'shieldscope-site-security-scanner' ),
+					__( 'Delete readme.html from your WordPress root via FTP or your hosting File Manager. Since it is recreated on each core update, also block it permanently in Apache .htaccess: <Files readme.html> deny from all </Files>. For Nginx: location = /readme.html { deny all; }', 'shieldscope-site-security-scanner' ),
 					$readme
 				);
 			}
@@ -211,10 +214,10 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 					$cursor['queue'][] = $full;
 				} elseif ( preg_match( '/\.(php|phtml|php5|php7|phar)$/i', $entry ) ) {
 					$this->finding(
-						SSA_Logger::SEVERITY_CRITICAL,
-						__( 'Executable PHP file inside uploads', 'site-security-audit' ),
-						__( 'PHP files inside wp-content/uploads are a classic backdoor indicator. Uploads must never execute server-side code.', 'site-security-audit' ),
-						__( 'A PHP file in uploads is almost always a web shell. Do NOT open it in a browser — delete it via FTP or your hosting File Manager immediately. Block PHP execution in uploads permanently by adding to wp-content/uploads/.htaccess: <Files *.php> deny from all </Files>. Then change all admin passwords.', 'site-security-audit' ),
+						ShieldScope_Logger::SEVERITY_CRITICAL,
+						__( 'Executable PHP file inside uploads', 'shieldscope-site-security-scanner' ),
+						__( 'PHP files inside wp-content/uploads are a classic backdoor indicator. Uploads must never execute server-side code.', 'shieldscope-site-security-scanner' ),
+						__( 'A PHP file in uploads is almost always a web shell. Do NOT open it in a browser — delete it via FTP or your hosting File Manager immediately. Block PHP execution in uploads permanently by adding to wp-content/uploads/.htaccess: <Files *.php> deny from all </Files>. Then change all admin passwords.', 'shieldscope-site-security-scanner' ),
 						$full
 					);
 				}
@@ -256,14 +259,14 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 			$path = ABSPATH . $file;
 			if ( file_exists( $path ) ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_CRITICAL,
-					__( 'Sensitive backup file present in webroot', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_CRITICAL,
+					__( 'Sensitive backup file present in webroot', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %s: filename */
-						__( 'Found %s in the site root. Files like these frequently leak database credentials or full site data.', 'site-security-audit' ),
+						__( 'Found %s in the site root. Files like these frequently leak database credentials or full site data.', 'shieldscope-site-security-scanner' ),
 						$file
 					),
-					__( 'Delete or move this file outside your webroot immediately via FTP or your hosting File Manager — it likely contains database credentials. After removing it, rotate your database password in both wp-config.php and your hosting control panel.', 'site-security-audit' ),
+					__( 'Delete or move this file outside your webroot immediately via FTP or your hosting File Manager — it likely contains database credentials. After removing it, rotate your database password in both wp-config.php and your hosting control panel.', 'shieldscope-site-security-scanner' ),
 					$path
 				);
 			}
@@ -285,7 +288,7 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 			$url,
 			array(
 				'timeout'   => 5,
-				'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
+				'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
 			)
 		);
 
@@ -302,18 +305,18 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 
 			if ( $has_credentials ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_CRITICAL,
-					__( 'wp-config.php is publicly readable and contains credentials', 'site-security-audit' ),
-					__( 'A request to /wp-config.php returned HTTP 200 and the response body contains database constants (DB_NAME, DB_USER, DB_PASSWORD). Your database credentials are exposed to anyone on the internet.', 'site-security-audit' ),
-					__( 'Block access to wp-config.php at the webserver level immediately. Apache: add a <Files wp-config.php> deny from all </Files> block. Nginx: add "location ~* wp-config\\.php { deny all; }". Also rotate your database password immediately.', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_CRITICAL,
+					__( 'wp-config.php is publicly readable and contains credentials', 'shieldscope-site-security-scanner' ),
+					__( 'A request to /wp-config.php returned HTTP 200 and the response body contains database constants (DB_NAME, DB_USER, DB_PASSWORD). Your database credentials are exposed to anyone on the internet.', 'shieldscope-site-security-scanner' ),
+					__( 'Block access to wp-config.php at the webserver level immediately. Apache: add a <Files wp-config.php> deny from all </Files> block. Nginx: add "location ~* wp-config\\.php { deny all; }". Also rotate your database password immediately.', 'shieldscope-site-security-scanner' ),
 					$url
 				);
 			} else {
 				$this->finding(
-					SSA_Logger::SEVERITY_HIGH,
-					__( 'wp-config.php returned HTTP 200 (possible exposure)', 'site-security-audit' ),
-					__( 'A request to /wp-config.php returned HTTP 200. Even if PHP processes it as code rather than serving it as text, this indicates the webserver is not explicitly blocking access. A PHP-processing failure could expose database credentials.', 'site-security-audit' ),
-					__( 'Explicitly deny access to wp-config.php at the webserver level. Apache: <Files wp-config.php> deny from all </Files>. Nginx: location ~* wp-config\\.php { deny all; }', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_HIGH,
+					__( 'wp-config.php returned HTTP 200 (possible exposure)', 'shieldscope-site-security-scanner' ),
+					__( 'A request to /wp-config.php returned HTTP 200. Even if PHP processes it as code rather than serving it as text, this indicates the webserver is not explicitly blocking access. A PHP-processing failure could expose database credentials.', 'shieldscope-site-security-scanner' ),
+					__( 'Explicitly deny access to wp-config.php at the webserver level. Apache: <Files wp-config.php> deny from all </Files>. Nginx: location ~* wp-config\\.php { deny all; }', 'shieldscope-site-security-scanner' ),
 					$url
 				);
 			}
@@ -324,7 +327,7 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 	/**
 	 * Check for publicly accessible sensitive WordPress files.
 	 *
-	 * Covers files beyond what SSA_Check_Security_Config checks — specifically
+	 * Covers files beyond what ShieldScope_Check_Security_Config checks — specifically
 	 * WordPress-specific files that leak version information or enable abuse:
 	 *  - license.txt       — discloses WordPress version in the copyright year line
 	 *  - wp-activate.php   — activation endpoint; should return 302/403, not 200+content
@@ -338,31 +341,31 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 
 		$checks = array(
 			'license.txt'     => array(
-				'severity' => SSA_Logger::SEVERITY_LOW,
-				'title'    => __( 'license.txt is publicly accessible', 'site-security-audit' ),
-				'desc'     => __( 'The WordPress license file is accessible and discloses the WordPress version in its copyright year/version line.', 'site-security-audit' ),
-				'rec'      => __( 'Delete license.txt from the webroot, or block it at the webserver level.', 'site-security-audit' ),
+				'severity' => ShieldScope_Logger::SEVERITY_LOW,
+				'title'    => __( 'license.txt is publicly accessible', 'shieldscope-site-security-scanner' ),
+				'desc'     => __( 'The WordPress license file is accessible and discloses the WordPress version in its copyright year/version line.', 'shieldscope-site-security-scanner' ),
+				'rec'      => __( 'Delete license.txt from the webroot, or block it at the webserver level.', 'shieldscope-site-security-scanner' ),
 				'match'    => null, // 200 response is enough.
 			),
 			'wp-activate.php' => array(
-				'severity' => SSA_Logger::SEVERITY_LOW,
-				'title'    => __( 'wp-activate.php is publicly accessible', 'site-security-audit' ),
-				'desc'     => __( 'The wp-activate.php file is reachable from the internet. On single-site WordPress it serves no purpose and its content includes the WordPress version in the page title.', 'site-security-audit' ),
-				'rec'      => __( 'Block access to wp-activate.php at the webserver level unless you are running WordPress Multisite with email-based user activation.', 'site-security-audit' ),
+				'severity' => ShieldScope_Logger::SEVERITY_LOW,
+				'title'    => __( 'wp-activate.php is publicly accessible', 'shieldscope-site-security-scanner' ),
+				'desc'     => __( 'The wp-activate.php file is reachable from the internet. On single-site WordPress it serves no purpose and its content includes the WordPress version in the page title.', 'shieldscope-site-security-scanner' ),
+				'rec'      => __( 'Block access to wp-activate.php at the webserver level unless you are running WordPress Multisite with email-based user activation.', 'shieldscope-site-security-scanner' ),
 				'match'    => null,
 			),
 			'wp-cron.php'     => array(
-				'severity' => SSA_Logger::SEVERITY_MEDIUM,
-				'title'    => __( 'wp-cron.php is publicly accessible', 'site-security-audit' ),
-				'desc'     => __( 'wp-cron.php is reachable by any visitor. Repeated requests can trigger all scheduled tasks simultaneously, wasting server resources. Malicious actors use this for denial-of-service and to exhaust hosting CPU quotas.', 'site-security-audit' ),
-				'rec'      => __( "Block direct HTTP access to wp-cron.php at the webserver level and use a real server cron job instead: define('DISABLE_WP_CRON', true); in wp-config.php, then: */5 * * * * php /path/to/wordpress/wp-cron.php", 'site-security-audit' ),
+				'severity' => ShieldScope_Logger::SEVERITY_MEDIUM,
+				'title'    => __( 'wp-cron.php is publicly accessible', 'shieldscope-site-security-scanner' ),
+				'desc'     => __( 'wp-cron.php is reachable by any visitor. Repeated requests can trigger all scheduled tasks simultaneously, wasting server resources. Malicious actors use this for denial-of-service and to exhaust hosting CPU quotas.', 'shieldscope-site-security-scanner' ),
+				'rec'      => __( "Block direct HTTP access to wp-cron.php at the webserver level and use a real server cron job instead: define('DISABLE_WP_CRON', true); in wp-config.php, then: */5 * * * * php /path/to/wordpress/wp-cron.php", 'shieldscope-site-security-scanner' ),
 				'match'    => null,
 			),
 			'.htaccess'       => array(
-				'severity' => SSA_Logger::SEVERITY_MEDIUM,
-				'title'    => __( '.htaccess file is publicly accessible', 'site-security-audit' ),
-				'desc'     => __( 'The .htaccess file returned HTTP 200. It may contain rewrite rules, directory configurations, or access controls that expose your site structure and configuration to attackers.', 'site-security-audit' ),
-				'rec'      => __( "Ensure your webserver is configured to block direct access to dotfiles. For Apache, add: <FilesMatch '^\\.'> deny from all </FilesMatch>", 'site-security-audit' ),
+				'severity' => ShieldScope_Logger::SEVERITY_MEDIUM,
+				'title'    => __( '.htaccess file is publicly accessible', 'shieldscope-site-security-scanner' ),
+				'desc'     => __( 'The .htaccess file returned HTTP 200. It may contain rewrite rules, directory configurations, or access controls that expose your site structure and configuration to attackers.', 'shieldscope-site-security-scanner' ),
+				'rec'      => __( "Ensure your webserver is configured to block direct access to dotfiles. For Apache, add: <FilesMatch '^\\.'> deny from all </FilesMatch>", 'shieldscope-site-security-scanner' ),
 				'match'    => null,
 			),
 		);
@@ -372,7 +375,7 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 				$base . ltrim( $file, '/' ),
 				array(
 					'timeout'   => 5,
-					'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
+					'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
 				)
 			);
 
@@ -419,7 +422,7 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 			$url,
 			array(
 				'timeout'   => 5,
-				'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
+				'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
 			)
 		);
 		if ( is_wp_error( $response ) ) {
@@ -431,10 +434,10 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 		$body = wp_remote_retrieve_body( $response );
 		if ( false !== stripos( $body, 'Index of /' ) || false !== stripos( $body, '<title>Index of' ) ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_MEDIUM,
-				__( 'Directory listing enabled on uploads', 'site-security-audit' ),
-				__( 'Visitors can enumerate every file under wp-content/uploads.', 'site-security-audit' ),
-				__( 'Add "Options -Indexes" to your root .htaccess file to disable directory listings site-wide. For Nginx, add "autoindex off;" inside your server block. You can also place an empty index.php file in the uploads directory as a fallback.', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'Directory listing enabled on uploads', 'shieldscope-site-security-scanner' ),
+				__( 'Visitors can enumerate every file under wp-content/uploads.', 'shieldscope-site-security-scanner' ),
+				__( 'Add "Options -Indexes" to your root .htaccess file to disable directory listings site-wide. For Nginx, add "autoindex off;" inside your server block. You can also place an empty index.php file in the uploads directory as a fallback.', 'shieldscope-site-security-scanner' ),
 				$url
 			);
 		}
@@ -461,7 +464,7 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 				$url,
 				array(
 					'timeout'   => 5,
-					'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
+					'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
 				)
 			);
 
@@ -481,18 +484,18 @@ class SSA_Check_Filesystem extends SSA_Check_Base {
 
 			if ( false !== stripos( $body, 'Index of /' ) || false !== stripos( $body, '<title>Index of' ) ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_HIGH,
+					ShieldScope_Logger::SEVERITY_HIGH,
 					sprintf(
 						/* translators: %s: directory label e.g. "wp-content/plugins" */
-						__( 'Directory listing enabled on %s', 'site-security-audit' ),
+						__( 'Directory listing enabled on %s', 'shieldscope-site-security-scanner' ),
 						$label
 					),
 					sprintf(
 						/* translators: %s: directory label */
-						__( 'The %s directory returns a browsable file listing. Attackers can enumerate all installed plugins and themes, then match them to known CVEs.', 'site-security-audit' ),
+						__( 'The %s directory returns a browsable file listing. Attackers can enumerate all installed plugins and themes, then match them to known CVEs.', 'shieldscope-site-security-scanner' ),
 						$label
 					),
-					__( "Add 'Options -Indexes' to the root .htaccess file (Apache) or 'autoindex off;' in the Nginx server block. Placing an empty index.php in each directory also suppresses listing.", 'site-security-audit' ),
+					__( "Add 'Options -Indexes' to the root .htaccess file (Apache) or 'autoindex off;' in the Nginx server block. Placing an empty index.php in each directory also suppresses listing.", 'shieldscope-site-security-scanner' ),
 					$url
 				);
 			}

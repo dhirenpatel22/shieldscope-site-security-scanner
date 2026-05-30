@@ -1,5 +1,5 @@
-=== SSA – Site Security Audit ===
-Contributors: dhirenpatel
+=== ShieldScope – Site Security Scanner ===
+Contributors: dhirenpatel22
 Tags: security, scanner, malware, hardening, audit
 Requires at least: 5.8
 Tested up to: 7.0
@@ -12,7 +12,7 @@ CPU-throttled WordPress security scanner: audits core integrity, users, plugins,
 
 == Description ==
 
-**SSA – Site Security Audit** performs a deep, read-only audit of your entire WordPress site and produces a prioritised report of security issues grouped by severity (Critical / High / Medium / Low / Info).
+**ShieldScope – Site Security Scanner** performs a deep, read-only audit of your entire WordPress site and produces a prioritised report of security issues grouped by severity (Critical / High / Medium / Low / Info).
 
 Unlike scanners that lock up your server, this plugin is designed to be a polite neighbour:
 
@@ -56,12 +56,12 @@ During the Core Integrity check the plugin fetches the official MD5 checksums fo
 If you enter a WPScan API key in Settings, the Vulnerability Database check sends the slug and version number of each installed plugin and theme to `wpscan.com` to retrieve known CVE data. This feature is **disabled by default** and requires you to explicitly provide an API key. Free tier: 25 requests/day; results are cached for 24 hours.
 
 * Service: https://wpscan.com/api/v3/
-* Privacy policy: https://wpscan.com/privacy
-* Terms of service: https://wpscan.com/terms-and-conditions
+* Privacy policy: https://automattic.com/privacy/
+* Terms of service: https://wpscan.com/terms/
 
 == Installation ==
 
-1. Upload the `site-security-audit` folder to `/wp-content/plugins/`, or install the zip via **Plugins → Add New → Upload Plugin**.
+1. Upload the `shieldscope` folder to `/wp-content/plugins/`, or install the zip via **Plugins → Add New → Upload Plugin**.
 2. Activate the plugin.
 3. Navigate to **Security Scan** in the admin menu.
 4. Review settings (CPU limit, chunk size, max file size, focus-lock, optional WPScan API key) and click **Start Scan**.

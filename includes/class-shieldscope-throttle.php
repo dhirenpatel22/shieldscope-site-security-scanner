@@ -9,15 +9,15 @@
  * Example: if cpu_limit = 20 (%), the scanner will sleep 4× the time
  * the last unit of work took (work / total = 20%).
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Throttle
+ * Class ShieldScope_Throttle
  */
-class SSA_Throttle {
+class ShieldScope_Throttle {
 
 	/**
 	 * Max percentage of CPU the scanner is allowed to use (1-100).

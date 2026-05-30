@@ -2,15 +2,15 @@
 /**
  * Findings logger — persists scan results to a custom table.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Logger
+ * Class ShieldScope_Logger
  */
-class SSA_Logger {
+class ShieldScope_Logger {
 
 	const SEVERITY_INFO     = 'info';
 	const SEVERITY_LOW      = 'low';
@@ -25,7 +25,7 @@ class SSA_Logger {
 	 */
 	public static function table() {
 		global $wpdb;
-		return $wpdb->prefix . 'ssa_findings';
+		return $wpdb->prefix . 'shieldscope_findings';
 	}
 
 	/**

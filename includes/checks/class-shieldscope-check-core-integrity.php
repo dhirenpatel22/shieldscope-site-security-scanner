@@ -10,21 +10,21 @@
  * The WordPress.org checksums API returns a map of
  * { path-relative-to-ABSPATH => md5 }.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Check_Core_Integrity
+ * Class ShieldScope_Check_Core_Integrity
  */
-class SSA_Check_Core_Integrity extends SSA_Check_Base {
+class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 
 	/**
 	 * Transient name where the fetched checksums are cached for the duration
 	 * of the scan (and a bit beyond, so repeat scans don't hammer the API).
 	 */
-	const CHECKSUMS_TRANSIENT = 'ssa_core_checksums';
+	const CHECKSUMS_TRANSIENT = 'shieldscope_core_checksums';
 
 	/**
 	 * Cache TTL — 12 hours. Core version rarely changes within that window.
@@ -58,7 +58,7 @@ class SSA_Check_Core_Integrity extends SSA_Check_Base {
 	 * @return string
 	 */
 	public function get_label() {
-		return __( 'WordPress Core Integrity', 'site-security-audit' );
+		return __( 'WordPress Core Integrity', 'shieldscope-site-security-scanner' );
 	}
 
 	/**
@@ -107,9 +107,9 @@ class SSA_Check_Core_Integrity extends SSA_Check_Base {
 		$version = isset( $wp_version ) ? $wp_version : '';
 		if ( '' === $version ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_INFO,
-				__( 'Core version not detected', 'site-security-audit' ),
-				__( 'Could not read $wp_version — skipping core integrity verification.', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_INFO,
+				__( 'Core version not detected', 'shieldscope-site-security-scanner' ),
+				__( 'Could not read $wp_version — skipping core integrity verification.', 'shieldscope-site-security-scanner' ),
 				'',
 				ABSPATH
 			);
@@ -140,14 +140,14 @@ class SSA_Check_Core_Integrity extends SSA_Check_Base {
 
 		if ( is_wp_error( $response ) ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_INFO,
-				__( 'Core integrity check skipped', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_INFO,
+				__( 'Core integrity check skipped', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: error message */
-					__( 'Could not reach the WordPress.org checksums API: %s', 'site-security-audit' ),
+					__( 'Could not reach the WordPress.org checksums API: %s', 'shieldscope-site-security-scanner' ),
 					$response->get_error_message()
 				),
-				__( 'Ensure outbound HTTPS to api.wordpress.org is allowed, then re-run the scan.', 'site-security-audit' ),
+				__( 'Ensure outbound HTTPS to api.wordpress.org is allowed, then re-run the scan.', 'shieldscope-site-security-scanner' ),
 				$url
 			);
 			return;
@@ -158,11 +158,11 @@ class SSA_Check_Core_Integrity extends SSA_Check_Base {
 
 		if ( 200 !== $code || '' === $body ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_INFO,
-				__( 'Core integrity check skipped', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_INFO,
+				__( 'Core integrity check skipped', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %d: HTTP status */
-					__( 'WordPress.org returned HTTP %d with no usable checksum data. This usually means the exact WP version / locale combination is not indexed (e.g. nightly builds).', 'site-security-audit' ),
+					__( 'WordPress.org returned HTTP %d with no usable checksum data. This usually means the exact WP version / locale combination is not indexed (e.g. nightly builds).', 'shieldscope-site-security-scanner' ),
 					$code
 				),
 				'',
@@ -174,9 +174,9 @@ class SSA_Check_Core_Integrity extends SSA_Check_Base {
 		$decoded = json_decode( $body, true );
 		if ( ! is_array( $decoded ) || empty( $decoded['checksums'] ) || ! is_array( $decoded['checksums'] ) ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_INFO,
-				__( 'Core integrity check skipped', 'site-security-audit' ),
-				__( 'The WordPress.org checksums response was malformed or empty.', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_INFO,
+				__( 'Core integrity check skipped', 'shieldscope-site-security-scanner' ),
+				__( 'The WordPress.org checksums response was malformed or empty.', 'shieldscope-site-security-scanner' ),
 				'',
 				$url
 			);
@@ -261,14 +261,14 @@ class SSA_Check_Core_Integrity extends SSA_Check_Base {
 				// Core file is missing — unusual; worth noting.
 				$cursor['missing']++;
 				$this->finding(
-					SSA_Logger::SEVERITY_MEDIUM,
-					__( 'Missing WordPress core file', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_MEDIUM,
+					__( 'Missing WordPress core file', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %s: relative path */
-						__( 'The core file %s is listed in the WordPress.org checksums but is not present on disk. It may have been deleted or the installation is incomplete.', 'site-security-audit' ),
+						__( 'The core file %s is listed in the WordPress.org checksums but is not present on disk. It may have been deleted or the installation is incomplete.', 'shieldscope-site-security-scanner' ),
 						$path
 					),
-					__( 'Go to Dashboard → Updates and click "Re-install now" — this re-downloads all core files without touching your content, plugins, or wp-config.php. Alternatively, download the matching WordPress version from wordpress.org/download/releases and upload just the missing file via FTP.', 'site-security-audit' ),
+					__( 'Go to Dashboard → Updates and click "Re-install now" — this re-downloads all core files without touching your content, plugins, or wp-config.php. Alternatively, download the matching WordPress version from wordpress.org/download/releases and upload just the missing file via FTP.', 'shieldscope-site-security-scanner' ),
 					$path
 				);
 				$seen++;
@@ -284,16 +284,16 @@ class SSA_Check_Core_Integrity extends SSA_Check_Base {
 			if ( false !== $actual && $actual !== $expected ) {
 				$cursor['bad']++;
 				$this->finding(
-					SSA_Logger::SEVERITY_HIGH,
-					__( 'Modified WordPress core file', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_HIGH,
+					__( 'Modified WordPress core file', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: 1: path, 2: expected hash, 3: actual hash */
-						__( 'The core file %1$s does not match the hash published on WordPress.org. Expected %2$s, got %3$s. This is almost always a sign of either a manual edit (don\'t do that) or a compromise.', 'site-security-audit' ),
+						__( 'The core file %1$s does not match the hash published on WordPress.org. Expected %2$s, got %3$s. This is almost always a sign of either a manual edit (don\'t do that) or a compromise.', 'shieldscope-site-security-scanner' ),
 						$path,
 						$expected,
 						$actual
 					),
-					__( 'Download a clean copy of the same WordPress version from wordpress.org/download/releases and compare the file. If you see injected or obfuscated code, your site is compromised — change all passwords, regenerate auth salts, and go to Dashboard → Updates to click "Re-install now" to restore all core files safely.', 'site-security-audit' ),
+					__( 'Download a clean copy of the same WordPress version from wordpress.org/download/releases and compare the file. If you see injected or obfuscated code, your site is compromised — change all passwords, regenerate auth salts, and go to Dashboard → Updates to click "Re-install now" to restore all core files safely.', 'shieldscope-site-security-scanner' ),
 					$path,
 					array(
 						'expected' => $expected,
@@ -367,14 +367,14 @@ class SSA_Check_Core_Integrity extends SSA_Check_Base {
 					// can legitimately appear in core dirs via plugins.
 					if ( preg_match( '/\.(php|phtml|php5|php7|phar|inc)$/i', $entry ) ) {
 						$this->finding(
-							SSA_Logger::SEVERITY_HIGH,
-							__( 'Unknown file inside WordPress core directory', 'site-security-audit' ),
+							ShieldScope_Logger::SEVERITY_HIGH,
+							__( 'Unknown file inside WordPress core directory', 'shieldscope-site-security-scanner' ),
 							sprintf(
 								/* translators: %s: relative path */
-								__( 'The file %s is inside a core WordPress directory but is not part of the official WordPress.org checksums for this version. This is frequently how backdoors hide.', 'site-security-audit' ),
+								__( 'The file %s is inside a core WordPress directory but is not part of the official WordPress.org checksums for this version. This is frequently how backdoors hide.', 'shieldscope-site-security-scanner' ),
 								$rel
 							),
-							__( 'Open the file in a text editor (read-only) and look for eval(), base64_decode(), or obfuscated code — these are malware indicators. If you did not put it there, delete it immediately via FTP or File Manager, then go to Dashboard → Updates and click "Re-install now" to verify all core files.', 'site-security-audit' ),
+							__( 'Open the file in a text editor (read-only) and look for eval(), base64_decode(), or obfuscated code — these are malware indicators. If you did not put it there, delete it immediately via FTP or File Manager, then go to Dashboard → Updates and click "Re-install now" to verify all core files.', 'shieldscope-site-security-scanner' ),
 							$rel
 						);
 					}

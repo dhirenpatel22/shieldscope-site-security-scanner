@@ -12,15 +12,15 @@
  * WPScan free tier: 25 requests/day. Results are cached in transients (24h)
  * to stay well within the limit.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Check_Vuln_DB
+ * Class ShieldScope_Check_Vuln_DB
  */
-class SSA_Check_Vuln_DB extends SSA_Check_Base {
+class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 
 	/**
 	 * WPScan API base URL.
@@ -43,11 +43,11 @@ class SSA_Check_Vuln_DB extends SSA_Check_Base {
 	 * Constructor.
 	 *
 	 * @param string       $scan_id Scan ID.
-	 * @param SSA_Logger $logger  Logger.
+	 * @param ShieldScope_Logger $logger  Logger.
 	 */
-	public function __construct( $scan_id, SSA_Logger $logger ) {
+	public function __construct( $scan_id, ShieldScope_Logger $logger ) {
 		parent::__construct( $scan_id, $logger );
-		$this->settings = (array) get_option( 'ssa_settings', array() );
+		$this->settings = (array) get_option( 'shieldscope_settings', array() );
 	}
 
 	/** @return string */
@@ -57,7 +57,7 @@ class SSA_Check_Vuln_DB extends SSA_Check_Base {
 
 	/** @return string */
 	public function get_label() {
-		return __( 'Vulnerability Database', 'site-security-audit' );
+		return __( 'Vulnerability Database', 'shieldscope-site-security-scanner' );
 	}
 
 	/** @return array */
@@ -174,7 +174,7 @@ class SSA_Check_Vuln_DB extends SSA_Check_Base {
 			return;
 		}
 
-		$cache_key = 'ssa_wpscan_' . md5( $type . $slug );
+		$cache_key = 'shieldscope_wpscan_' . md5( $type . $slug );
 		$data      = get_transient( $cache_key );
 
 		if ( false === $data ) {
@@ -185,7 +185,7 @@ class SSA_Check_Vuln_DB extends SSA_Check_Base {
 					'timeout' => 8,
 					'headers' => array(
 						'Authorization' => 'Token token=' . $api_key,
-						'User-Agent'    => 'site-security-audit/' . SSA_VERSION,
+						'User-Agent'    => 'shieldscope/' . SHIELDSCOPE_VERSION,
 					),
 				)
 			);
@@ -217,7 +217,7 @@ class SSA_Check_Vuln_DB extends SSA_Check_Base {
 				continue;
 			}
 
-			$vuln_title = isset( $vuln['title'] ) ? $vuln['title'] : __( 'Unknown vulnerability', 'site-security-audit' );
+			$vuln_title = isset( $vuln['title'] ) ? $vuln['title'] : __( 'Unknown vulnerability', 'shieldscope-site-security-scanner' );
 			$cve_ids    = array();
 			if ( ! empty( $vuln['references']['cve'] ) ) {
 				foreach ( (array) $vuln['references']['cve'] as $cve ) {
@@ -231,28 +231,28 @@ class SSA_Check_Vuln_DB extends SSA_Check_Base {
 
 			$desc = sprintf(
 				/* translators: 1: plugin name, 2: installed version, 3: fix version or 'unknown' */
-				__( '%1$s version %2$s is affected. %3$s', 'site-security-audit' ),
+				__( '%1$s version %2$s is affected. %3$s', 'shieldscope-site-security-scanner' ),
 				$name,
 				$version,
 				$fixed_in
 					/* translators: %s: version number */
-					? sprintf( __( 'Fixed in version %s.', 'site-security-audit' ), $fixed_in )
-					: __( 'No fix version known — check the plugin/theme page for updates.', 'site-security-audit' )
+					? sprintf( __( 'Fixed in version %s.', 'shieldscope-site-security-scanner' ), $fixed_in )
+					: __( 'No fix version known — check the plugin/theme page for updates.', 'shieldscope-site-security-scanner' )
 			);
 
 			$rec = $fixed_in
 				? sprintf(
 					/* translators: %s: fix version */
-					__( 'Update to version %s or later immediately.', 'site-security-audit' ),
+					__( 'Update to version %s or later immediately.', 'shieldscope-site-security-scanner' ),
 					$fixed_in
 				)
-				: __( 'No fix is available yet. Deactivate and remove this plugin/theme until a patch is released. Contact the developer via the wordpress.org support forum to ask for a timeline.', 'site-security-audit' );
+				: __( 'No fix is available yet. Deactivate and remove this plugin/theme until a patch is released. Contact the developer via the wordpress.org support forum to ask for a timeline.', 'shieldscope-site-security-scanner' );
 
 			$this->finding(
 				$severity,
 				sprintf(
 					/* translators: 1: plugin name, 2: CVE ID(s) or vulnerability title */
-					__( '[WPScan] %1$s — %2$s', 'site-security-audit' ),
+					__( '[WPScan] %1$s — %2$s', 'shieldscope-site-security-scanner' ),
 					$name,
 					! empty( $cve_ids ) ? implode( ', ', $cve_ids ) : $vuln_title
 				),
@@ -271,25 +271,25 @@ class SSA_Check_Vuln_DB extends SSA_Check_Base {
 	}
 
 	/**
-	 * Map a CVSS score to a SSA severity level.
+	 * Map a CVSS score to a ShieldScope severity level.
 	 *
 	 * @param float $score CVSS score (0-10).
 	 * @return string
 	 */
 	private function wpscan_cvss_to_severity( $score ) {
 		if ( $score >= 9.0 ) {
-			return SSA_Logger::SEVERITY_CRITICAL;
+			return ShieldScope_Logger::SEVERITY_CRITICAL;
 		}
 		if ( $score >= 7.0 ) {
-			return SSA_Logger::SEVERITY_HIGH;
+			return ShieldScope_Logger::SEVERITY_HIGH;
 		}
 		if ( $score >= 4.0 ) {
-			return SSA_Logger::SEVERITY_MEDIUM;
+			return ShieldScope_Logger::SEVERITY_MEDIUM;
 		}
 		if ( $score > 0.0 ) {
-			return SSA_Logger::SEVERITY_LOW;
+			return ShieldScope_Logger::SEVERITY_LOW;
 		}
-		return SSA_Logger::SEVERITY_HIGH; // Unknown score — default to HIGH.
+		return ShieldScope_Logger::SEVERITY_HIGH; // Unknown score — default to HIGH.
 	}
 
 	// -----------------------------------------------------------------------
@@ -331,20 +331,20 @@ class SSA_Check_Vuln_DB extends SSA_Check_Base {
 				$vuln['severity'],
 				sprintf(
 					/* translators: 1: plugin name, 2: vulnerability type */
-					__( '%1$s — %2$s (installed version is vulnerable)', 'site-security-audit' ),
+					__( '%1$s — %2$s (installed version is vulnerable)', 'shieldscope-site-security-scanner' ),
 					$name,
 					$vuln['type'] . $cve_str
 				),
 				sprintf(
 					/* translators: 1: plugin name, 2: installed version, 3: fixed version */
-					__( '%1$s version %2$s is affected by a known security vulnerability. The fix was released in version %3$s.', 'site-security-audit' ),
+					__( '%1$s version %2$s is affected by a known security vulnerability. The fix was released in version %3$s.', 'shieldscope-site-security-scanner' ),
 					$name,
 					$version,
 					$vuln['fixed_in']
 				),
 				sprintf(
 					/* translators: %s: fixed version */
-					__( 'Update %s immediately via Dashboard → Plugins → Updates. If an update is not yet available, contact the plugin developer via their wordpress.org support forum to report the issue and ask for a timeline.', 'site-security-audit' ),
+					__( 'Update %s immediately via Dashboard → Plugins → Updates. If an update is not yet available, contact the plugin developer via their wordpress.org support forum to report the issue and ask for a timeline.', 'shieldscope-site-security-scanner' ),
 					$name
 				),
 				$target,
@@ -372,210 +372,210 @@ class SSA_Check_Vuln_DB extends SSA_Check_Base {
 			// Formidable Forms — PHP Object Injection (unauthenticated)
 			'formidable' => array(
 				array(
-					'type'     => __( 'Unauthenticated PHP Object Injection', 'site-security-audit' ),
+					'type'     => __( 'Unauthenticated PHP Object Injection', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2023-3681',
 					'fixed_in' => '6.3',
-					'severity' => SSA_Logger::SEVERITY_CRITICAL,
+					'severity' => ShieldScope_Logger::SEVERITY_CRITICAL,
 				),
 				array(
-					'type'     => __( 'SQL Injection (subscriber+)', 'site-security-audit' ),
+					'type'     => __( 'SQL Injection (subscriber+)', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2023-2087',
 					'fixed_in' => '6.2',
-					'severity' => SSA_Logger::SEVERITY_HIGH,
+					'severity' => ShieldScope_Logger::SEVERITY_HIGH,
 				),
 			),
 
 			// Elementor — Authenticated RCE / Stored XSS
 			'elementor'  => array(
 				array(
-					'type'     => __( 'Authenticated Remote Code Execution', 'site-security-audit' ),
+					'type'     => __( 'Authenticated Remote Code Execution', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2022-29455',
 					'fixed_in' => '3.6.3',
-					'severity' => SSA_Logger::SEVERITY_CRITICAL,
+					'severity' => ShieldScope_Logger::SEVERITY_CRITICAL,
 				),
 			),
 
 			// WooCommerce — SQL Injection / unauthenticated arbitrary options
 			'woocommerce' => array(
 				array(
-					'type'     => __( 'SQL Injection (unauthenticated)', 'site-security-audit' ),
+					'type'     => __( 'SQL Injection (unauthenticated)', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2023-28121',
 					'fixed_in' => '7.8.2',
-					'severity' => SSA_Logger::SEVERITY_CRITICAL,
+					'severity' => ShieldScope_Logger::SEVERITY_CRITICAL,
 				),
 				array(
-					'type'     => __( 'Arbitrary File Deletion (subscriber+)', 'site-security-audit' ),
+					'type'     => __( 'Arbitrary File Deletion (subscriber+)', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2021-32789',
 					'fixed_in' => '5.5.1',
-					'severity' => SSA_Logger::SEVERITY_HIGH,
+					'severity' => ShieldScope_Logger::SEVERITY_HIGH,
 				),
 			),
 
 			// Contact Form 7 — Unrestricted File Upload
 			'contact-form-7' => array(
 				array(
-					'type'     => __( 'Unrestricted File Upload leading to RCE', 'site-security-audit' ),
+					'type'     => __( 'Unrestricted File Upload leading to RCE', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2020-35489',
 					'fixed_in' => '5.3.2',
-					'severity' => SSA_Logger::SEVERITY_CRITICAL,
+					'severity' => ShieldScope_Logger::SEVERITY_CRITICAL,
 				),
 			),
 
 			// Duplicator — Unauthenticated Arbitrary File Read
 			'duplicator' => array(
 				array(
-					'type'     => __( 'Unauthenticated Arbitrary File Read', 'site-security-audit' ),
+					'type'     => __( 'Unauthenticated Arbitrary File Read', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2020-11738',
 					'fixed_in' => '1.3.28',
-					'severity' => SSA_Logger::SEVERITY_CRITICAL,
+					'severity' => ShieldScope_Logger::SEVERITY_CRITICAL,
 				),
 			),
 
 			// File Manager (wp-file-manager) — Unauthenticated RCE
 			'wp-file-manager' => array(
 				array(
-					'type'     => __( 'Unauthenticated Remote Code Execution', 'site-security-audit' ),
+					'type'     => __( 'Unauthenticated Remote Code Execution', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2020-25213',
 					'fixed_in' => '6.9',
-					'severity' => SSA_Logger::SEVERITY_CRITICAL,
+					'severity' => ShieldScope_Logger::SEVERITY_CRITICAL,
 				),
 			),
 
 			// WP GDPR Compliance — Privilege Escalation (unauthenticated)
 			'wp-gdpr-compliance' => array(
 				array(
-					'type'     => __( 'Unauthenticated Privilege Escalation', 'site-security-audit' ),
+					'type'     => __( 'Unauthenticated Privilege Escalation', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2018-19207',
 					'fixed_in' => '1.4.3',
-					'severity' => SSA_Logger::SEVERITY_CRITICAL,
+					'severity' => ShieldScope_Logger::SEVERITY_CRITICAL,
 				),
 			),
 
 			// ThemeGrill Demo Importer — Unauthenticated DB Wipe
 			'themegrill-demo-importer' => array(
 				array(
-					'type'     => __( 'Unauthenticated Database Reset / Admin Takeover', 'site-security-audit' ),
+					'type'     => __( 'Unauthenticated Database Reset / Admin Takeover', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2020-8772',
 					'fixed_in' => '1.6.3',
-					'severity' => SSA_Logger::SEVERITY_CRITICAL,
+					'severity' => ShieldScope_Logger::SEVERITY_CRITICAL,
 				),
 			),
 
 			// Ninja Forms — Unauthenticated Code Injection
 			'ninja-forms' => array(
 				array(
-					'type'     => __( 'Unauthenticated Code Injection', 'site-security-audit' ),
+					'type'     => __( 'Unauthenticated Code Injection', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2022-34867',
 					'fixed_in' => '3.6.11',
-					'severity' => SSA_Logger::SEVERITY_CRITICAL,
+					'severity' => ShieldScope_Logger::SEVERITY_CRITICAL,
 				),
 			),
 
 			// WPForms — Insecure Direct Object Reference (subscriber+)
 			'wpforms-lite' => array(
 				array(
-					'type'     => __( 'Insecure Direct Object Reference', 'site-security-audit' ),
+					'type'     => __( 'Insecure Direct Object Reference', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2023-2732',
 					'fixed_in' => '1.8.2.2',
-					'severity' => SSA_Logger::SEVERITY_HIGH,
+					'severity' => ShieldScope_Logger::SEVERITY_HIGH,
 				),
 			),
 
 			// All-in-One WP Migration — Unauthenticated Sensitive Data Exposure
 			'all-in-one-wp-migration' => array(
 				array(
-					'type'     => __( 'Unauthenticated Sensitive Data Exposure', 'site-security-audit' ),
+					'type'     => __( 'Unauthenticated Sensitive Data Exposure', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2023-40004',
 					'fixed_in' => '7.80',
-					'severity' => SSA_Logger::SEVERITY_HIGH,
+					'severity' => ShieldScope_Logger::SEVERITY_HIGH,
 				),
 			),
 
 			// Yoast SEO — Stored XSS (contributor+)
 			'wordpress-seo' => array(
 				array(
-					'type'     => __( 'Stored Cross-Site Scripting (contributor+)', 'site-security-audit' ),
+					'type'     => __( 'Stored Cross-Site Scripting (contributor+)', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2023-1999',
 					'fixed_in' => '20.2.1',
-					'severity' => SSA_Logger::SEVERITY_MEDIUM,
+					'severity' => ShieldScope_Logger::SEVERITY_MEDIUM,
 				),
 			),
 
 			// WP Fastest Cache — Unauthenticated SQL Injection
 			'wp-fastest-cache' => array(
 				array(
-					'type'     => __( 'Unauthenticated SQL Injection', 'site-security-audit' ),
+					'type'     => __( 'Unauthenticated SQL Injection', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2023-6063',
 					'fixed_in' => '1.2.2',
-					'severity' => SSA_Logger::SEVERITY_CRITICAL,
+					'severity' => ShieldScope_Logger::SEVERITY_CRITICAL,
 				),
 			),
 
 			// Essential Addons for Elementor — Unauthenticated Privilege Escalation
 			'essential-addons-for-elementor-lite' => array(
 				array(
-					'type'     => __( 'Unauthenticated Privilege Escalation', 'site-security-audit' ),
+					'type'     => __( 'Unauthenticated Privilege Escalation', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2023-32243',
 					'fixed_in' => '5.7.2',
-					'severity' => SSA_Logger::SEVERITY_CRITICAL,
+					'severity' => ShieldScope_Logger::SEVERITY_CRITICAL,
 				),
 			),
 
 			// Advanced Custom Fields — Reflected XSS (subscriber+)
 			'advanced-custom-fields' => array(
 				array(
-					'type'     => __( 'Reflected Cross-Site Scripting (subscriber+)', 'site-security-audit' ),
+					'type'     => __( 'Reflected Cross-Site Scripting (subscriber+)', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2023-30777',
 					'fixed_in' => '6.1.6',
-					'severity' => SSA_Logger::SEVERITY_HIGH,
+					'severity' => ShieldScope_Logger::SEVERITY_HIGH,
 				),
 			),
 			'advanced-custom-fields-pro' => array(
 				array(
-					'type'     => __( 'Reflected Cross-Site Scripting (subscriber+)', 'site-security-audit' ),
+					'type'     => __( 'Reflected Cross-Site Scripting (subscriber+)', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2023-30777',
 					'fixed_in' => '6.1.6',
-					'severity' => SSA_Logger::SEVERITY_HIGH,
+					'severity' => ShieldScope_Logger::SEVERITY_HIGH,
 				),
 			),
 
 			// Jetpack — Multiple vulnerabilities (various versions)
 			'jetpack' => array(
 				array(
-					'type'     => __( 'Stored XSS / Content Injection', 'site-security-audit' ),
+					'type'     => __( 'Stored XSS / Content Injection', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2023-2996',
 					'fixed_in' => '12.1.1',
-					'severity' => SSA_Logger::SEVERITY_HIGH,
+					'severity' => ShieldScope_Logger::SEVERITY_HIGH,
 				),
 			),
 
 			// Download Manager — Unauthenticated Sensitive Data Exposure
 			'download-manager' => array(
 				array(
-					'type'     => __( 'Unauthenticated Sensitive Data Exposure', 'site-security-audit' ),
+					'type'     => __( 'Unauthenticated Sensitive Data Exposure', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2021-3553',
 					'fixed_in' => '3.1.25',
-					'severity' => SSA_Logger::SEVERITY_HIGH,
+					'severity' => ShieldScope_Logger::SEVERITY_HIGH,
 				),
 			),
 
 			// WP Statistics — SQL Injection (subscriber+)
 			'wp-statistics' => array(
 				array(
-					'type'     => __( 'SQL Injection (subscriber+)', 'site-security-audit' ),
+					'type'     => __( 'SQL Injection (subscriber+)', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2022-25148',
 					'fixed_in' => '13.1.6',
-					'severity' => SSA_Logger::SEVERITY_HIGH,
+					'severity' => ShieldScope_Logger::SEVERITY_HIGH,
 				),
 			),
 
 			// BackWPup — Unauthenticated SSRF / Data Disclosure
 			'backwpup' => array(
 				array(
-					'type'     => __( 'Unauthenticated Directory Traversal', 'site-security-audit' ),
+					'type'     => __( 'Unauthenticated Directory Traversal', 'shieldscope-site-security-scanner' ),
 					'cve'      => 'CVE-2022-0432',
 					'fixed_in' => '3.8.8',
-					'severity' => SSA_Logger::SEVERITY_HIGH,
+					'severity' => ShieldScope_Logger::SEVERITY_HIGH,
 				),
 			),
 		);

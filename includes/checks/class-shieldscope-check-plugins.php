@@ -2,15 +2,15 @@
 /**
  * Plugin-level security checks.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Check_Plugins
+ * Class ShieldScope_Check_Plugins
  */
-class SSA_Check_Plugins extends SSA_Check_Base {
+class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 
 	/**
 	 * ID.
@@ -27,7 +27,7 @@ class SSA_Check_Plugins extends SSA_Check_Base {
 	 * @return string
 	 */
 	public function get_label() {
-		return __( 'Plugins', 'site-security-audit' );
+		return __( 'Plugins', 'shieldscope-site-security-scanner' );
 	}
 
 	/**
@@ -81,16 +81,16 @@ class SSA_Check_Plugins extends SSA_Check_Base {
 		foreach ( $updates->response as $plugin_file => $info ) {
 			$data = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin_file, false, false );
 			$this->finding(
-				SSA_Logger::SEVERITY_HIGH,
-				__( 'Plugin update available', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_HIGH,
+				__( 'Plugin update available', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: 1: name, 2: current, 3: new */
-					__( 'Plugin "%1$s" is at version %2$s; %3$s is available. Outdated plugins are the single most common WordPress compromise vector.', 'site-security-audit' ),
+					__( 'Plugin "%1$s" is at version %2$s; %3$s is available. Outdated plugins are the single most common WordPress compromise vector.', 'shieldscope-site-security-scanner' ),
 					$data['Name'],
 					$data['Version'],
 					isset( $info->new_version ) ? $info->new_version : 'latest'
 				),
-				__( 'Go to Dashboard → Updates and update this plugin. Check the changelog for the word "security" to understand what\'s fixed. Outdated plugins are the leading cause of WordPress compromises — do not delay security updates.', 'site-security-audit' ),
+				__( 'Go to Dashboard → Updates and update this plugin. Check the changelog for the word "security" to understand what\'s fixed. Outdated plugins are the leading cause of WordPress compromises — do not delay security updates.', 'shieldscope-site-security-scanner' ),
 				'plugin:' . $plugin_file,
 				array( 'plugin_name' => $data['Name'] )
 			);
@@ -111,14 +111,14 @@ class SSA_Check_Plugins extends SSA_Check_Base {
 		foreach ( $all as $file => $data ) {
 			if ( ! in_array( $file, $active, true ) ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_LOW,
-					__( 'Inactive plugin present on disk', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_LOW,
+					__( 'Inactive plugin present on disk', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %s: name */
-						__( 'Plugin "%s" is installed but not active. Its code is still on disk and could be exploited if it has a vulnerability.', 'site-security-audit' ),
+						__( 'Plugin "%s" is installed but not active. Its code is still on disk and could be exploited if it has a vulnerability.', 'shieldscope-site-security-scanner' ),
 						$data['Name']
 					),
-					__( 'Go to Plugins → Installed Plugins and click Delete — not just Deactivate. Inactive plugins leave code on disk that can still be exploited if they contain vulnerabilities. Only keep plugins you actively use.', 'site-security-audit' ),
+					__( 'Go to Plugins → Installed Plugins and click Delete — not just Deactivate. Inactive plugins leave code on disk that can still be exploited if they contain vulnerabilities. Only keep plugins you actively use.', 'shieldscope-site-security-scanner' ),
 					'plugin:' . $file,
 					array( 'plugin_name' => $data['Name'] )
 				);
@@ -140,14 +140,14 @@ class SSA_Check_Plugins extends SSA_Check_Base {
 			}
 			if ( empty( $data['PluginURI'] ) && empty( $data['UpdateURI'] ) ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_LOW,
-					__( 'Plugin has no update source declared', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_LOW,
+					__( 'Plugin has no update source declared', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %s: name */
-						__( 'Plugin "%s" declares neither a PluginURI nor an UpdateURI. If this is not a custom plugin, verify it came from a trusted source.', 'site-security-audit' ),
+						__( 'Plugin "%s" declares neither a PluginURI nor an UpdateURI. If this is not a custom plugin, verify it came from a trusted source.', 'shieldscope-site-security-scanner' ),
 						$data['Name']
 					),
-					__( 'Search wordpress.org/plugins to verify this plugin is legitimate. If it\'s a custom-built plugin, this warning can be ignored. If it came from a "free premium plugin" site, treat it as potentially nulled (pirated software with malware injected) and delete it — replace with the official version from the original developer.', 'site-security-audit' ),
+					__( 'Search wordpress.org/plugins to verify this plugin is legitimate. If it\'s a custom-built plugin, this warning can be ignored. If it came from a "free premium plugin" site, treat it as potentially nulled (pirated software with malware injected) and delete it — replace with the official version from the original developer.', 'shieldscope-site-security-scanner' ),
 					'plugin:' . $file,
 					array( 'plugin_name' => $data['Name'] )
 				);
@@ -170,15 +170,15 @@ class SSA_Check_Plugins extends SSA_Check_Base {
 			$mtime = filemtime( $full_path );
 			if ( $mtime && ( time() - $mtime ) > ( 2 * YEAR_IN_SECONDS ) ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_MEDIUM,
-					__( 'Plugin appears abandoned', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_MEDIUM,
+					__( 'Plugin appears abandoned', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: 1: name, 2: date */
-						__( 'Plugin "%1$s" has not been updated on disk since %2$s. Unmaintained plugins accumulate unfixed vulnerabilities.', 'site-security-audit' ),
+						__( 'Plugin "%1$s" has not been updated on disk since %2$s. Unmaintained plugins accumulate unfixed vulnerabilities.', 'shieldscope-site-security-scanner' ),
 						$data['Name'],
 						gmdate( 'Y-m-d', $mtime )
 					),
-					__( 'Check wordpress.org/plugins for this plugin — if it shows "not tested with the latest 3 major releases" it is likely abandoned. Consider replacing it with a maintained alternative. If you need to keep it, contact the plugin developer via the wordpress.org support forum to ask about continued maintenance.', 'site-security-audit' ),
+					__( 'Check wordpress.org/plugins for this plugin — if it shows "not tested with the latest 3 major releases" it is likely abandoned. Consider replacing it with a maintained alternative. If you need to keep it, contact the plugin developer via the wordpress.org support forum to ask about continued maintenance.', 'shieldscope-site-security-scanner' ),
 					'plugin:' . $file,
 					array( 'plugin_name' => $data['Name'] )
 				);

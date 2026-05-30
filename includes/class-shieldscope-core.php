@@ -2,41 +2,41 @@
 /**
  * Core plugin class — singleton controller.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Core
+ * Class ShieldScope_Core
  */
-final class SSA_Core {
+final class ShieldScope_Core {
 
 	/**
 	 * Singleton instance.
 	 *
-	 * @var SSA_Core|null
+	 * @var ShieldScope_Core|null
 	 */
 	private static $instance = null;
 
 	/**
 	 * Admin handler.
 	 *
-	 * @var SSA_Admin|null
+	 * @var ShieldScope_Admin|null
 	 */
 	public $admin = null;
 
 	/**
 	 * AJAX handler.
 	 *
-	 * @var SSA_Ajax|null
+	 * @var ShieldScope_Ajax|null
 	 */
 	public $ajax = null;
 
 	/**
 	 * Get singleton.
 	 *
-	 * @return SSA_Core
+	 * @return ShieldScope_Core
 	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -74,16 +74,16 @@ final class SSA_Core {
 	public function init() {
 		// Admin surfaces only load for users who can manage options.
 		if ( is_admin() ) {
-			$this->admin = new SSA_Admin();
+			$this->admin = new ShieldScope_Admin();
 			$this->admin->register();
 
-			$this->ajax = new SSA_Ajax();
+			$this->ajax = new ShieldScope_Ajax();
 			$this->ajax->register();
 		}
 
 		// Cron handler — runs regardless of admin context.
-		add_action( 'ssa_run_scan_chunk', array( $this, 'run_scheduled_chunk' ) );
-		add_action( 'ssa_daily_maintenance', array( $this, 'run_daily_maintenance' ) );
+		add_action( 'shieldscope_run_scan_chunk', array( $this, 'run_scheduled_chunk' ) );
+		add_action( 'shieldscope_daily_maintenance', array( $this, 'run_daily_maintenance' ) );
 	}
 
 	/**
@@ -92,7 +92,7 @@ final class SSA_Core {
 	 * @return void
 	 */
 	public function run_scheduled_chunk() {
-		$scanner = new SSA_Scanner();
+		$scanner = new ShieldScope_Scanner();
 		$scanner->run_chunk( true );
 	}
 
@@ -102,7 +102,7 @@ final class SSA_Core {
 	 * @return void
 	 */
 	public function run_daily_maintenance() {
-		$logger = new SSA_Logger();
+		$logger = new ShieldScope_Logger();
 		$logger->prune_old( 30 * DAY_IN_SECONDS );
 	}
 
@@ -117,17 +117,17 @@ final class SSA_Core {
 			return;
 		}
 
-		if ( ! wp_next_scheduled( 'ssa_daily_maintenance' ) ) {
-			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'ssa_daily_maintenance' );
+		if ( ! wp_next_scheduled( 'shieldscope_daily_maintenance' ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'shieldscope_daily_maintenance' );
 		}
 
 		// Create findings table.
-		SSA_Logger::create_table();
+		ShieldScope_Logger::create_table();
 
 		// Seed defaults.
-		if ( false === get_option( 'ssa_settings' ) ) {
+		if ( false === get_option( 'shieldscope_settings' ) ) {
 			add_option(
-				'ssa_settings',
+				'shieldscope_settings',
 				array(
 					'cpu_limit'          => 20, // percent.
 					'chunk_time_limit'   => 2,  // seconds per chunk.
@@ -137,7 +137,7 @@ final class SSA_Core {
 			);
 		}
 
-		update_option( 'ssa_version', SSA_VERSION );
+		update_option( 'shieldscope_version', SHIELDSCOPE_VERSION );
 	}
 
 	/**
@@ -150,7 +150,7 @@ final class SSA_Core {
 			return;
 		}
 
-		$crons = array( 'ssa_run_scan_chunk', 'ssa_daily_maintenance' );
+		$crons = array( 'shieldscope_run_scan_chunk', 'shieldscope_daily_maintenance' );
 		foreach ( $crons as $cron ) {
 			$timestamp = wp_next_scheduled( $cron );
 			while ( false !== $timestamp ) {

@@ -1,11 +1,11 @@
 <?php
 /**
- * Uninstall handler for SSA.
+ * Uninstall handler for ShieldScope.
  *
  * Runs only when the plugin is deleted through the WP UI (not deactivated).
  * Removes all persistent data created by the plugin.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 // Fired only by WordPress when plugin is deleted.
@@ -15,11 +15,11 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 global $wpdb;
 
-$options = array(
-	'ssa_version',
-	'ssa_settings',
-	'ssa_last_scan',
-	'ssa_scan_state',
+$shieldscope_options = array(
+	'shieldscope_version',
+	'shieldscope_settings',
+	'shieldscope_last_scan',
+	'shieldscope_scan_state',
 );
 
 /**
@@ -28,10 +28,10 @@ $options = array(
  * @param wpdb   $db     Database object (already switched to the right blog).
  * @param string $prefix Table prefix for this blog.
  */
-$clean_site = function ( $db, $prefix ) use ( $options ) {
+$shieldscope_clean_site = function ( $db, $prefix ) use ( $shieldscope_options ) {
 	// Delete options.
-	foreach ( $options as $option ) {
-		delete_option( $option );
+	foreach ( $shieldscope_options as $shieldscope_option ) {
+		delete_option( $shieldscope_option );
 	}
 
 	// Delete transients (wildcard delete — direct query required).
@@ -39,13 +39,13 @@ $clean_site = function ( $db, $prefix ) use ( $options ) {
 	$db->query(
 		$db->prepare(
 			"DELETE FROM {$db->options} WHERE option_name LIKE %s OR option_name LIKE %s",
-			$db->esc_like( '_transient_ssa_' ) . '%',
-			$db->esc_like( '_transient_timeout_ssa_' ) . '%'
+			$db->esc_like( '_transient_shieldscope_' ) . '%',
+			$db->esc_like( '_transient_timeout_shieldscope_' ) . '%'
 		)
 	);
 
 	// Clear scheduled cron events.
-	$crons = array( 'ssa_run_scan_chunk', 'ssa_daily_maintenance' );
+	$crons = array( 'shieldscope_run_scan_chunk', 'shieldscope_daily_maintenance' );
 	foreach ( $crons as $cron ) {
 		$timestamp = wp_next_scheduled( $cron );
 		while ( false !== $timestamp ) {
@@ -55,23 +55,23 @@ $clean_site = function ( $db, $prefix ) use ( $options ) {
 	}
 
 	// Drop findings table.
-	$table = $prefix . 'ssa_findings';
+	$table = $prefix . 'shieldscope_findings';
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
 	$db->query( "DROP TABLE IF EXISTS {$table}" );
 };
 
 if ( is_multisite() ) {
-	$sites = get_sites( array( 'number' => 0, 'fields' => 'ids' ) );
-	foreach ( $sites as $site_id ) {
-		switch_to_blog( $site_id );
-		$clean_site( $wpdb, $wpdb->prefix );
+	$shieldscope_sites = get_sites( array( 'number' => 0, 'fields' => 'ids' ) );
+	foreach ( $shieldscope_sites as $shieldscope_site_id ) {
+		switch_to_blog( $shieldscope_site_id );
+		$shieldscope_clean_site( $wpdb, $wpdb->prefix );
 		restore_current_blog();
 	}
 
 	// Network-level options.
-	foreach ( $options as $option ) {
-		delete_site_option( $option );
+	foreach ( $shieldscope_options as $shieldscope_option ) {
+		delete_site_option( $shieldscope_option );
 	}
 } else {
-	$clean_site( $wpdb, $wpdb->prefix );
+	$shieldscope_clean_site( $wpdb, $wpdb->prefix );
 }

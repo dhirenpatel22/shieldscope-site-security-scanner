@@ -1,4 +1,4 @@
-# SSA – Site Security Audit
+# ShieldScope – Site Security Scanner
 
 A deep, read-only security scanner for WordPress that audits **core, users, filesystem, plugins, themes, code patterns, HTTP headers, injection vulnerabilities, access control, SSRF, and the database** — and does it without hogging your server.
 
@@ -43,14 +43,14 @@ Findings are grouped by severity: **Critical / High / Medium / Low / Info**.
 
 ### From a zip
 
-1. Download `site-security-audit.zip`.
+1. Download `shieldscope.zip`.
 2. In WP admin, go to **Plugins → Add New → Upload Plugin**.
 3. Choose the zip and click **Install Now**, then **Activate**.
 
 ### Manually via SFTP
 
 1. Unzip the archive.
-2. Upload the `site-security-audit/` folder to `wp-content/plugins/`.
+2. Upload the `shieldscope/` folder to `wp-content/plugins/`.
 3. Activate from the **Plugins** screen.
 
 ## Usage
@@ -99,8 +99,8 @@ You can disable this in **Settings → Pause when tab is hidden** if you prefer 
 ## File layout
 
 ```
-site-security-audit/
-├── site-security-audit.php          # bootstrap, constants, autoloader
+shieldscope/
+├── shieldscope-site-security-scanner.php  # bootstrap, constants, autoloader
 ├── uninstall.php                          # clean DB on plugin delete
 ├── readme.txt                             # WP.org-style readme
 ├── README.md                              # this file
@@ -133,7 +133,7 @@ site-security-audit/
 │   ├── js/admin.js
 │   └── css/admin.css
 └── languages/
-    └── site-security-audit.pot
+    └── shieldscope.pot
 ```
 
 ## Requirements
