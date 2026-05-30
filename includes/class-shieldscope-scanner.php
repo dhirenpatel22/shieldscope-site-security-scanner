@@ -8,17 +8,17 @@
  * State is kept in an option so a scan can survive page reloads, cron runs,
  * or AJAX pauses.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Scanner
+ * Class ShieldScope_Scanner
  */
-class SSA_Scanner {
+class ShieldScope_Scanner {
 
-	const STATE_OPTION = 'ssa_scan_state';
+	const STATE_OPTION = 'shieldscope_scan_state';
 
 	const STATUS_IDLE      = 'idle';
 	const STATUS_RUNNING   = 'running';
@@ -29,14 +29,14 @@ class SSA_Scanner {
 	/**
 	 * Logger.
 	 *
-	 * @var SSA_Logger
+	 * @var ShieldScope_Logger
 	 */
 	private $logger;
 
 	/**
 	 * Throttle.
 	 *
-	 * @var SSA_Throttle
+	 * @var ShieldScope_Throttle
 	 */
 	private $throttle;
 
@@ -44,13 +44,13 @@ class SSA_Scanner {
 	 * Constructor.
 	 */
 	public function __construct() {
-		$this->logger = new SSA_Logger();
+		$this->logger = new ShieldScope_Logger();
 
-		$settings = (array) get_option( 'ssa_settings', array() );
+		$settings = (array) get_option( 'shieldscope_settings', array() );
 		$cpu      = isset( $settings['cpu_limit'] ) ? (int) $settings['cpu_limit'] : 20;
 		$chunk    = isset( $settings['chunk_time_limit'] ) ? (float) $settings['chunk_time_limit'] : 2.0;
 
-		$this->throttle = new SSA_Throttle( $cpu, $chunk );
+		$this->throttle = new ShieldScope_Throttle( $cpu, $chunk );
 	}
 
 	/**
@@ -60,22 +60,22 @@ class SSA_Scanner {
 	 */
 	public function get_check_classes() {
 		return array(
-			'SSA_Check_Core',
-			'SSA_Check_Core_Integrity',
-			'SSA_Check_Users',
-			'SSA_Check_Database',
-			'SSA_Check_Filesystem',
-			'SSA_Check_Plugins',
-			'SSA_Check_Themes',
-			'SSA_Check_Config',
-			'SSA_Check_SSL',
-			'SSA_Check_Code_Patterns',
-			'SSA_Check_Injection',
-			'SSA_Check_Access_Control',
-			'SSA_Check_Security_Config',
-			'SSA_Check_Components',
-			'SSA_Check_SSRF',
-			'SSA_Check_Vuln_DB',
+			'ShieldScope_Check_Core',
+			'ShieldScope_Check_Core_Integrity',
+			'ShieldScope_Check_Users',
+			'ShieldScope_Check_Database',
+			'ShieldScope_Check_Filesystem',
+			'ShieldScope_Check_Plugins',
+			'ShieldScope_Check_Themes',
+			'ShieldScope_Check_Config',
+			'ShieldScope_Check_SSL',
+			'ShieldScope_Check_Code_Patterns',
+			'ShieldScope_Check_Injection',
+			'ShieldScope_Check_Access_Control',
+			'ShieldScope_Check_Security_Config',
+			'ShieldScope_Check_Components',
+			'ShieldScope_Check_SSRF',
+			'ShieldScope_Check_Vuln_DB',
 		);
 	}
 
@@ -152,7 +152,7 @@ class SSA_Scanner {
 			'cursor'       => array(),
 			'total_steps'  => $total,
 			'done_steps'   => 0,
-			'last_message' => __( 'Scan started.', 'site-security-audit' ),
+			'last_message' => __( 'Scan started.', 'shieldscope-site-security-scanner' ),
 			'owner_id'     => get_current_user_id(),
 		);
 		$this->save_state( $state );
@@ -168,7 +168,7 @@ class SSA_Scanner {
 		$state = $this->get_state();
 		if ( self::STATUS_RUNNING === $state['status'] ) {
 			$state['status']       = self::STATUS_PAUSED;
-			$state['last_message'] = __( 'Scan paused.', 'site-security-audit' );
+			$state['last_message'] = __( 'Scan paused.', 'shieldscope-site-security-scanner' );
 			$this->save_state( $state );
 		}
 		return $state;
@@ -183,7 +183,7 @@ class SSA_Scanner {
 		$state = $this->get_state();
 		if ( self::STATUS_PAUSED === $state['status'] ) {
 			$state['status']       = self::STATUS_RUNNING;
-			$state['last_message'] = __( 'Scan resumed.', 'site-security-audit' );
+			$state['last_message'] = __( 'Scan resumed.', 'shieldscope-site-security-scanner' );
 			$this->save_state( $state );
 		}
 		return $state;
@@ -198,7 +198,7 @@ class SSA_Scanner {
 		$state = $this->get_state();
 		if ( in_array( $state['status'], array( self::STATUS_RUNNING, self::STATUS_PAUSED ), true ) ) {
 			$state['status']       = self::STATUS_ABORTED;
-			$state['last_message'] = __( 'Scan aborted by user.', 'site-security-audit' );
+			$state['last_message'] = __( 'Scan aborted by user.', 'shieldscope-site-security-scanner' );
 			$this->save_state( $state );
 		}
 		return $state;
@@ -242,7 +242,7 @@ class SSA_Scanner {
 			$step = $steps[ $state['step_index'] ];
 			$state['last_message'] = sprintf(
 				/* translators: 1: check label, 2: step id */
-				__( 'Running %1$s → %2$s', 'site-security-audit' ),
+				__( 'Running %1$s → %2$s', 'shieldscope-site-security-scanner' ),
 				$check->get_label(),
 				$step
 			);
@@ -255,8 +255,8 @@ class SSA_Scanner {
 				$this->logger->record(
 					$state['scan_id'],
 					$check->get_id(),
-					SSA_Logger::SEVERITY_INFO,
-					__( 'Check module error', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_INFO,
+					__( 'Check module error', 'shieldscope-site-security-scanner' ),
 					$e->getMessage()
 				);
 				$result = array( 'continue' => false, 'cursor' => array() );
@@ -290,17 +290,17 @@ class SSA_Scanner {
 		// Done?
 		if ( self::STATUS_RUNNING === $state['status'] && $state['check_index'] >= count( $classes ) ) {
 			$state['status']       = self::STATUS_COMPLETED;
-			$state['last_message'] = __( 'Scan complete.', 'site-security-audit' );
+			$state['last_message'] = __( 'Scan complete.', 'shieldscope-site-security-scanner' );
 			$state['done_steps']   = $state['total_steps'];
 
-			update_option( 'ssa_last_scan', $state['scan_id'], false );
+			update_option( 'shieldscope_last_scan', $state['scan_id'], false );
 		}
 
 		$this->save_state( $state );
 
 		// If we were called from cron and the scan is still running, re-schedule.
-		if ( $from_cron && self::STATUS_RUNNING === $state['status'] && ! wp_next_scheduled( 'ssa_run_scan_chunk' ) ) {
-			wp_schedule_single_event( time() + 10, 'ssa_run_scan_chunk' );
+		if ( $from_cron && self::STATUS_RUNNING === $state['status'] && ! wp_next_scheduled( 'shieldscope_run_scan_chunk' ) ) {
+			wp_schedule_single_event( time() + 10, 'shieldscope_run_scan_chunk' );
 		}
 
 		return $state;

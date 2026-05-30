@@ -6,15 +6,15 @@
  * and can be broken into discrete "steps" so the scanner can yield
  * between them and keep CPU usage low.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Check_Base
+ * Class ShieldScope_Check_Base
  */
-abstract class SSA_Check_Base {
+abstract class ShieldScope_Check_Base {
 
 	/**
 	 * Scan identifier.
@@ -26,7 +26,7 @@ abstract class SSA_Check_Base {
 	/**
 	 * Logger.
 	 *
-	 * @var SSA_Logger
+	 * @var ShieldScope_Logger
 	 */
 	protected $logger;
 
@@ -34,9 +34,9 @@ abstract class SSA_Check_Base {
 	 * Constructor.
 	 *
 	 * @param string       $scan_id Current scan ID.
-	 * @param SSA_Logger $logger  Logger instance.
+	 * @param ShieldScope_Logger $logger  Logger instance.
 	 */
-	public function __construct( $scan_id, SSA_Logger $logger ) {
+	public function __construct( $scan_id, ShieldScope_Logger $logger ) {
 		$this->scan_id = $scan_id;
 		$this->logger  = $logger;
 	}

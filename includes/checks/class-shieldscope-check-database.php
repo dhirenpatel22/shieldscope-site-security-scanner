@@ -2,15 +2,15 @@
 /**
  * Database configuration checks.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Check_Database
+ * Class ShieldScope_Check_Database
  */
-class SSA_Check_Database extends SSA_Check_Base {
+class ShieldScope_Check_Database extends ShieldScope_Check_Base {
 
 	/**
 	 * ID.
@@ -27,7 +27,7 @@ class SSA_Check_Database extends SSA_Check_Base {
 	 * @return string
 	 */
 	public function get_label() {
-		return __( 'Database', 'site-security-audit' );
+		return __( 'Database', 'shieldscope-site-security-scanner' );
 	}
 
 	/**
@@ -79,15 +79,15 @@ class SSA_Check_Database extends SSA_Check_Base {
 
 		foreach ( (array) $recent as $u ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_MEDIUM,
-				__( 'Administrator created in the last 7 days', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'Administrator created in the last 7 days', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: 1: login, 2: date */
-					__( "Administrator '%1\$s' was created on %2\$s. If you did not create this account, your site may be compromised.", 'site-security-audit' ),
+					__( "Administrator '%1\$s' was created on %2\$s. If you did not create this account, your site may be compromised.", 'shieldscope-site-security-scanner' ),
 					$u->user_login,
 					$u->user_registered
 				),
-				__( 'If you did not create this account, treat it as a compromise. Delete it via Users → All Users, change all admin passwords, and regenerate your auth salts in wp-config.php (get fresh keys at https://api.wordpress.org/secret-key/1.1/salt/). Contact your host if you cannot determine how the account was created.', 'site-security-audit' ),
+				__( 'If you did not create this account, treat it as a compromise. Delete it via Users → All Users, change all admin passwords, and regenerate your auth salts in wp-config.php (get fresh keys at https://api.wordpress.org/secret-key/1.1/salt/). Contact your host if you cannot determine how the account was created.', 'shieldscope-site-security-scanner' ),
 				'user:' . $u->ID
 			);
 		}
@@ -102,10 +102,10 @@ class SSA_Check_Database extends SSA_Check_Base {
 		// Admins registerable to anyone is risky.
 		if ( get_option( 'users_can_register' ) && 'administrator' === get_option( 'default_role' ) ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_CRITICAL,
-				__( 'Open registration with administrator default role', 'site-security-audit' ),
-				__( 'Anyone can register and is automatically granted administrator. This is almost certainly a compromise.', 'site-security-audit' ),
-				__( 'Go to Settings → General and either disable "Anyone can register" or change the default role from Administrator to Subscriber. Then go to Users → All Users, filter by Administrator, and delete any accounts you do not recognise.', 'site-security-audit' )
+				ShieldScope_Logger::SEVERITY_CRITICAL,
+				__( 'Open registration with administrator default role', 'shieldscope-site-security-scanner' ),
+				__( 'Anyone can register and is automatically granted administrator. This is almost certainly a compromise.', 'shieldscope-site-security-scanner' ),
+				__( 'Go to Settings → General and either disable "Anyone can register" or change the default role from Administrator to Subscriber. Then go to Users → All Users, filter by Administrator, and delete any accounts you do not recognise.', 'shieldscope-site-security-scanner' )
 			);
 		}
 
@@ -117,15 +117,15 @@ class SSA_Check_Database extends SSA_Check_Base {
 			$home_host = wp_parse_url( $home, PHP_URL_HOST );
 			if ( $site_host && $home_host && $site_host !== $home_host ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_HIGH,
-					__( 'siteurl and home point to different domains', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_HIGH,
+					__( 'siteurl and home point to different domains', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: 1: siteurl, 2: home */
-						__( 'siteurl (%1$s) and home (%2$s) resolve to different hosts. Malware often sets one of these to an attacker-controlled domain.', 'site-security-audit' ),
+						__( 'siteurl (%1$s) and home (%2$s) resolve to different hosts. Malware often sets one of these to an attacker-controlled domain.', 'shieldscope-site-security-scanner' ),
 						$site_url,
 						$home
 					),
-					__( 'Go to Settings → General and verify both WordPress Address and Site Address point to your own domain. If either was changed to an unknown domain, revert it and change all admin passwords immediately. Also check wp-config.php for WP_HOME or WP_SITEURL constants that may be overriding the values.', 'site-security-audit' )
+					__( 'Go to Settings → General and verify both WordPress Address and Site Address point to your own domain. If either was changed to an unknown domain, revert it and change all admin passwords immediately. Also check wp-config.php for WP_HOME or WP_SITEURL constants that may be overriding the values.', 'shieldscope-site-security-scanner' )
 				);
 			}
 		}

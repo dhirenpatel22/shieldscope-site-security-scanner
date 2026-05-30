@@ -2,15 +2,15 @@
 /**
  * Theme-level security checks.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Check_Themes
+ * Class ShieldScope_Check_Themes
  */
-class SSA_Check_Themes extends SSA_Check_Base {
+class ShieldScope_Check_Themes extends ShieldScope_Check_Base {
 
 	/**
 	 * ID.
@@ -27,7 +27,7 @@ class SSA_Check_Themes extends SSA_Check_Base {
 	 * @return string
 	 */
 	public function get_label() {
-		return __( 'Themes', 'site-security-audit' );
+		return __( 'Themes', 'shieldscope-site-security-scanner' );
 	}
 
 	/**
@@ -74,15 +74,15 @@ class SSA_Check_Themes extends SSA_Check_Base {
 		foreach ( $updates->response as $slug => $info ) {
 			$theme = wp_get_theme( $slug );
 			$this->finding(
-				SSA_Logger::SEVERITY_HIGH,
-				__( 'Theme update available', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_HIGH,
+				__( 'Theme update available', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: 1: name, 2: version */
-					__( 'Theme "%1$s" has an update to version %2$s available.', 'site-security-audit' ),
+					__( 'Theme "%1$s" has an update to version %2$s available.', 'shieldscope-site-security-scanner' ),
 					$theme->get( 'Name' ),
 					isset( $info['new_version'] ) ? $info['new_version'] : 'latest'
 				),
-				__( 'Go to Dashboard → Updates and update this theme. If you have customised the parent theme directly, your changes will be overwritten — migrate them to a child theme first. Child theme customisations are not affected by parent theme updates.', 'site-security-audit' ),
+				__( 'Go to Dashboard → Updates and update this theme. If you have customised the parent theme directly, your changes will be overwritten — migrate them to a child theme first. Child theme customisations are not affected by parent theme updates.', 'shieldscope-site-security-scanner' ),
 				'theme:' . $slug
 			);
 		}
@@ -106,14 +106,14 @@ class SSA_Check_Themes extends SSA_Check_Base {
 		}
 		if ( $extra > 1 ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_LOW,
-				__( 'Multiple inactive themes installed', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_LOW,
+				__( 'Multiple inactive themes installed', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %d: count */
-					__( '%d inactive themes are present. Keep only your active theme, its parent (if any), and one up-to-date default theme as a fallback.', 'site-security-audit' ),
+					__( '%d inactive themes are present. Keep only your active theme, its parent (if any), and one up-to-date default theme as a fallback.', 'shieldscope-site-security-scanner' ),
 					$extra
 				),
-				__( 'Go to Appearance → Themes and delete all themes you are not using — keep only your active theme, its parent (if any), and one default WordPress theme as a fallback. Inactive themes on disk can still be exploited even without being active.', 'site-security-audit' )
+				__( 'Go to Appearance → Themes and delete all themes you are not using — keep only your active theme, its parent (if any), and one default WordPress theme as a fallback. Inactive themes on disk can still be exploited even without being active.', 'shieldscope-site-security-scanner' )
 			);
 		}
 	}
@@ -132,10 +132,10 @@ class SSA_Check_Themes extends SSA_Check_Base {
 			}
 		}
 		$this->finding(
-			SSA_Logger::SEVERITY_INFO,
-			__( 'No current default theme installed as fallback', 'site-security-audit' ),
-			__( 'If your active theme breaks, WordPress falls back to a default theme. Without one installed, recovery requires FTP.', 'site-security-audit' ),
-			__( 'Install one of the current default (Twenty*) themes and keep it updated.', 'site-security-audit' )
+			ShieldScope_Logger::SEVERITY_INFO,
+			__( 'No current default theme installed as fallback', 'shieldscope-site-security-scanner' ),
+			__( 'If your active theme breaks, WordPress falls back to a default theme. Without one installed, recovery requires FTP.', 'shieldscope-site-security-scanner' ),
+			__( 'Install one of the current default (Twenty*) themes and keep it updated.', 'shieldscope-site-security-scanner' )
 		);
 	}
 }

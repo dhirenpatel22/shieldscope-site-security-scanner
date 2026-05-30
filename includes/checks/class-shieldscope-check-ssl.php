@@ -15,15 +15,15 @@
  *
  * All checks are skipped gracefully if the site is not on HTTPS.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Check_SSL
+ * Class ShieldScope_Check_SSL
  */
-class SSA_Check_SSL extends SSA_Check_Base {
+class ShieldScope_Check_SSL extends ShieldScope_Check_Base {
 
 	/** @return string */
 	public function get_id() {
@@ -32,7 +32,7 @@ class SSA_Check_SSL extends SSA_Check_Base {
 
 	/** @return string */
 	public function get_label() {
-		return __( 'SSL / TLS', 'site-security-audit' );
+		return __( 'SSL / TLS', 'shieldscope-site-security-scanner' );
 	}
 
 	/** @return array */
@@ -103,10 +103,10 @@ class SSA_Check_SSL extends SSA_Check_Base {
 
 		if ( ! function_exists( 'openssl_x509_parse' ) ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_INFO,
-				__( 'SSL certificate expiry check skipped', 'site-security-audit' ),
-				__( 'The openssl PHP extension is not available. Cannot inspect the TLS certificate.', 'site-security-audit' ),
-				__( 'Enable the openssl extension in php.ini for full SSL certificate scanning.', 'site-security-audit' )
+				ShieldScope_Logger::SEVERITY_INFO,
+				__( 'SSL certificate expiry check skipped', 'shieldscope-site-security-scanner' ),
+				__( 'The openssl PHP extension is not available. Cannot inspect the TLS certificate.', 'shieldscope-site-security-scanner' ),
+				__( 'Enable the openssl extension in php.ini for full SSL certificate scanning.', 'shieldscope-site-security-scanner' )
 			);
 			return;
 		}
@@ -156,15 +156,15 @@ class SSA_Check_SSL extends SSA_Check_Base {
 
 		if ( $days_left < 0 ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_CRITICAL,
-				__( 'SSL certificate has expired', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_CRITICAL,
+				__( 'SSL certificate has expired', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: 1: CN, 2: expiry date */
-					__( 'The certificate for %1$s expired on %2$s. Browsers display a full-page warning and will not connect without a security bypass.', 'site-security-audit' ),
+					__( 'The certificate for %1$s expired on %2$s. Browsers display a full-page warning and will not connect without a security bypass.', 'shieldscope-site-security-scanner' ),
 					$cn,
 					$expiry_date
 				),
-				__( 'Renew the SSL certificate immediately via your hosting panel or Let\'s Encrypt (certbot renew).', 'site-security-audit' ),
+				__( 'Renew the SSL certificate immediately via your hosting panel or Let\'s Encrypt (certbot renew).', 'shieldscope-site-security-scanner' ),
 				$host,
 				array( 'days_left' => $days_left, 'expiry' => $expiry_date )
 			);
@@ -172,23 +172,23 @@ class SSA_Check_SSL extends SSA_Check_Base {
 		}
 
 		if ( $days_left <= 7 ) {
-			$severity = SSA_Logger::SEVERITY_HIGH;
+			$severity = ShieldScope_Logger::SEVERITY_HIGH;
 		} elseif ( $days_left <= 14 ) {
-			$severity = SSA_Logger::SEVERITY_MEDIUM;
+			$severity = ShieldScope_Logger::SEVERITY_MEDIUM;
 		} elseif ( $days_left <= 30 ) {
-			$severity = SSA_Logger::SEVERITY_LOW;
+			$severity = ShieldScope_Logger::SEVERITY_LOW;
 		} else {
 			// Certificate is healthy — record as INFO.
 			$this->finding(
-				SSA_Logger::SEVERITY_INFO,
+				ShieldScope_Logger::SEVERITY_INFO,
 				sprintf(
 					/* translators: %d: days until expiry */
-					__( 'SSL certificate is valid (%d days remaining)', 'site-security-audit' ),
+					__( 'SSL certificate is valid (%d days remaining)', 'shieldscope-site-security-scanner' ),
 					$days_left
 				),
 				sprintf(
 					/* translators: 1: CN, 2: expiry date */
-					__( 'Certificate CN: %1$s. Expires: %2$s.', 'site-security-audit' ),
+					__( 'Certificate CN: %1$s. Expires: %2$s.', 'shieldscope-site-security-scanner' ),
 					$cn,
 					$expiry_date
 				),
@@ -203,16 +203,16 @@ class SSA_Check_SSL extends SSA_Check_Base {
 			$severity,
 			sprintf(
 				/* translators: %d: days until expiry */
-				__( 'SSL certificate expires in %d days', 'site-security-audit' ),
+				__( 'SSL certificate expires in %d days', 'shieldscope-site-security-scanner' ),
 				$days_left
 			),
 			sprintf(
 				/* translators: 1: CN, 2: expiry date */
-				__( 'The certificate for %1$s expires on %2$s. Visitors will see a browser warning once it lapses.', 'site-security-audit' ),
+				__( 'The certificate for %1$s expires on %2$s. Visitors will see a browser warning once it lapses.', 'shieldscope-site-security-scanner' ),
 				$cn,
 				$expiry_date
 			),
-			__( 'Renew the certificate before it expires. Let\'s Encrypt certificates can be renewed up to 30 days early without affecting the next cycle.', 'site-security-audit' ),
+			__( 'Renew the certificate before it expires. Let\'s Encrypt certificates can be renewed up to 30 days early without affecting the next cycle.', 'shieldscope-site-security-scanner' ),
 			$host,
 			array( 'days_left' => $days_left, 'expiry' => $expiry_date )
 		);
@@ -238,10 +238,10 @@ class SSA_Check_SSL extends SSA_Check_Base {
 
 		if ( ! function_exists( 'curl_init' ) ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_INFO,
-				__( 'TLS version check skipped — cURL not available', 'site-security-audit' ),
-				__( 'The cURL PHP extension is required to probe TLS version support. It is not loaded on this server.', 'site-security-audit' ),
-				__( 'Enable the cURL extension in php.ini for TLS version scanning.', 'site-security-audit' )
+				ShieldScope_Logger::SEVERITY_INFO,
+				__( 'TLS version check skipped — cURL not available', 'shieldscope-site-security-scanner' ),
+				__( 'The cURL PHP extension is required to probe TLS version support. It is not loaded on this server.', 'shieldscope-site-security-scanner' ),
+				__( 'Enable the cURL extension in php.ini for TLS version scanning.', 'shieldscope-site-security-scanner' )
 			);
 			return;
 		}
@@ -283,18 +283,18 @@ class SSA_Check_SSL extends SSA_Check_Base {
 			// and the server accepted this deprecated TLS version.
 			if ( 0 === $curl_error && $http_code > 0 ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_MEDIUM,
+					ShieldScope_Logger::SEVERITY_MEDIUM,
 					sprintf(
 						/* translators: %s: TLS version label e.g. "TLS 1.0" */
-						__( 'Server accepts deprecated %s connections', 'site-security-audit' ),
+						__( 'Server accepts deprecated %s connections', 'shieldscope-site-security-scanner' ),
 						$label
 					),
 					sprintf(
 						/* translators: %s: TLS version label */
-						__( 'The server completed a TLS handshake using %s, which is deprecated by RFC 8996 and prohibited by PCI DSS. Known attacks (BEAST, POODLE variants) target these versions.', 'site-security-audit' ),
+						__( 'The server completed a TLS handshake using %s, which is deprecated by RFC 8996 and prohibited by PCI DSS. Known attacks (BEAST, POODLE variants) target these versions.', 'shieldscope-site-security-scanner' ),
 						$label
 					),
-					__( 'Disable TLS 1.0 and TLS 1.1 in your web server configuration. For Apache: SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1. For Nginx: ssl_protocols TLSv1.2 TLSv1.3;', 'site-security-audit' ),
+					__( 'Disable TLS 1.0 and TLS 1.1 in your web server configuration. For Apache: SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1. For Nginx: ssl_protocols TLSv1.2 TLSv1.3;', 'shieldscope-site-security-scanner' ),
 					$host,
 					array( 'tls_version' => $label )
 				);
@@ -325,7 +325,7 @@ class SSA_Check_SSL extends SSA_Check_Base {
 			home_url( '/' ),
 			array(
 				'timeout'   => 8,
-				'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
+				'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
 			)
 		);
 
@@ -350,19 +350,19 @@ class SSA_Check_SSL extends SSA_Check_Base {
 
 		if ( $count > 0 ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_HIGH,
-				__( 'Mixed content detected — HTTP resources loaded on HTTPS page', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_HIGH,
+				__( 'Mixed content detected — HTTP resources loaded on HTTPS page', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %d: number of mixed-content references found */
 					_n(
 						'Found %d HTTP resource reference on the HTTPS homepage. Browsers block or warn on mixed active content (scripts, stylesheets, iframes), reducing page security to HTTP level.',
 						'Found %d HTTP resource references on the HTTPS homepage. Browsers block or warn on mixed active content (scripts, stylesheets, iframes), reducing page security to HTTP level.',
 						$count,
-						'site-security-audit'
+						'shieldscope-site-security-scanner'
 					),
 					$count
 				),
-				__( 'Replace all HTTP asset URLs with HTTPS equivalents. Check plugin/theme settings, hardcoded URLs in the database (use Better Search Replace to update), and ensure WordPress Address and Site Address both use https://.', 'site-security-audit' ),
+				__( 'Replace all HTTP asset URLs with HTTPS equivalents. Check plugin/theme settings, hardcoded URLs in the database (use Better Search Replace to update), and ensure WordPress Address and Site Address both use https://.', 'shieldscope-site-security-scanner' ),
 				home_url( '/' ),
 				array( 'mixed_content_count' => $count )
 			);

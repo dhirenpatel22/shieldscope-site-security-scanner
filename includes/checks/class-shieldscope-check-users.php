@@ -2,15 +2,15 @@
 /**
  * User & authentication security checks.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Check_Users
+ * Class ShieldScope_Check_Users
  */
-class SSA_Check_Users extends SSA_Check_Base {
+class ShieldScope_Check_Users extends ShieldScope_Check_Base {
 
 	/**
 	 * ID.
@@ -27,7 +27,7 @@ class SSA_Check_Users extends SSA_Check_Base {
 	 * @return string
 	 */
 	public function get_label() {
-		return __( 'Users & Authentication', 'site-security-audit' );
+		return __( 'Users & Authentication', 'shieldscope-site-security-scanner' );
 	}
 
 	/**
@@ -76,10 +76,10 @@ class SSA_Check_Users extends SSA_Check_Base {
 		$user = get_user_by( 'login', 'admin' );
 		if ( $user && user_can( $user->ID, 'manage_options' ) ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_HIGH,
-				__( "An administrator named 'admin' exists", 'site-security-audit' ),
-				__( "The username 'admin' is the first target of brute-force attacks. Having a privileged account with this exact name halves the work an attacker needs to do.", 'site-security-audit' ),
-				__( 'Go to Users → Add New and create a new Administrator with a unique username. Log in as the new admin, then delete the old "admin" account — on the deletion screen choose "Attribute all content to" your new account to transfer all posts.', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_HIGH,
+				__( "An administrator named 'admin' exists", 'shieldscope-site-security-scanner' ),
+				__( "The username 'admin' is the first target of brute-force attacks. Having a privileged account with this exact name halves the work an attacker needs to do.", 'shieldscope-site-security-scanner' ),
+				__( 'Go to Users → Add New and create a new Administrator with a unique username. Log in as the new admin, then delete the old "admin" account — on the deletion screen choose "Attribute all content to" your new account to transfer all posts.', 'shieldscope-site-security-scanner' ),
 				'user:' . $user->ID
 			);
 		}
@@ -101,14 +101,14 @@ class SSA_Check_Users extends SSA_Check_Base {
 
 		if ( $count >= 5 ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_MEDIUM,
-				__( 'Unusually high number of administrators', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'Unusually high number of administrators', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %d: count */
-					__( '%d administrator accounts exist. Each is a potential point of compromise.', 'site-security-audit' ),
+					__( '%d administrator accounts exist. Each is a potential point of compromise.', 'shieldscope-site-security-scanner' ),
 					$count
 				),
-				__( 'Go to Users → All Users, filter by Administrator, and review each account. Downgrade accounts that do not need full access — change their role to Editor (content management) or Author (own posts only) via their profile.', 'site-security-audit' )
+				__( 'Go to Users → All Users, filter by Administrator, and review each account. Downgrade accounts that do not need full access — change their role to Editor (content management) or Author (own posts only) via their profile.', 'shieldscope-site-security-scanner' )
 			);
 		}
 	}
@@ -136,14 +136,14 @@ class SSA_Check_Users extends SSA_Check_Base {
 
 			if ( ! $is_phpass && ! $is_bcrypt && '' !== $hash ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_HIGH,
-					__( 'Non-standard password hash detected', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_HIGH,
+					__( 'Non-standard password hash detected', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %s: login */
-						__( "User '%s' has a password hash that does not match WordPress' phpass or bcrypt format. This may be a legacy md5/sha1 hash.", 'site-security-audit' ),
+						__( "User '%s' has a password hash that does not match WordPress' phpass or bcrypt format. This may be a legacy md5/sha1 hash.", 'shieldscope-site-security-scanner' ),
 						$row['user_login']
 					),
-					__( 'Force a password reset: go to Users → All Users, edit the user, generate a new password, and save — the hash upgrades to a modern format automatically on next login. If the account is unrecognised, delete it immediately and investigate for a compromise.', 'site-security-audit' ),
+					__( 'Force a password reset: go to Users → All Users, edit the user, generate a new password, and save — the hash upgrades to a modern format automatically on next login. If the account is unrecognised, delete it immediately and investigate for a compromise.', 'shieldscope-site-security-scanner' ),
 					'user:' . $row['ID']
 				);
 			}
@@ -165,14 +165,14 @@ class SSA_Check_Users extends SSA_Check_Base {
 		);
 		foreach ( (array) $rows as $row ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_CRITICAL,
-				__( 'User with empty password detected', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_CRITICAL,
+				__( 'User with empty password detected', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: login */
-					__( "User '%s' has no password set. This is usually only legitimate for SSO accounts — otherwise it is a critical vulnerability.", 'site-security-audit' ),
+					__( "User '%s' has no password set. This is usually only legitimate for SSO accounts — otherwise it is a critical vulnerability.", 'shieldscope-site-security-scanner' ),
 					$row['user_login']
 				),
-				__( 'Go to Users → All Users and set a strong password on this account immediately. If you do not recognise the account, delete it and change all admin passwords — an unrecognised empty-password account is a strong indicator of compromise.', 'site-security-audit' ),
+				__( 'Go to Users → All Users and set a strong password on this account immediately. If you do not recognise the account, delete it and change all admin passwords — an unrecognised empty-password account is a strong indicator of compromise.', 'shieldscope-site-security-scanner' ),
 				'user:' . $row['ID']
 			);
 		}
@@ -194,14 +194,14 @@ class SSA_Check_Users extends SSA_Check_Base {
 		foreach ( (array) $rows as $row ) {
 			if ( user_can( $row['ID'], 'edit_posts' ) ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_LOW,
-					__( 'Display name exposes the login name', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_LOW,
+					__( 'Display name exposes the login name', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %s: login */
-						__( "User '%s' has the same display name as login name. This reveals the login to anyone reading a byline.", 'site-security-audit' ),
+						__( "User '%s' has the same display name as login name. This reveals the login to anyone reading a byline.", 'shieldscope-site-security-scanner' ),
 						$row['user_login']
 					),
-					__( 'Go to Users → All Users, edit the user, and change "Display name publicly as" to a first name or nickname that differs from their login username. This prevents the username from appearing in public bylines and comments.', 'site-security-audit' ),
+					__( 'Go to Users → All Users, edit the user, and change "Display name publicly as" to a first name or nickname that differs from their login username. This prevents the username from appearing in public bylines and comments.', 'shieldscope-site-security-scanner' ),
 					'user:' . $row['ID']
 				);
 			}

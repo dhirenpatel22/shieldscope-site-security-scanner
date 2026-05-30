@@ -6,15 +6,15 @@
  * unauthenticated REST API writes, application passwords, author enumeration,
  * unprotected login page, and AJAX handlers lacking nonce or capability checks.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Check_Access_Control
+ * Class ShieldScope_Check_Access_Control
  */
-class SSA_Check_Access_Control extends SSA_Check_Base {
+class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 
 	/**
 	 * Max file size to scan.
@@ -27,11 +27,11 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 	 * Constructor.
 	 *
 	 * @param string       $scan_id Scan ID.
-	 * @param SSA_Logger $logger  Logger.
+	 * @param ShieldScope_Logger $logger  Logger.
 	 */
-	public function __construct( $scan_id, SSA_Logger $logger ) {
+	public function __construct( $scan_id, ShieldScope_Logger $logger ) {
 		parent::__construct( $scan_id, $logger );
-		$settings            = (array) get_option( 'ssa_settings', array() );
+		$settings            = (array) get_option( 'shieldscope_settings', array() );
 		$this->max_file_size = isset( $settings['max_scan_file_size'] )
 			? (int) $settings['max_scan_file_size']
 			: 2 * MB_IN_BYTES;
@@ -44,7 +44,7 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 
 	/** @return string */
 	public function get_label() {
-		return __( 'Access Control', 'site-security-audit' );
+		return __( 'Access Control', 'shieldscope-site-security-scanner' );
 	}
 
 	/** @return array */
@@ -100,7 +100,7 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 			$url,
 			array(
 				'timeout'   => 5,
-				'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
+				'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
 				'headers'   => array(
 					'Content-Type' => 'application/json',
 				),
@@ -121,10 +121,10 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 		$code = wp_remote_retrieve_response_code( $response );
 		if ( in_array( $code, array( 200, 201 ), true ) ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_CRITICAL,
-				__( 'REST API allows unauthenticated content creation', 'site-security-audit' ),
-				__( 'A POST to /wp-json/wp/v2/posts with no credentials returned 200/201. Attackers can create, edit, or delete content without a valid account.', 'site-security-audit' ),
-				__( 'Audit plugins that modify REST API authentication. Ensure no code removes the authentication callbacks from REST endpoints.', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_CRITICAL,
+				__( 'REST API allows unauthenticated content creation', 'shieldscope-site-security-scanner' ),
+				__( 'A POST to /wp-json/wp/v2/posts with no credentials returned 200/201. Attackers can create, edit, or delete content without a valid account.', 'shieldscope-site-security-scanner' ),
+				__( 'Audit plugins that modify REST API authentication. Ensure no code removes the authentication callbacks from REST endpoints.', 'shieldscope-site-security-scanner' ),
 				'/wp-json/wp/v2/posts'
 			);
 
@@ -172,28 +172,28 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 
 		if ( ! empty( $admin_logins ) ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_HIGH,
-				__( 'Administrator accounts have Application Passwords configured', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_HIGH,
+				__( 'Administrator accounts have Application Passwords configured', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: comma-separated list of usernames */
-					__( 'The following administrator accounts have application passwords: %s. Each app password is an independent credential — if leaked it grants full API access with no 2FA challenge.', 'site-security-audit' ),
+					__( 'The following administrator accounts have application passwords: %s. Each app password is an independent credential — if leaked it grants full API access with no 2FA challenge.', 'shieldscope-site-security-scanner' ),
 					implode( ', ', $admin_logins )
 				),
-				__( 'Review and revoke unused application passwords via Users → Profile. Apply the principle of least privilege — avoid granting admin-level app passwords.', 'site-security-audit' ),
+				__( 'Review and revoke unused application passwords via Users → Profile. Apply the principle of least privilege — avoid granting admin-level app passwords.', 'shieldscope-site-security-scanner' ),
 				'',
 				array( 'admin_users' => $admin_logins )
 			);
 		} else {
 			$logins = wp_list_pluck( $users_with_app_pw, 'user_login' );
 			$this->finding(
-				SSA_Logger::SEVERITY_MEDIUM,
-				__( 'Application Passwords are active on user accounts', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'Application Passwords are active on user accounts', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: comma-separated list of usernames */
-					__( 'Users with application passwords configured: %s. Review and revoke any that are unused or unrecognised.', 'site-security-audit' ),
+					__( 'Users with application passwords configured: %s. Review and revoke any that are unused or unrecognised.', 'shieldscope-site-security-scanner' ),
 					implode( ', ', $logins )
 				),
-				__( 'Audit application passwords in Users → Profile and remove any that are no longer needed.', 'site-security-audit' ),
+				__( 'Audit application passwords in Users → Profile and remove any that are no longer needed.', 'shieldscope-site-security-scanner' ),
 				'',
 				array( 'users' => $logins )
 			);
@@ -212,7 +212,7 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 			array(
 				'timeout'     => 5,
 				'redirection' => 0,
-				'sslverify'   => apply_filters( 'https_local_ssl_verify', false ),
+				'sslverify'   => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
 			)
 		);
 
@@ -225,14 +225,14 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 
 		if ( in_array( $code, array( 301, 302 ), true ) && false !== strpos( (string) $location, '/author/' ) ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_MEDIUM,
-				__( 'Username exposed via author archive redirect', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'Username exposed via author archive redirect', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: redirect URL */
-					__( '/?author=1 redirects to %s, leaking a username to unauthenticated visitors and aiding brute-force targeting.', 'site-security-audit' ),
+					__( '/?author=1 redirects to %s, leaking a username to unauthenticated visitors and aiding brute-force targeting.', 'shieldscope-site-security-scanner' ),
 					$location
 				),
-				__( 'In Users → All Users, set each author\'s "Display name publicly as" to a first name or nickname that differs from their login. To also block the redirect itself, add to functions.php: add_action(\'template_redirect\', function(){ if(is_author()){ wp_redirect(home_url(\'/\'), 301); exit; } });', 'site-security-audit' ),
+				__( 'In Users → All Users, set each author\'s "Display name publicly as" to a first name or nickname that differs from their login. To also block the redirect itself, add to functions.php: add_action(\'template_redirect\', function(){ if(is_author()){ wp_redirect(home_url(\'/\'), 301); exit; } });', 'shieldscope-site-security-scanner' ),
 				'/?author=1',
 				array( 'redirect' => $location )
 			);
@@ -251,7 +251,7 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 			array(
 				'timeout'     => 5,
 				'redirection' => 3,
-				'sslverify'   => apply_filters( 'https_local_ssl_verify', false ),
+				'sslverify'   => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
 			)
 		);
 
@@ -288,10 +288,10 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 
 		if ( ! $active_bf ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_MEDIUM,
-				__( 'Login page is publicly accessible without brute-force protection', 'site-security-audit' ),
-				__( 'wp-login.php is reachable and no recognised login-protection plugin is active. Bots continuously run credential-stuffing attacks against WordPress login pages.', 'site-security-audit' ),
-				__( 'Protect your login page by enabling rate limiting at the webserver or firewall level, or by moving wp-login.php to a custom URL (so bots cannot find the default path). Check your hosting dashboard — many managed hosts include brute-force protection built in.', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'Login page is publicly accessible without brute-force protection', 'shieldscope-site-security-scanner' ),
+				__( 'wp-login.php is reachable and no recognised login-protection plugin is active. Bots continuously run credential-stuffing attacks against WordPress login pages.', 'shieldscope-site-security-scanner' ),
+				__( 'Protect your login page by enabling rate limiting at the webserver or firewall level, or by moving wp-login.php to a custom URL (so bots cannot find the default path). Check your hosting dashboard — many managed hosts include brute-force protection built in.', 'shieldscope-site-security-scanner' ),
 				$login_url
 			);
 		}
@@ -315,10 +315,10 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 
 		if ( ! $has_2fa ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_LOW,
-				__( 'No two-factor authentication plugin detected', 'site-security-audit' ),
-				__( 'No recognised 2FA plugin is active. Without a second factor, a stolen password is sufficient to compromise any account.', 'site-security-audit' ),
-				__( 'Enable two-factor authentication for all administrator accounts. With 2FA, a stolen password alone is not enough to access an account. Search for "two-factor" on wordpress.org/plugins to find a suitable option, or check whether your hosting provider includes 2FA tools in their dashboard.', 'site-security-audit' )
+				ShieldScope_Logger::SEVERITY_LOW,
+				__( 'No two-factor authentication plugin detected', 'shieldscope-site-security-scanner' ),
+				__( 'No recognised 2FA plugin is active. Without a second factor, a stolen password is sufficient to compromise any account.', 'shieldscope-site-security-scanner' ),
+				__( 'Enable two-factor authentication for all administrator accounts. With 2FA, a stolen password alone is not enough to access an account. Search for "two-factor" on wordpress.org/plugins to find a suitable option, or check whether your hosting provider includes 2FA tools in their dashboard.', 'shieldscope-site-security-scanner' )
 			);
 		}
 	}
@@ -358,7 +358,7 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 		}
 
 		// Use a password that will never match, but looks realistic.
-		$fake_password = 'SSA_test_' . wp_generate_password( 12, false, false ) . '_probe';
+		$fake_password = 'ShieldScope_test_' . wp_generate_password( 12, false, false ) . '_probe';
 
 		$login_url = wp_login_url();
 		$response  = wp_remote_post(
@@ -366,7 +366,7 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 			array(
 				'timeout'     => 8,
 				'redirection' => 5,
-				'sslverify'   => apply_filters( 'https_local_ssl_verify', false ),
+				'sslverify'   => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
 				'body'        => array(
 					'log'       => $username,
 					'pwd'       => $fake_password,
@@ -407,14 +407,14 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 		// error message, username enumeration via login errors is possible.
 		if ( $username_confirmed ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_LOW,
-				__( 'Login error messages reveal valid usernames', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_LOW,
+				__( 'Login error messages reveal valid usernames', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: the admin username used in the test */
-					__( 'The login error response for username "%s" confirms that the account exists by returning a password-specific error. Attackers can exploit this to enumerate valid accounts before brute-forcing passwords.', 'site-security-audit' ),
+					__( 'The login error response for username "%s" confirms that the account exists by returning a password-specific error. Attackers can exploit this to enumerate valid accounts before brute-forcing passwords.', 'shieldscope-site-security-scanner' ),
 					esc_html( $username )
 				),
-				__( 'Add a filter to return a generic error for both bad usernames and bad passwords: add_filter(\'login_errors\', function(){ return \'Invalid credentials.\'; }); This prevents confirming whether a username exists without affecting the login process.', 'site-security-audit' ),
+				__( 'Add a filter to return a generic error for both bad usernames and bad passwords: add_filter(\'login_errors\', function(){ return \'Invalid credentials.\'; }); This prevents confirming whether a username exists without affecting the login process.', 'shieldscope-site-security-scanner' ),
 				$login_url
 			);
 		}
@@ -449,7 +449,7 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 					continue;
 				}
 				$full = $current . DIRECTORY_SEPARATOR . $entry;
-				if ( false !== strpos( $full, 'site-security-audit' ) ) {
+				if ( false !== strpos( $full, 'shieldscope' ) ) {
 					continue;
 				}
 				if ( is_dir( $full ) ) {
@@ -497,19 +497,19 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 			$has_nonce = (bool) preg_match( '/check_ajax_referer|wp_verify_nonce|check_admin_referer/i', $contents );
 			if ( ! $has_nonce ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_HIGH,
-					__( 'Unauthenticated AJAX handler without nonce verification', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_HIGH,
+					__( 'Unauthenticated AJAX handler without nonce verification', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %d: number of hooks found */
 						_n(
 							'Found %d wp_ajax_nopriv_ hook in a file with no nonce checks. Unauthenticated AJAX handlers without CSRF protection can be exploited by any visitor.',
 							'Found %d wp_ajax_nopriv_ hooks in a file with no nonce checks. Unauthenticated AJAX handlers without CSRF protection can be exploited by any visitor.',
 							$nopriv_count,
-							'site-security-audit'
+							'shieldscope-site-security-scanner'
 						),
 						$nopriv_count
 					),
-					__( 'Add check_ajax_referer() or wp_verify_nonce() to all AJAX handlers, including public ones, to prevent cross-site request forgery.', 'site-security-audit' ),
+					__( 'Add check_ajax_referer() or wp_verify_nonce() to all AJAX handlers, including public ones, to prevent cross-site request forgery.', 'shieldscope-site-security-scanner' ),
 					$path
 				);
 			}
@@ -524,19 +524,19 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 			$has_auth = (bool) preg_match( '/current_user_can|check_ajax_referer|wp_verify_nonce|check_admin_referer/i', $contents );
 			if ( ! $has_auth ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_MEDIUM,
-					__( 'Admin AJAX handler may lack capability or nonce check', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_MEDIUM,
+					__( 'Admin AJAX handler may lack capability or nonce check', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %d: number of hooks found */
 						_n(
 							'Found %d wp_ajax_ hook in a file with no current_user_can() or nonce check. Any logged-in user could trigger privileged actions.',
 							'Found %d wp_ajax_ hooks in a file with no current_user_can() or nonce check. Any logged-in user could trigger privileged actions.',
 							$priv_count,
-							'site-security-audit'
+							'shieldscope-site-security-scanner'
 						),
 						$priv_count
 					),
-					__( 'Call current_user_can() with the required capability and use check_ajax_referer() or wp_verify_nonce() to prevent CSRF.', 'site-security-audit' ),
+					__( 'Call current_user_can() with the required capability and use check_ajax_referer() or wp_verify_nonce() to prevent CSRF.', 'shieldscope-site-security-scanner' ),
 					$path
 				);
 			}
@@ -546,10 +546,10 @@ class SSA_Check_Access_Control extends SSA_Check_Base {
 		if ( preg_match( "/add_(?:menu|submenu)_page\s*\(/i", $contents ) ) {
 			if ( ! preg_match( '/current_user_can\s*\(/i', $contents ) ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_MEDIUM,
-					__( 'Admin page registered without a visible current_user_can() check', 'site-security-audit' ),
-					__( 'add_menu_page() or add_submenu_page() found without current_user_can() in the page callback. The capability parameter in add_menu_page() only hides the menu item — it does not block direct URL access to the callback.', 'site-security-audit' ),
-					__( 'Add current_user_can( \'manage_options\' ) (or the required capability) at the top of every admin page callback and call wp_die() if it returns false.', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_MEDIUM,
+					__( 'Admin page registered without a visible current_user_can() check', 'shieldscope-site-security-scanner' ),
+					__( 'add_menu_page() or add_submenu_page() found without current_user_can() in the page callback. The capability parameter in add_menu_page() only hides the menu item — it does not block direct URL access to the callback.', 'shieldscope-site-security-scanner' ),
+					__( 'Add current_user_can( \'manage_options\' ) (or the required capability) at the top of every admin page callback and call wp_die() if it returns false.', 'shieldscope-site-security-scanner' ),
 					$path
 				);
 			}

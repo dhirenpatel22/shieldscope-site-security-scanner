@@ -4,16 +4,16 @@
  * @package Site_Security_Audit
  */
 
-.ssa-wrap {
+.shieldscope-wrap {
 	max-width: 1100px;
 }
 
-.ssa-hidden {
+.shieldscope-hidden {
 	display: none;
 }
 
 /* ── Card ─────────────────────────────────────────────────────────────────── */
-.ssa-card {
+.shieldscope-card {
 	background: #fff;
 	border: 1px solid #c3c4c7;
 	border-radius: 4px;
@@ -22,12 +22,12 @@
 	box-shadow: 0 1px 1px rgba( 0, 0, 0, 0.04 );
 }
 
-.ssa-card h2 {
+.shieldscope-card h2 {
 	margin-top: 0;
 }
 
 /* ── Status row ───────────────────────────────────────────────────────────── */
-.ssa-status-row {
+.shieldscope-status-row {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 16px;
@@ -35,17 +35,17 @@
 	margin-bottom: 12px;
 }
 
-.ssa-status-label {
+.shieldscope-status-label {
 	font-weight: 600;
 }
 
 /* ── Progress bar ─────────────────────────────────────────────────────────── */
-/* .ssa-progress-bar is the gray container; .ssa-progress-fill is the fill */
-.ssa-progress-wrap {
+/* .shieldscope-progress-bar is the gray container; .shieldscope-progress-fill is the fill */
+.shieldscope-progress-wrap {
 	margin: 12px 0;
 }
 
-.ssa-progress-bar {
+.shieldscope-progress-bar {
 	position: relative;
 	height: 22px;
 	background: #f0f0f1;
@@ -53,14 +53,14 @@
 	overflow: hidden;
 }
 
-.ssa-progress-fill {
+.shieldscope-progress-fill {
 	height: 100%;
 	width: 0;
 	background: linear-gradient( 90deg, #2271b1, #00a0d2 );
 	transition: width 300ms ease;
 }
 
-.ssa-progress-meta {
+.shieldscope-progress-meta {
 	display: flex;
 	justify-content: space-between;
 	font-size: 12px;
@@ -69,14 +69,14 @@
 }
 
 /* ── Controls ─────────────────────────────────────────────────────────────── */
-.ssa-controls {
+.shieldscope-controls {
 	display: flex;
 	gap: 8px;
 	flex-wrap: wrap;
 	margin: 12px 0;
 }
 
-.ssa-message {
+.shieldscope-message {
 	font-style: italic;
 	color: #50575e;
 	margin: 8px 0;
@@ -85,7 +85,7 @@
 
 /* ── Summary grid ─────────────────────────────────────────────────────────── */
 /* Used on both the scan page (live) and the report page */
-.ssa-summary-grid {
+.shieldscope-summary-grid {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 140px, 1fr ) );
 	gap: 12px;
@@ -94,7 +94,7 @@
 	list-style: none;
 }
 
-.ssa-summary-grid li {
+.shieldscope-summary-grid li {
 	padding: 12px;
 	border-radius: 4px;
 	text-align: center;
@@ -102,7 +102,7 @@
 	border: 1px solid #dcdcde;
 }
 
-.ssa-summary-grid li .count {
+.shieldscope-summary-grid li .count {
 	display: block;
 	font-size: 28px;
 	font-weight: 700;
@@ -110,22 +110,22 @@
 	margin-bottom: 4px;
 }
 
-.ssa-summary-grid li .label {
+.shieldscope-summary-grid li .label {
 	font-size: 12px;
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
 	color: #50575e;
 }
 
-.ssa-summary-grid li.sev-critical { background: #fde2e2; border-color: #f1a7a7; }
-.ssa-summary-grid li.sev-high     { background: #ffe8d6; border-color: #f0b27a; }
-.ssa-summary-grid li.sev-medium   { background: #fff3cd; border-color: #f0d46a; }
-.ssa-summary-grid li.sev-low      { background: #e2f0fb; border-color: #9ec5e8; }
-.ssa-summary-grid li.sev-info     { background: #e8f5e9; border-color: #a5d6a7; }
+.shieldscope-summary-grid li.sev-critical { background: #fde2e2; border-color: #f1a7a7; }
+.shieldscope-summary-grid li.sev-high     { background: #ffe8d6; border-color: #f0b27a; }
+.shieldscope-summary-grid li.sev-medium   { background: #fff3cd; border-color: #f0d46a; }
+.shieldscope-summary-grid li.sev-low      { background: #e2f0fb; border-color: #9ec5e8; }
+.shieldscope-summary-grid li.sev-info     { background: #e8f5e9; border-color: #a5d6a7; }
 
 /* ── Report: findings groups ──────────────────────────────────────────────── */
-/* Each group is also a .ssa-card, so its h2 sits inside 20px of card padding */
-.ssa-group h2 {
+/* Each group is also a .shieldscope-card, so its h2 sits inside 20px of card padding */
+.shieldscope-group h2 {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -136,20 +136,20 @@
 	font-size: 16px;
 }
 
-.ssa-group.sev-critical h2 { border-left-color: #b32d2e; background: #fde2e2; }
-.ssa-group.sev-high h2     { border-left-color: #d63638; background: #ffe8d6; }
-.ssa-group.sev-medium h2   { border-left-color: #dba617; background: #fff3cd; }
-.ssa-group.sev-low h2      { border-left-color: #2271b1; background: #e2f0fb; }
-.ssa-group.sev-info h2     { border-left-color: #00a32a; background: #e8f5e9; }
+.shieldscope-group.sev-critical h2 { border-left-color: #b32d2e; background: #fde2e2; }
+.shieldscope-group.sev-high h2     { border-left-color: #d63638; background: #ffe8d6; }
+.shieldscope-group.sev-medium h2   { border-left-color: #dba617; background: #fff3cd; }
+.shieldscope-group.sev-low h2      { border-left-color: #2271b1; background: #e2f0fb; }
+.shieldscope-group.sev-info h2     { border-left-color: #00a32a; background: #e8f5e9; }
 
-.ssa-count {
+.shieldscope-count {
 	font-size: 13px;
 	font-weight: normal;
 	color: #50575e;
 }
 
 /* ── Report: individual findings ──────────────────────────────────────────── */
-details.ssa-finding {
+details.shieldscope-finding {
 	background: #fff;
 	border: 1px solid #dcdcde;
 	border-left-width: 4px;
@@ -159,13 +159,13 @@ details.ssa-finding {
 	overflow: hidden;
 }
 
-details.ssa-finding.sev-critical { border-left-color: #b32d2e; }
-details.ssa-finding.sev-high     { border-left-color: #d63638; }
-details.ssa-finding.sev-medium   { border-left-color: #dba617; }
-details.ssa-finding.sev-low      { border-left-color: #2271b1; }
-details.ssa-finding.sev-info     { border-left-color: #00a32a; }
+details.shieldscope-finding.sev-critical { border-left-color: #b32d2e; }
+details.shieldscope-finding.sev-high     { border-left-color: #d63638; }
+details.shieldscope-finding.sev-medium   { border-left-color: #dba617; }
+details.shieldscope-finding.sev-low      { border-left-color: #2271b1; }
+details.shieldscope-finding.sev-info     { border-left-color: #00a32a; }
 
-details.ssa-finding > summary {
+details.shieldscope-finding > summary {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -175,11 +175,11 @@ details.ssa-finding > summary {
 	list-style: none;
 }
 
-details.ssa-finding > summary::-webkit-details-marker {
+details.shieldscope-finding > summary::-webkit-details-marker {
 	display: none;
 }
 
-details.ssa-finding > summary::before {
+details.shieldscope-finding > summary::before {
 	content: '\25B6'; /* ▶ */
 	font-size: 10px;
 	color: #50575e;
@@ -187,18 +187,18 @@ details.ssa-finding > summary::before {
 	transition: transform 200ms;
 }
 
-details.ssa-finding[open] > summary::before {
+details.shieldscope-finding[open] > summary::before {
 	transform: rotate( 90deg );
 }
 
-.ssa-finding-title {
+.shieldscope-finding-title {
 	flex: 1;
 	font-weight: 600;
 	font-size: 13px;
 	color: #1d2327;
 }
 
-.ssa-finding-check {
+.shieldscope-finding-check {
 	font-size: 11px;
 	color: #50575e;
 	background: #f0f0f1;
@@ -208,27 +208,27 @@ details.ssa-finding[open] > summary::before {
 	font-family: monospace;
 }
 
-.ssa-finding-body {
+.shieldscope-finding-body {
 	padding: 10px 14px 14px;
 	border-top: 1px solid #f0f0f1;
 	font-size: 13px;
 	line-height: 1.5;
 }
 
-.ssa-finding-body p {
+.shieldscope-finding-body p {
 	margin: 6px 0;
 }
 
-.ssa-finding-body p:first-child {
+.shieldscope-finding-body p:first-child {
 	margin-top: 0;
 }
 
-.ssa-finding-body strong {
+.shieldscope-finding-body strong {
 	color: #14532d;
 }
 
 /* ── Focus-lock blur banner ────────────────────────────────────────────────── */
-.ssa-blur-banner {
+.shieldscope-blur-banner {
 	display: none;
 	align-items: center;
 	gap: 14px;
@@ -239,59 +239,59 @@ details.ssa-finding[open] > summary::before {
 	border-left: 4px solid #dba617;
 	border-radius: 4px;
 	box-shadow: 0 2px 6px rgba( 0, 0, 0, 0.06 );
-	animation: ssaSlideIn 280ms ease-out;
+	animation: shieldscopeSlideIn 280ms ease-out;
 }
 
-.ssa-blur-banner.is-visible {
+.shieldscope-blur-banner.is-visible {
 	display: flex;
 }
 
-.ssa-blur-banner[hidden] {
+.shieldscope-blur-banner[hidden] {
 	display: none !important;
 }
 
-.ssa-blur-icon {
+.shieldscope-blur-icon {
 	font-size: 28px;
 	line-height: 1;
 	flex-shrink: 0;
 }
 
-.ssa-blur-text {
+.shieldscope-blur-text {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 }
 
-.ssa-blur-text strong {
+.shieldscope-blur-text strong {
 	font-size: 14px;
 	color: #1d2327;
 }
 
-.ssa-blur-text span {
+.shieldscope-blur-text span {
 	font-size: 13px;
 	color: #50575e;
 	line-height: 1.5;
 }
 
-@keyframes ssaSlideIn {
+@keyframes shieldscopeSlideIn {
 	from { opacity: 0; transform: translateY( -8px ); }
 	to   { opacity: 1; transform: translateY( 0 ); }
 }
 
 /* ── Settings page ────────────────────────────────────────────────────────── */
-.ssa-api-key-set {
+.shieldscope-api-key-set {
 	color: #00a32a;
 }
 
 /* ── Notice card ──────────────────────────────────────────────────────────── */
-.ssa-notice-card p {
+.shieldscope-notice-card p {
 	margin: 0;
 	font-size: 13px;
 	color: #50575e;
 }
 
 /* ── Empty state ──────────────────────────────────────────────────────────── */
-.ssa-empty {
+.shieldscope-empty {
 	padding: 40px 20px;
 	text-align: center;
 	color: #50575e;
@@ -300,11 +300,11 @@ details.ssa-finding[open] > summary::before {
 }
 
 /* ── Report: severity tabs ───────────────────────────────────────────────── */
-.ssa-tabs {
+.shieldscope-tabs {
 	margin-top: 16px;
 }
 
-.ssa-tab-nav {
+.shieldscope-tab-nav {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: flex-end;
@@ -314,7 +314,7 @@ details.ssa-finding[open] > summary::before {
 	margin: 0;
 }
 
-.ssa-tab-btn {
+.shieldscope-tab-btn {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
@@ -333,12 +333,12 @@ details.ssa-finding[open] > summary::before {
 	transition: background 150ms, color 150ms;
 }
 
-.ssa-tab-btn:hover:not( :disabled ) {
+.shieldscope-tab-btn:hover:not( :disabled ) {
 	background: #fff;
 	color: #1d2327;
 }
 
-.ssa-tab-btn.is-active {
+.shieldscope-tab-btn.is-active {
 	background: #fff;
 	border-color: #c3c4c7;
 	border-bottom: 1px solid #fff;
@@ -347,19 +347,19 @@ details.ssa-finding[open] > summary::before {
 	z-index: 1;
 }
 
-.ssa-tab-btn:disabled {
+.shieldscope-tab-btn:disabled {
 	opacity: 0.45;
 	cursor: default;
 }
 
 /* Severity-colour accent on the top border of the active tab */
-.ssa-tab-btn.sev-critical.is-active { border-top: 3px solid #b32d2e; color: #b32d2e; }
-.ssa-tab-btn.sev-high.is-active     { border-top: 3px solid #c9460e; color: #c9460e; }
-.ssa-tab-btn.sev-medium.is-active   { border-top: 3px solid #dba617; color: #8a6800; }
-.ssa-tab-btn.sev-low.is-active      { border-top: 3px solid #2271b1; color: #2271b1; }
-.ssa-tab-btn.sev-info.is-active     { border-top: 3px solid #00a32a; color: #1e6823; }
+.shieldscope-tab-btn.sev-critical.is-active { border-top: 3px solid #b32d2e; color: #b32d2e; }
+.shieldscope-tab-btn.sev-high.is-active     { border-top: 3px solid #c9460e; color: #c9460e; }
+.shieldscope-tab-btn.sev-medium.is-active   { border-top: 3px solid #dba617; color: #8a6800; }
+.shieldscope-tab-btn.sev-low.is-active      { border-top: 3px solid #2271b1; color: #2271b1; }
+.shieldscope-tab-btn.sev-info.is-active     { border-top: 3px solid #00a32a; color: #1e6823; }
 
-.ssa-tab-count {
+.shieldscope-tab-count {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -373,15 +373,15 @@ details.ssa-finding[open] > summary::before {
 	color: #1d2327;
 }
 
-.ssa-tab-btn.sev-critical .ssa-tab-count { background: #fde2e2; color: #8a1a1a; }
-.ssa-tab-btn.sev-high .ssa-tab-count     { background: #ffe8d6; color: #7d3800; }
-.ssa-tab-btn.sev-medium .ssa-tab-count   { background: #fff3cd; color: #6b4d00; }
-.ssa-tab-btn.sev-low .ssa-tab-count      { background: #e2f0fb; color: #164f81; }
-.ssa-tab-btn.sev-info .ssa-tab-count     { background: #e8f5e9; color: #1e6823; }
-.ssa-tab-btn:disabled .ssa-tab-count     { background: #e0e0e0; color: #9e9e9e; }
+.shieldscope-tab-btn.sev-critical .shieldscope-tab-count { background: #fde2e2; color: #8a1a1a; }
+.shieldscope-tab-btn.sev-high .shieldscope-tab-count     { background: #ffe8d6; color: #7d3800; }
+.shieldscope-tab-btn.sev-medium .shieldscope-tab-count   { background: #fff3cd; color: #6b4d00; }
+.shieldscope-tab-btn.sev-low .shieldscope-tab-count      { background: #e2f0fb; color: #164f81; }
+.shieldscope-tab-btn.sev-info .shieldscope-tab-count     { background: #e8f5e9; color: #1e6823; }
+.shieldscope-tab-btn:disabled .shieldscope-tab-count     { background: #e0e0e0; color: #9e9e9e; }
 
 /* Tab content container */
-.ssa-tab-panels {
+.shieldscope-tab-panels {
 	background: #fff;
 	border: 1px solid #c3c4c7;
 	border-top: none;
@@ -389,11 +389,11 @@ details.ssa-finding[open] > summary::before {
 	padding: 20px;
 }
 
-.ssa-tab-panel            { display: none; }
-.ssa-tab-panel.is-active  { display: block; }
+.shieldscope-tab-panel            { display: none; }
+.shieldscope-tab-panel.is-active  { display: block; }
 
 /* ── Report: instance count badge inside finding summary ─────────────────── */
-.ssa-issue-badge {
+.shieldscope-issue-badge {
 	font-size: 11px;
 	color: #50575e;
 	background: #f0f0f1;
@@ -403,13 +403,13 @@ details.ssa-finding[open] > summary::before {
 }
 
 /* ── Report: multi-instance target list inside a finding ─────────────────── */
-.ssa-instances {
+.shieldscope-instances {
 	margin-top: 10px;
 	padding-top: 10px;
 	border-top: 1px solid #f0f0f1;
 }
 
-.ssa-instances-label {
+.shieldscope-instances-label {
 	margin: 0 0 6px;
 	font-size: 12px;
 	font-weight: 600;
@@ -418,7 +418,7 @@ details.ssa-finding[open] > summary::before {
 	color: #50575e;
 }
 
-.ssa-target-list {
+.shieldscope-target-list {
 	margin: 0;
 	padding: 0;
 	list-style: none;
@@ -426,27 +426,27 @@ details.ssa-finding[open] > summary::before {
 	overflow-y: auto;
 }
 
-.ssa-target-list li {
+.shieldscope-target-list li {
 	padding: 4px 0;
 	border-bottom: 1px solid #f6f7f7;
 	font-size: 12px;
 }
 
-.ssa-target-list li:last-child { border-bottom: none; }
+.shieldscope-target-list li:last-child { border-bottom: none; }
 
-.ssa-target-list code {
+.shieldscope-target-list code {
 	font-size: 12px;
 	word-break: break-all;
 }
 
 /* ── Summary grid: clickable tiles jump to their severity tab ─────────────── */
-.ssa-summary-grid li.is-clickable {
+.shieldscope-summary-grid li.is-clickable {
 	cursor: pointer;
 	transition: transform 100ms, box-shadow 100ms;
 }
 
-.ssa-summary-grid li.is-clickable:hover,
-.ssa-summary-grid li.is-clickable:focus {
+.shieldscope-summary-grid li.is-clickable:hover,
+.shieldscope-summary-grid li.is-clickable:focus {
 	transform: translateY( -2px );
 	box-shadow: 0 4px 10px rgba( 0, 0, 0, 0.12 );
 	outline: 2px solid #2271b1;
@@ -457,7 +457,7 @@ details.ssa-finding[open] > summary::before {
    FAQ / Help accordion
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.ssa-faq {
+.shieldscope-faq {
 	padding: 0;
 	overflow: hidden;
 	border-radius: 6px;
@@ -465,7 +465,7 @@ details.ssa-finding[open] > summary::before {
 }
 
 /* Header bar */
-.ssa-faq-header {
+.shieldscope-faq-header {
 	display: flex;
 	align-items: center;
 	gap: 14px;
@@ -474,7 +474,7 @@ details.ssa-finding[open] > summary::before {
 	border-bottom: none;
 }
 
-.ssa-faq-header-icon {
+.shieldscope-faq-header-icon {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -488,7 +488,7 @@ details.ssa-finding[open] > summary::before {
 	backdrop-filter: blur( 4px );
 }
 
-.ssa-faq-header h2 {
+.shieldscope-faq-header h2 {
 	margin: 0;
 	font-size: 16px;
 	font-weight: 700;
@@ -496,7 +496,7 @@ details.ssa-finding[open] > summary::before {
 	letter-spacing: -0.01em;
 }
 
-.ssa-faq-header-sub {
+.shieldscope-faq-header-sub {
 	font-size: 12px;
 	color: rgba( 255, 255, 255, 0.72 );
 	margin: 2px 0 0;
@@ -504,7 +504,7 @@ details.ssa-finding[open] > summary::before {
 }
 
 /* Category section within the FAQ */
-.ssa-faq-category {
+.shieldscope-faq-category {
 	padding: 10px 24px 4px;
 	background: #f8f9fa;
 	border-top: 1px solid #e8eaed;
@@ -514,11 +514,11 @@ details.ssa-finding[open] > summary::before {
 	gap: 8px;
 }
 
-.ssa-faq-category:first-child {
+.shieldscope-faq-category:first-child {
 	border-top: none;
 }
 
-.ssa-faq-category-label {
+.shieldscope-faq-category-label {
 	font-size: 10px;
 	font-weight: 700;
 	text-transform: uppercase;
@@ -526,27 +526,27 @@ details.ssa-finding[open] > summary::before {
 	color: #6b7280;
 }
 
-.ssa-faq-category-icon {
+.shieldscope-faq-category-icon {
 	font-size: 13px;
 	line-height: 1;
 }
 
 /* Individual accordion item */
-details.ssa-faq-item {
+details.shieldscope-faq-item {
 	background: #fff;
 	border-bottom: 1px solid #f0f0f1;
 	transition: background 150ms;
 }
 
-details.ssa-faq-item:last-of-type {
+details.shieldscope-faq-item:last-of-type {
 	border-bottom: none;
 }
 
-details.ssa-faq-item[open] {
+details.shieldscope-faq-item[open] {
 	background: #fafbff;
 }
 
-details.ssa-faq-item > summary {
+details.shieldscope-faq-item > summary {
 	display: flex;
 	align-items: center;
 	gap: 12px;
@@ -557,20 +557,20 @@ details.ssa-faq-item > summary {
 	transition: background 150ms;
 }
 
-details.ssa-faq-item > summary::-webkit-details-marker {
+details.shieldscope-faq-item > summary::-webkit-details-marker {
 	display: none;
 }
 
-details.ssa-faq-item > summary::marker {
+details.shieldscope-faq-item > summary::marker {
 	display: none;
 }
 
-details.ssa-faq-item > summary:hover {
+details.shieldscope-faq-item > summary:hover {
 	background: #f0f5ff;
 }
 
 /* Question icon bubble */
-.ssa-faq-q-icon {
+.shieldscope-faq-q-icon {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -586,14 +586,14 @@ details.ssa-faq-item > summary:hover {
 	font-style: normal;
 }
 
-details.ssa-faq-item[open] .ssa-faq-q-icon {
+details.shieldscope-faq-item[open] .shieldscope-faq-q-icon {
 	background: #2271b1;
 	border-color: #2271b1;
 	color: #fff;
 }
 
 /* Question text */
-.ssa-faq-question {
+.shieldscope-faq-question {
 	flex: 1;
 	font-size: 13px;
 	font-weight: 600;
@@ -602,7 +602,7 @@ details.ssa-faq-item[open] .ssa-faq-q-icon {
 }
 
 /* Animated chevron */
-.ssa-faq-chevron {
+.shieldscope-faq-chevron {
 	flex-shrink: 0;
 	color: #9ca3af;
 	font-size: 11px;
@@ -610,13 +610,13 @@ details.ssa-faq-item[open] .ssa-faq-q-icon {
 	display: inline-block;
 }
 
-details.ssa-faq-item[open] > summary .ssa-faq-chevron {
+details.shieldscope-faq-item[open] > summary .shieldscope-faq-chevron {
 	transform: rotate( 90deg );
 	color: #2271b1;
 }
 
 /* Answer body */
-.ssa-faq-answer {
+.shieldscope-faq-answer {
 	padding: 2px 24px 18px 58px;
 	font-size: 13px;
 	line-height: 1.7;
@@ -625,15 +625,15 @@ details.ssa-faq-item[open] > summary .ssa-faq-chevron {
 	background: #fafbff;
 }
 
-.ssa-faq-answer p {
+.shieldscope-faq-answer p {
 	margin: 10px 0 0;
 }
 
-.ssa-faq-answer p:first-child {
+.shieldscope-faq-answer p:first-child {
 	margin-top: 8px;
 }
 
-.ssa-faq-answer code {
+.shieldscope-faq-answer code {
 	background: #f0f4f8;
 	border: 1px solid #dde3eb;
 	padding: 1px 5px;
@@ -641,18 +641,18 @@ details.ssa-faq-item[open] > summary .ssa-faq-chevron {
 	font-size: 12px;
 }
 
-.ssa-faq-answer ul,
-.ssa-faq-answer ol {
+.shieldscope-faq-answer ul,
+.shieldscope-faq-answer ol {
 	margin: 8px 0 0 0;
 	padding-left: 18px;
 }
 
-.ssa-faq-answer li {
+.shieldscope-faq-answer li {
 	margin-bottom: 5px;
 }
 
 /* Severity chip used inside FAQ answers */
-.ssa-sev-chip {
+.shieldscope-sev-chip {
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
@@ -664,14 +664,14 @@ details.ssa-faq-item[open] > summary .ssa-faq-chevron {
 	vertical-align: middle;
 }
 
-.ssa-sev-chip.critical { background: #fde2e2; color: #b32d2e; }
-.ssa-sev-chip.high     { background: #ffe8d6; color: #7d3800; }
-.ssa-sev-chip.medium   { background: #fff3cd; color: #6b4d00; }
-.ssa-sev-chip.low      { background: #e2f0fb; color: #164f81; }
-.ssa-sev-chip.info     { background: #e8f5e9; color: #1e6823; }
+.shieldscope-sev-chip.critical { background: #fde2e2; color: #b32d2e; }
+.shieldscope-sev-chip.high     { background: #ffe8d6; color: #7d3800; }
+.shieldscope-sev-chip.medium   { background: #fff3cd; color: #6b4d00; }
+.shieldscope-sev-chip.low      { background: #e2f0fb; color: #164f81; }
+.shieldscope-sev-chip.info     { background: #e8f5e9; color: #1e6823; }
 
 /* Callout tip box inside FAQ answers */
-.ssa-faq-tip {
+.shieldscope-faq-tip {
 	display: flex;
 	gap: 10px;
 	margin: 12px 0 4px;
@@ -685,13 +685,13 @@ details.ssa-faq-item[open] > summary .ssa-faq-chevron {
 	color: #78350f;
 }
 
-.ssa-faq-tip-icon {
+.shieldscope-faq-tip-icon {
 	flex-shrink: 0;
 	font-size: 14px;
 }
 
 /* Footer bar at bottom of FAQ card */
-.ssa-faq-footer {
+.shieldscope-faq-footer {
 	padding: 12px 24px;
 	background: #f8f9fa;
 	border-top: 1px solid #e8eaed;
@@ -703,7 +703,7 @@ details.ssa-faq-item[open] > summary .ssa-faq-chevron {
 }
 
 /* ── Disclaimer footer ───────────────────────────────────────────────────── */
-.ssa-disclaimer {
+.shieldscope-disclaimer {
 	display: flex;
 	gap: 14px;
 	align-items: flex-start;
@@ -716,7 +716,7 @@ details.ssa-faq-item[open] > summary .ssa-faq-chevron {
 	max-width: 1100px;
 }
 
-.ssa-disclaimer__icon {
+.shieldscope-disclaimer__icon {
 	flex-shrink: 0;
 	width: 28px;
 	height: 28px;
@@ -731,11 +731,11 @@ details.ssa-faq-item[open] > summary .ssa-faq-chevron {
 	margin-top: 2px;
 }
 
-.ssa-disclaimer__body {
+.shieldscope-disclaimer__body {
 	flex: 1;
 }
 
-.ssa-disclaimer__body strong {
+.shieldscope-disclaimer__body strong {
 	display: block;
 	font-size: 13px;
 	color: #1a3a5c;
@@ -744,18 +744,18 @@ details.ssa-faq-item[open] > summary .ssa-faq-chevron {
 	letter-spacing: 0.04em;
 }
 
-.ssa-disclaimer__body p {
+.shieldscope-disclaimer__body p {
 	margin: 0 0 6px;
 	font-size: 12.5px;
 	color: #3c434a;
 	line-height: 1.6;
 }
 
-.ssa-disclaimer__body p:last-child {
+.shieldscope-disclaimer__body p:last-child {
 	margin-bottom: 0;
 }
 
-.ssa-disclaimer__body a {
+.shieldscope-disclaimer__body a {
 	color: #2271b1;
 	text-decoration: underline;
 }

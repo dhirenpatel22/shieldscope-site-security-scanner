@@ -6,15 +6,15 @@
  * version (MySQL/MariaDB EOL), WordPress known-CVE version windows, HSTS
  * enforcement, and plugins with a high historical CVE count.
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Class SSA_Check_Components
+ * Class ShieldScope_Check_Components
  */
-class SSA_Check_Components extends SSA_Check_Base {
+class ShieldScope_Check_Components extends ShieldScope_Check_Base {
 
 	/** @return string */
 	public function get_id() {
@@ -23,7 +23,7 @@ class SSA_Check_Components extends SSA_Check_Base {
 
 	/** @return string */
 	public function get_label() {
-		return __( 'Vulnerable & Outdated Components', 'site-security-audit' );
+		return __( 'Vulnerable & Outdated Components', 'shieldscope-site-security-scanner' );
 	}
 
 	/** @return array */
@@ -97,23 +97,23 @@ class SSA_Check_Components extends SSA_Check_Base {
 
 			if ( $is_eol ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_HIGH,
-					__( 'MariaDB version is end-of-life', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_HIGH,
+					__( 'MariaDB version is end-of-life', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %s: MariaDB version */
-						__( 'MariaDB %s no longer receives security patches. Known CVEs will remain permanently unpatched.', 'site-security-audit' ),
+						__( 'MariaDB %s no longer receives security patches. Known CVEs will remain permanently unpatched.', 'shieldscope-site-security-scanner' ),
 						$ver
 					),
-					__( 'Upgrade to MariaDB 10.11 LTS or 11.x. Contact your hosting provider or upgrade via your database control panel.', 'site-security-audit' ),
+					__( 'Upgrade to MariaDB 10.11 LTS or 11.x. Contact your hosting provider or upgrade via your database control panel.', 'shieldscope-site-security-scanner' ),
 					'database',
 					array( 'version' => $ver, 'engine' => 'MariaDB' )
 				);
 			} else {
 				$this->finding(
-					SSA_Logger::SEVERITY_INFO,
+					ShieldScope_Logger::SEVERITY_INFO,
 					sprintf(
 						/* translators: %s: MariaDB version */
-						__( 'MariaDB %s is a supported version', 'site-security-audit' ),
+						__( 'MariaDB %s is a supported version', 'shieldscope-site-security-scanner' ),
 						$ver
 					),
 					'',
@@ -130,23 +130,23 @@ class SSA_Check_Components extends SSA_Check_Base {
 
 			if ( $major < 8 ) {
 				$this->finding(
-					SSA_Logger::SEVERITY_HIGH,
-					__( 'MySQL version is end-of-life', 'site-security-audit' ),
+					ShieldScope_Logger::SEVERITY_HIGH,
+					__( 'MySQL version is end-of-life', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %s: MySQL version */
-						__( 'MySQL %s no longer receives security patches. Known CVEs will remain permanently unpatched.', 'site-security-audit' ),
+						__( 'MySQL %s no longer receives security patches. Known CVEs will remain permanently unpatched.', 'shieldscope-site-security-scanner' ),
 						$ver
 					),
-					__( 'Upgrade to MySQL 8.0 or 8.4 LTS. Contact your hosting provider.', 'site-security-audit' ),
+					__( 'Upgrade to MySQL 8.0 or 8.4 LTS. Contact your hosting provider.', 'shieldscope-site-security-scanner' ),
 					'database',
 					array( 'version' => $ver, 'engine' => 'MySQL' )
 				);
 			} else {
 				$this->finding(
-					SSA_Logger::SEVERITY_INFO,
+					ShieldScope_Logger::SEVERITY_INFO,
 					sprintf(
 						/* translators: %s: MySQL version */
-						__( 'MySQL %s is a supported version', 'site-security-audit' ),
+						__( 'MySQL %s is a supported version', 'shieldscope-site-security-scanner' ),
 						$ver
 					),
 					'',
@@ -173,14 +173,14 @@ class SSA_Check_Components extends SSA_Check_Base {
 
 		if ( $version_float < 4.7 ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_CRITICAL,
-				__( 'WordPress version contains critical publicly-known CVEs', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_CRITICAL,
+				__( 'WordPress version contains critical publicly-known CVEs', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: WordPress version */
-					__( 'WordPress %s is within a version range that includes unauthenticated remote code execution CVEs (e.g. CVE-2017-1000600). These are actively exploited in the wild.', 'site-security-audit' ),
+					__( 'WordPress %s is within a version range that includes unauthenticated remote code execution CVEs (e.g. CVE-2017-1000600). These are actively exploited in the wild.', 'shieldscope-site-security-scanner' ),
 					$wp_version
 				),
-				__( 'Update WordPress immediately via Dashboard → Updates. Back up your database and files first.', 'site-security-audit' ),
+				__( 'Update WordPress immediately via Dashboard → Updates. Back up your database and files first.', 'shieldscope-site-security-scanner' ),
 				'wordpress-core',
 				array( 'version' => $wp_version )
 			);
@@ -189,19 +189,19 @@ class SSA_Check_Components extends SSA_Check_Base {
 
 		if ( $version_float < 5.0 ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_HIGH,
-				__( 'WordPress version is significantly out of date with known high-severity CVEs', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_HIGH,
+				__( 'WordPress version is significantly out of date with known high-severity CVEs', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: WordPress version */
-					__( 'WordPress %s is well below the current major version and within a range with multiple documented high-severity vulnerabilities.', 'site-security-audit' ),
+					__( 'WordPress %s is well below the current major version and within a range with multiple documented high-severity vulnerabilities.', 'shieldscope-site-security-scanner' ),
 					$wp_version
 				),
-				__( 'Update WordPress via Dashboard → Updates.', 'site-security-audit' ),
+				__( 'Update WordPress via Dashboard → Updates.', 'shieldscope-site-security-scanner' ),
 				'wordpress-core',
 				array( 'version' => $wp_version )
 			);
 		}
-		// Current update availability is already reported by SSA_Check_Core.
+		// Current update availability is already reported by ShieldScope_Check_Core.
 	}
 
 	/**
@@ -237,14 +237,14 @@ class SSA_Check_Components extends SSA_Check_Base {
 
 		if ( ! empty( $flagged ) ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_MEDIUM,
-				__( 'Plugins with high historical CVE count detected', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'Plugins with high historical CVE count detected', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: comma-separated list of plugin names and versions */
-					__( 'The following installed plugins have historically had critical security vulnerabilities and are common attack targets: %s. Keeping them updated and monitoring security advisories is essential.', 'site-security-audit' ),
+					__( 'The following installed plugins have historically had critical security vulnerabilities and are common attack targets: %s. Keeping them updated and monitoring security advisories is essential.', 'shieldscope-site-security-scanner' ),
 					implode( ', ', $flagged )
 				),
-				__( 'Ensure these plugins are fully updated. Subscribe to WPScan (wpscan.com) or Patchstack advisories to receive early notification of new CVEs.', 'site-security-audit' ),
+				__( 'Ensure these plugins are fully updated. Subscribe to WPScan (wpscan.com) or Patchstack advisories to receive early notification of new CVEs.', 'shieldscope-site-security-scanner' ),
 				'',
 				array( 'plugins' => $flagged )
 			);
@@ -259,7 +259,7 @@ class SSA_Check_Components extends SSA_Check_Base {
 	private function check_http_to_https_redirect() {
 		$site_url = get_site_url();
 		if ( 0 !== stripos( $site_url, 'https://' ) ) {
-			return; // Site not on HTTPS — SSA_Check_Core already flags this.
+			return; // Site not on HTTPS — ShieldScope_Check_Core already flags this.
 		}
 
 		$http_url = 'http://' . preg_replace( '/^https:\/\//i', '', $site_url ) . '/';
@@ -287,22 +287,22 @@ class SSA_Check_Components extends SSA_Check_Base {
 
 		if ( ! $redirects_to_https ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_MEDIUM,
-				__( 'HTTP requests are not redirected to HTTPS', 'site-security-audit' ),
-				__( 'The site uses HTTPS but plain HTTP requests are not automatically redirected. Visitors who type the address without "https://" will have an unencrypted connection.', 'site-security-audit' ),
-				__( 'Add a permanent HTTP-to-HTTPS redirect in your webserver config (.htaccess RewriteRule for Apache, return 301 for Nginx). This is separate from FORCE_SSL_ADMIN.', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'HTTP requests are not redirected to HTTPS', 'shieldscope-site-security-scanner' ),
+				__( 'The site uses HTTPS but plain HTTP requests are not automatically redirected. Visitors who type the address without "https://" will have an unencrypted connection.', 'shieldscope-site-security-scanner' ),
+				__( 'Add a permanent HTTP-to-HTTPS redirect in your webserver config (.htaccess RewriteRule for Apache, return 301 for Nginx). This is separate from FORCE_SSL_ADMIN.', 'shieldscope-site-security-scanner' ),
 				$http_url
 			);
 		} elseif ( 301 !== $code ) {
 			$this->finding(
-				SSA_Logger::SEVERITY_LOW,
-				__( 'HTTP-to-HTTPS redirect uses a non-permanent status code', 'site-security-audit' ),
+				ShieldScope_Logger::SEVERITY_LOW,
+				__( 'HTTP-to-HTTPS redirect uses a non-permanent status code', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %d: HTTP status code */
-					__( 'The HTTP-to-HTTPS redirect uses a %d (temporary) status code instead of 301. Browsers will not cache it and search engines will not pass full link equity.', 'site-security-audit' ),
+					__( 'The HTTP-to-HTTPS redirect uses a %d (temporary) status code instead of 301. Browsers will not cache it and search engines will not pass full link equity.', 'shieldscope-site-security-scanner' ),
 					$code
 				),
-				__( 'Change the redirect to a 301 Permanent in your webserver configuration.', 'site-security-audit' ),
+				__( 'Change the redirect to a 301 Permanent in your webserver configuration.', 'shieldscope-site-security-scanner' ),
 				$http_url
 			);
 		}
