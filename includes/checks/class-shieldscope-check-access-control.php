@@ -427,7 +427,7 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 	 * @return array
 	 */
 	private function scan_plugins_for_auth( array $cursor ) {
-		$root = WP_PLUGIN_DIR;
+		$root = SHIELDSCOPE_WP_PLUGINS_DIR;
 		if ( ! is_dir( $root ) ) {
 			return array( 'continue' => false, 'cursor' => array() );
 		}
