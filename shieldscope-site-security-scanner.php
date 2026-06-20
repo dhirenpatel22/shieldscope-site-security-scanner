@@ -31,10 +31,8 @@ define( 'SHIELDSCOPE_PLUGIN_FILE', __FILE__ );
 define( 'SHIELDSCOPE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SHIELDSCOPE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SHIELDSCOPE_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
-// Root of the plugins directory, derived from this file's location via __FILE__.
-define( 'SHIELDSCOPE_WP_PLUGINS_DIR', dirname( dirname( SHIELDSCOPE_PLUGIN_FILE ) ) );
-// wp-content directory, derived from the plugins directory via __FILE__.
-define( 'SHIELDSCOPE_WP_CONTENT_DIR', dirname( SHIELDSCOPE_WP_PLUGINS_DIR ) );
+define( 'SHIELDSCOPE_WP_PLUGINS_DIR', WP_PLUGIN_DIR );
+define( 'SHIELDSCOPE_WP_CONTENT_DIR', WP_CONTENT_DIR );
 define( 'SHIELDSCOPE_MIN_CAP', 'manage_options' );
 define( 'SHIELDSCOPE_SLUG', 'shieldscope' );
 

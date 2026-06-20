@@ -283,7 +283,7 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 	 * @return void
 	 */
 	private function check_wp_config_http() {
-		$url      = home_url( '/wp-config.php' );
+		$url      = site_url( '/wp-config.php' );
 		$response = wp_remote_get(
 			$url,
 			array(
