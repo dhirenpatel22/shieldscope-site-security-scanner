@@ -115,17 +115,17 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 	 */
 	private function check_key_perms() {
 		$upload_info    = wp_upload_dir();
-		$upload_basedir = isset( $upload_info['basedir'] ) && $upload_info['basedir'] ? $upload_info['basedir'] : WP_CONTENT_DIR . '/uploads';
+		$upload_basedir = isset( $upload_info['basedir'] ) && $upload_info['basedir'] ? $upload_info['basedir'] : '';
 
 		$targets = array(
-			ABSPATH                => array( 'max' => 0755, 'label' => 'WordPress root' ),
-			ABSPATH . 'wp-admin'   => array( 'max' => 0755, 'label' => 'wp-admin' ),
-			WP_CONTENT_DIR         => array( 'max' => 0755, 'label' => 'wp-content' ),
-			$upload_basedir        => array( 'max' => 0755, 'label' => 'uploads' ),
+			ABSPATH              => array( 'max' => 0755, 'label' => 'WordPress root' ),
+			ABSPATH . 'wp-admin' => array( 'max' => 0755, 'label' => 'wp-admin' ),
+			SHIELDSCOPE_WP_CONTENT_DIR => array( 'max' => 0755, 'label' => 'wp-content' ),
 		);
-		if ( defined( 'WP_PLUGIN_DIR' ) ) {
-			$targets[ WP_PLUGIN_DIR ] = array( 'max' => 0755, 'label' => 'plugins' );
+		if ( $upload_basedir ) {
+			$targets[ $upload_basedir ] = array( 'max' => 0755, 'label' => 'uploads' );
 		}
+		$targets[ SHIELDSCOPE_WP_PLUGINS_DIR ] = array( 'max' => 0755, 'label' => 'plugins' );
 
 		foreach ( $targets as $path => $info ) {
 			if ( ! is_dir( $path ) ) {
@@ -283,7 +283,7 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 	 * @return void
 	 */
 	private function check_wp_config_http() {
-		$url      = home_url( '/wp-config.php' );
+		$url      = site_url( '/wp-config.php' );
 		$response = wp_remote_get(
 			$url,
 			array(
@@ -454,7 +454,7 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 	private function check_directory_listing_all() {
 		$dirs = array(
 			content_url( '/' )           => 'wp-content',
-			plugins_url( '/' )           => 'wp-content/plugins',
+			plugins_url( '/', SHIELDSCOPE_PLUGIN_FILE ) => 'wp-content/plugins',
 			get_theme_root_uri() . '/'   => 'wp-content/themes',
 		);
 

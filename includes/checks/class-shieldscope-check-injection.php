@@ -75,7 +75,7 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 	 */
 	public function run_step( $step, array $cursor = array() ) {
 		if ( 'scan_plugins' === $step ) {
-			return $this->scan_tree( WP_PLUGIN_DIR, $cursor );
+			return $this->scan_tree( SHIELDSCOPE_WP_PLUGINS_DIR, $cursor );
 		}
 		if ( 'scan_themes' === $step ) {
 			return $this->scan_tree( get_theme_root(), $cursor );

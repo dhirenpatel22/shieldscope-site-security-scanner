@@ -79,7 +79,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 			return;
 		}
 		foreach ( $updates->response as $plugin_file => $info ) {
-			$data = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin_file, false, false );
+			$data = get_plugin_data( SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $plugin_file, false, false );
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_HIGH,
 				__( 'Plugin update available', 'shieldscope-site-security-scanner' ),
@@ -163,7 +163,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 	private function check_abandoned() {
 		$plugins = get_plugins();
 		foreach ( $plugins as $file => $data ) {
-			$full_path = WP_PLUGIN_DIR . '/' . $file;
+			$full_path = SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $file;
 			if ( ! file_exists( $full_path ) ) {
 				continue;
 			}

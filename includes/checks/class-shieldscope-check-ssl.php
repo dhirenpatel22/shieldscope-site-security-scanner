@@ -7,8 +7,9 @@
  *  cert_expiry   — Connects to the site's HTTPS port, reads the TLS certificate,
  *                  and flags certificates that are expired or expiring soon.
  *
- *  tls_version   — Uses cURL (when available) to probe whether the server accepts
- *                  TLS 1.0 or TLS 1.1, both of which are deprecated and insecure.
+ *  tls_version   — Probes whether the server accepts TLS 1.0 or TLS 1.1 (both
+ *                  deprecated/insecure) via the WP HTTP API with the http_api_curl
+ *                  hook to inject CURLOPT_SSLVERSION when cURL is available.
  *
  *  mixed_content — Fetches the homepage HTML and scans for HTTP (non-HTTPS) URLs
  *                  in src/href/action attributes, which browsers block or warn about.
@@ -255,33 +256,35 @@ class ShieldScope_Check_SSL extends ShieldScope_Check_Base {
 
 		$url = 'https://' . $host . '/';
 
-		// phpcs:disable WordPress.WP.AlternativeFunctions.curl_curl_init,WordPress.WP.AlternativeFunctions.curl_curl_setopt,WordPress.WP.AlternativeFunctions.curl_curl_exec,WordPress.WP.AlternativeFunctions.curl_curl_getinfo,WordPress.WP.AlternativeFunctions.curl_curl_errno,WordPress.WP.AlternativeFunctions.curl_curl_close
-		// Rationale: wp_remote_get() does not expose CURLOPT_SSLVERSION, which is the only
-		// way to force a specific TLS protocol version for the handshake probe. Raw cURL is
-		// required here and cannot be replaced with a WP HTTP API call.
 		foreach ( $deprecated as $label => $curl_version ) {
-			$ch = curl_init( $url );
-			if ( ! is_resource( $ch ) && ! ( is_object( $ch ) ) ) {
+			// CURLOPT_SSLVERSION is not a first-class WP HTTP API option, so we inject it
+			// via the http_api_curl action hook as recommended by the WordPress HTTP API docs.
+			$ssl_version_to_probe = $curl_version;
+			$set_ssl_version      = function ( $handle ) use ( $ssl_version_to_probe ) {
+				curl_setopt( $handle, CURLOPT_SSLVERSION, $ssl_version_to_probe ); // phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_setopt
+			};
+
+			add_action( 'http_api_curl', $set_ssl_version );
+
+			$response = wp_remote_head(
+				$url,
+				array(
+					'timeout'     => 8,
+					'sslverify'   => false,
+					'redirection' => 0,
+				)
+			);
+
+			remove_action( 'http_api_curl', $set_ssl_version );
+
+			// A WP_Error means the TLS handshake failed — server rejected this version.
+			if ( is_wp_error( $response ) ) {
 				continue;
 			}
 
-			curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
-			curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false );
-			curl_setopt( $ch, CURLOPT_SSL_VERIFYHOST, false );
-			curl_setopt( $ch, CURLOPT_SSLVERSION, $curl_version );
-			curl_setopt( $ch, CURLOPT_TIMEOUT, 8 );
-			curl_setopt( $ch, CURLOPT_NOBODY, true );
-			curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, false );
-
-			@curl_exec( $ch ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-			$http_code  = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-			$curl_error = curl_errno( $ch );
-			curl_close( $ch );
-		// phpcs:enable WordPress.WP.AlternativeFunctions.curl_curl_init,WordPress.WP.AlternativeFunctions.curl_curl_setopt,WordPress.WP.AlternativeFunctions.curl_curl_exec,WordPress.WP.AlternativeFunctions.curl_curl_getinfo,WordPress.WP.AlternativeFunctions.curl_curl_errno,WordPress.WP.AlternativeFunctions.curl_curl_close
-
-			// A non-zero HTTP code (any response) means the handshake succeeded
-			// and the server accepted this deprecated TLS version.
-			if ( 0 === $curl_error && $http_code > 0 ) {
+			// Any valid HTTP response means the handshake succeeded with the forced TLS version.
+			$http_code = (int) wp_remote_retrieve_response_code( $response );
+			if ( $http_code > 0 ) {
 				$this->finding(
 					ShieldScope_Logger::SEVERITY_MEDIUM,
 					sprintf(

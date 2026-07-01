@@ -79,7 +79,7 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 	 */
 	public function run_step( $step, array $cursor = array() ) {
 		if ( 'scan_plugins' === $step ) {
-			return $this->scan_tree( WP_PLUGIN_DIR, 'plugin', $cursor );
+			return $this->scan_tree( SHIELDSCOPE_WP_PLUGINS_DIR, 'plugin', $cursor );
 		}
 		if ( 'scan_themes' === $step ) {
 			return $this->scan_tree( get_theme_root(), 'theme', $cursor );
