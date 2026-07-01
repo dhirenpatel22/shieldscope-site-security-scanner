@@ -1,0 +1,71 @@
+name: Deploy to WordPress.org
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Triggers
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. RELEASE DEPLOY — fires whenever you push a version tag (e.g. 1.3.0).
+#    Deploys code + assets to SVN trunk AND creates a matching SVN tag.
+#
+# 2. ASSET/README-ONLY UPDATE — fires on every push to main.
+#    Only runs if the push touches .wordpress-org/** or readme.txt.
+#    Updates SVN trunk + assets WITHOUT creating a new SVN tag (no version bump).
+#    Useful for fixing typos in readme.txt or swapping a banner image.
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'   # matches 1.3.0, 2.0.0, etc.
+    branches:
+      - main
+    paths:
+      # Only trigger the asset-update job on main branch pushes that touch these:
+      - '.wordpress-org/**'
+      - 'readme.txt'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Jobs
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+
+  # ── Job 1: Full plugin release (triggered by version tag) ─────────────────
+  release:
+    name: Release to WordPress.org
+    runs-on: ubuntu-latest
+    # Only run this job when a tag was pushed (not on branch pushes)
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # No build step needed — pure PHP plugin, no npm/composer required.
+      # If you ever add a build step (e.g. SCSS compilation), add it here.
+
+      - name: Deploy to WordPress.org
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          # SLUG defaults to the GitHub repo name, which already matches WP.org.
+          # Uncomment and set manually only if they ever differ:
+          # SLUG: shieldscope-site-security-scanner
+
+  # ── Job 2: Asset / readme-only update (triggered by push to main) ─────────
+  asset-update:
+    name: Update assets & readme on WordPress.org
+    runs-on: ubuntu-latest
+    # Only run this job on branch pushes (not on tag pushes)
+    if: startsWith(github.ref, 'refs/heads/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update assets and readme on WordPress.org
+        uses: 10up/action-wordpress-plugin-asset-update@stable
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          # IGNORE_OTHER_FILES=true means: if this push accidentally includes
+          # PHP changes alongside a readme/asset fix, bail rather than silently
+          # deploy partial code to trunk. Set to false if you prefer lenient mode.
+          IGNORE_OTHER_FILES: true
