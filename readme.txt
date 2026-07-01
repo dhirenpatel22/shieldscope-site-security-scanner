@@ -5,7 +5,7 @@ Tags: security, scanner, malware, hardening, audit
 Requires at least: 5.8
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -92,9 +92,9 @@ If you enter a WPScan API key in Settings, the Vulnerability Database check send
 
 1. In your WordPress admin, go to **Plugins → Add New** and search for **ShieldScope**, then click **Install Now** and **Activate**.
 2. Alternatively, download the zip and go to **Plugins → Add New → Upload Plugin**.
-3. Once activated, click **Security Scan** in your admin sidebar.
-4. Optionally adjust settings (scan speed, file size limits, WPScan API key), then click **Start Scan**.
-5. When the scan is complete, go to **Security Scan → Last Report** to see your results.
+3. Once activated, click **ShieldScope** in your admin sidebar.
+4. Optionally adjust settings (scan speed, file size limits, WPScan API key) under **ShieldScope → Settings**, then click **Start Scan**.
+5. When the scan is complete, go to **ShieldScope → Last Report** to see your results.
 
 == Frequently Asked Questions ==
 
@@ -112,7 +112,7 @@ No. ShieldScope is completely read-only. It scans your site and records findings
 
 = Where do I find the results after a scan? =
 
-Go to **Security Scan → Last Report** in your WordPress admin. Findings are grouped by severity so you can work through the most important issues first.
+Go to **ShieldScope → Last Report** in your WordPress admin. Findings are grouped by severity so you can work through the most important issues first.
 
 = What is the WPScan API key for? =
 
@@ -128,9 +128,9 @@ It depends on how many plugins and themes are installed and how large your file 
 
 == Screenshots ==
 
-1. **Scan dashboard** — start, pause, or resume a scan with a live progress bar and real-time status updates.
-2. **Security report** — findings grouped by severity (Critical through Info) with a plain-English description and a clear action to take for every issue.
-3. **Settings page** — adjust scan speed, file size limits, tab-pause behaviour, and optionally add a WPScan API key.
+1. Scan dashboard — start, pause, or resume a scan with a live progress bar and real-time status updates.
+2. Security report — findings grouped by severity (Critical through Info) with a plain-English description and a clear action to take for every issue.
+3. Settings page — adjust scan speed, file size limits, tab-pause behaviour, and optionally add a WPScan API key.
 
 == Disclaimer ==
 
@@ -141,6 +141,10 @@ This plugin is designed to help website owners identify security risks on their 
 All scanning is performed locally on your own server. No scan data, site content, or personal information is stored externally or shared with any third party. For questions, please use the support forum.
 
 == Changelog ==
+
+= 1.3.1 =
+* Fixed: Corrected URL on settings admin page.
+* Fixed: Updated language file.
 
 = 1.3.0 =
 * New: SSL/TLS check — flags certificates expiring within 30 days, outdated encryption protocols, mixed HTTP/HTTPS content, and missing HSTS headers.

@@ -283,7 +283,7 @@ class ShieldScope_Admin {
 					printf(
 						/* translators: %s: support link */
 						esc_html__( 'For any concerns or questions, please %s.', 'shieldscope-site-security-scanner' ),
-						'<a href="https://wordpress.org/support/plugin/shieldscope" target="_blank" rel="noopener noreferrer">' . esc_html__( 'reach out via the support forum', 'shieldscope-site-security-scanner' ) . '</a>'
+						'<a href="https://wordpress.org/support/plugin/shieldscope-site-security-scanner/" target="_blank" rel="noopener noreferrer">' . esc_html__( 'reach out via the support forum', 'shieldscope-site-security-scanner' ) . '</a>'
 					);
 					?>
 				</p>
