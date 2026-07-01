@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       ShieldScope – Site Security Scanner
- * Plugin URI:        https://github.com/dhirenpatel22/shieldscope-site-security-scanner
+ * Plugin URI:        https://wordpress.org/plugins/shieldscope-site-security-scanner/
  * Description:       Comprehensive background security scanner for WordPress core, themes, plugins, filesystem, database, users and code patterns. CPU-throttled and non-blocking.
  * Version:           1.3.0
  * Requires at least: 5.8
