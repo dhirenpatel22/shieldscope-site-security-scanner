@@ -1,0 +1,55 @@
+# .distignore
+# ─────────────────────────────────────────────────────────────────────────────
+# Files and directories listed here are EXCLUDED from WordPress.org SVN deploys.
+# The 10up deploy action uses this list when rsyncing to SVN trunk.
+#
+# Rule of thumb: exclude anything that is only useful in the GitHub dev context
+# and should NOT end up on the 3+ million sites that install your plugin.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Git internals
+/.git
+.gitignore
+.gitattributes
+
+# GitHub-specific
+/.github
+
+# WordPress.org assets folder — the 10up action handles this separately,
+# moving it to the top-level SVN /assets/ directory. Do NOT let it land in trunk.
+/.wordpress-org
+
+# GitHub-flavored readme (WP.org uses readme.txt, not README.md)
+README.md
+
+# This file itself
+.distignore
+
+# Node / build tooling (uncomment if you add a build step)
+/node_modules
+package.json
+package-lock.json
+.npmrc
+
+# Composer (uncomment if you add PHP dependencies)
+/vendor
+composer.json
+composer.lock
+
+# Tests (uncomment if you add a test suite)
+/tests
+phpunit.xml
+phpunit.xml.dist
+.phpunit.result.cache
+
+# Linting / code quality (uncomment if you add these)
+phpcs.xml
+phpcs.xml.dist
+.phpcs.xml
+.eslintrc
+.stylelintrc
+
+# Local dev / IDE files
+.DS_Store
+Thumbs.db
+*.code-workspace
