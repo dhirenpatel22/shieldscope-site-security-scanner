@@ -124,7 +124,7 @@ class ShieldScope_Check_Themes extends ShieldScope_Check_Base {
 	 * @return void
 	 */
 	private function check_default_theme_present() {
-		$defaults = array( 'twentytwentyfive', 'twentytwentyfour', 'twentytwentythree', 'twentytwentytwo' );
+		$defaults = array( 'twentytwentysix', 'twentytwentyfive', 'twentytwentyfour', 'twentytwentythree', 'twentytwentytwo' );
 		$all      = wp_get_themes();
 		foreach ( $defaults as $slug ) {
 			if ( isset( $all[ $slug ] ) ) {

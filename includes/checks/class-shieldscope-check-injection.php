@@ -98,47 +98,12 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 	 * @return array
 	 */
 	private function scan_tree( $root, array $cursor ) {
-		if ( ! is_dir( $root ) ) {
-			return array( 'continue' => false, 'cursor' => array() );
-		}
-		if ( empty( $cursor ) ) {
-			$cursor = array( 'queue' => array( $root ), 'checked' => 0 );
-		}
-
-		$files_per_call = 25;
-		$processed      = 0;
-
-		while ( ! empty( $cursor['queue'] ) && $processed < $files_per_call ) {
-			$current = array_shift( $cursor['queue'] );
-			$handle  = @opendir( $current ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-			if ( false === $handle ) {
-				continue;
+		return $this->walk_php_files_step(
+			$root,
+			$cursor,
+			function ( $full ) {
+				$this->scan_file( $full );
 			}
-			while ( false !== ( $entry = readdir( $handle ) ) && $processed < $files_per_call ) { // phpcs:ignore WordPress.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition
-				if ( '.' === $entry || '..' === $entry ) {
-					continue;
-				}
-				$full = $current . DIRECTORY_SEPARATOR . $entry;
-				if ( false !== strpos( $full, 'shieldscope' ) ) {
-					continue;
-				}
-				if ( is_dir( $full ) ) {
-					if ( in_array( $entry, array( 'node_modules', 'vendor', '.git' ), true ) ) {
-						continue;
-					}
-					$cursor['queue'][] = $full;
-				} elseif ( preg_match( '/\.php$/i', $entry ) ) {
-					$this->scan_file( $full );
-					$processed++;
-					$cursor['checked']++;
-				}
-			}
-			closedir( $handle );
-		}
-
-		return array(
-			'continue' => ! empty( $cursor['queue'] ),
-			'cursor'   => $cursor,
 		);
 	}
 

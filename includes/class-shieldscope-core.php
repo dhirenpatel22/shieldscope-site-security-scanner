@@ -84,6 +84,23 @@ final class ShieldScope_Core {
 		// Cron handler — runs regardless of admin context.
 		add_action( 'shieldscope_run_scan_chunk', array( $this, 'run_scheduled_chunk' ) );
 		add_action( 'shieldscope_daily_maintenance', array( $this, 'run_daily_maintenance' ) );
+
+		// Self-heal: if the activation hook never ran (site migration, manual
+		// FTP install, some CLI flows) or the plugin was updated, make sure
+		// the schema and defaults exist.
+		add_action( 'admin_init', array( $this, 'maybe_upgrade' ) );
+	}
+
+	/**
+	 * Create/upgrade persistent structures when the stored version is stale.
+	 *
+	 * @return void
+	 */
+	public function maybe_upgrade() {
+		if ( get_option( 'shieldscope_version' ) === SHIELDSCOPE_VERSION ) {
+			return;
+		}
+		self::on_activate();
 	}
 
 	/**
@@ -112,11 +129,10 @@ final class ShieldScope_Core {
 	 * @return void
 	 */
 	public static function on_activate() {
-		// Require capability even on activation, belt-and-braces.
-		if ( ! current_user_can( 'activate_plugins' ) ) {
-			return;
-		}
-
+		// Note: no current_user_can() gate here — WordPress already gates UI
+		// activation, and a capability check breaks WP-CLI / Playground
+		// blueprint activation where no user context exists (the findings
+		// table would silently never be created).
 		if ( ! wp_next_scheduled( 'shieldscope_daily_maintenance' ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'shieldscope_daily_maintenance' );
 		}
@@ -146,10 +162,6 @@ final class ShieldScope_Core {
 	 * @return void
 	 */
 	public static function on_deactivate() {
-		if ( ! current_user_can( 'activate_plugins' ) ) {
-			return;
-		}
-
 		$crons = array( 'shieldscope_run_scan_chunk', 'shieldscope_daily_maintenance' );
 		foreach ( $crons as $cron ) {
 			$timestamp = wp_next_scheduled( $cron );

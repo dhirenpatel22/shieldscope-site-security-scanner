@@ -5,7 +5,7 @@ Tags: security, scanner, malware, hardening, audit
 Requires at least: 5.8
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -141,6 +141,16 @@ This plugin is designed to help website owners identify security risks on their 
 All scanning is performed locally on your own server. No scan data, site content, or personal information is stored externally or shared with any third party. For questions, please use the support forum.
 
 == Changelog ==
+
+= 1.3.2 =
+* Fixed: Core file integrity check no longer floods the report with false "modified core file" warnings on WordPress Playground, WordPress Studio, or other SQLite-based installs.
+* Improved: If a large share of core files genuinely differ (different WordPress version, locale, or a customised hosting build), the scan now reports one clear summary instead of a wall of individual findings.
+* Fixed: User account check no longer flags accounts as using a "non-standard" password hash on WordPress 6.8 and later.
+* Fixed: Malicious code, injection, SSRF, access control, and uploads folder scans could skip some files when a scan batch ended partway through a large directory. All files are now scanned reliably.
+* Fixed: Plugin activation via WP-CLI or WordPress Playground blueprints no longer silently fails to set up the results table.
+* Fixed: Findings report page now loads correctly on SQLite-based WordPress installs.
+* Improved: wp-config.php accessibility check downgraded from High to Low severity for the normal case of an empty response — this is expected behaviour, not exposure.
+* Added: Twenty Twenty-Six recognised as a default WordPress theme.
 
 = 1.3.1 =
 * Fixed: Corrected URL on settings admin page.

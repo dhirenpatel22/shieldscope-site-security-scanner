@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- included inside a class method, not global scope
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound,WordPress.WP.GlobalVariablesOverride.Prohibited -- included inside a class method, not global scope; $tabs/$title are local to the render callback, not real WP globals
 $severity_order = array( 'critical', 'high', 'medium', 'low', 'info' );
 $severity_label = array(
 	'critical' => __( 'Critical', 'shieldscope-site-security-scanner' ),

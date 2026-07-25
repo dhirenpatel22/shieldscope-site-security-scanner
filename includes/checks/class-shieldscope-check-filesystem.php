@@ -192,46 +192,22 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 			return array( 'continue' => false, 'cursor' => array() );
 		}
 
-		if ( ! isset( $cursor['queue'] ) ) {
-			$cursor = array( 'queue' => array( $root ), 'checked' => 0 );
-		}
-
-		$budget = 200; // files per invocation.
-		$seen   = 0;
-
-		while ( ! empty( $cursor['queue'] ) && $seen < $budget ) {
-			$current = array_shift( $cursor['queue'] );
-			$handle  = @opendir( $current ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-			if ( false === $handle ) {
-				continue;
-			}
-			while ( false !== ( $entry = readdir( $handle ) ) ) { // phpcs:ignore WordPress.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition
-				if ( '.' === $entry || '..' === $entry ) {
-					continue;
-				}
-				$full = $current . DIRECTORY_SEPARATOR . $entry;
-				if ( is_dir( $full ) ) {
-					$cursor['queue'][] = $full;
-				} elseif ( preg_match( '/\.(php|phtml|php5|php7|phar)$/i', $entry ) ) {
-					$this->finding(
-						ShieldScope_Logger::SEVERITY_CRITICAL,
-						__( 'Executable PHP file inside uploads', 'shieldscope-site-security-scanner' ),
-						__( 'PHP files inside wp-content/uploads are a classic backdoor indicator. Uploads must never execute server-side code.', 'shieldscope-site-security-scanner' ),
-						__( 'A PHP file in uploads is almost always a web shell. Do NOT open it in a browser — delete it via FTP or your hosting File Manager immediately. Block PHP execution in uploads permanently by adding to wp-content/uploads/.htaccess: <Files *.php> deny from all </Files>. Then change all admin passwords.', 'shieldscope-site-security-scanner' ),
-						$full
-					);
-				}
-				$seen++;
-				if ( $seen >= $budget ) {
-					break;
-				}
-			}
-			closedir( $handle );
-		}
-
-		return array(
-			'continue' => ! empty( $cursor['queue'] ),
-			'cursor'   => $cursor,
+		return $this->walk_php_files_step(
+			$root,
+			$cursor,
+			function ( $full ) {
+				$this->finding(
+					ShieldScope_Logger::SEVERITY_CRITICAL,
+					__( 'Executable PHP file inside uploads', 'shieldscope-site-security-scanner' ),
+					__( 'PHP files inside wp-content/uploads are a classic backdoor indicator. Uploads must never execute server-side code.', 'shieldscope-site-security-scanner' ),
+					__( 'A PHP file in uploads is almost always a web shell. Do NOT open it in a browser — delete it via FTP or your hosting File Manager immediately. Block PHP execution in uploads permanently by adding to wp-content/uploads/.htaccess: <Files *.php> deny from all </Files>. Then change all admin passwords.', 'shieldscope-site-security-scanner' ),
+					$full
+				);
+			},
+			200,
+			array(), // Walk every subdirectory of uploads — nothing is exempt.
+			'/\.(php|phtml|php5|php7|phar)$/i',
+			false // Uploads never legitimately contain this plugin; don't self-skip.
 		);
 	}
 
@@ -313,8 +289,8 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 				);
 			} else {
 				$this->finding(
-					ShieldScope_Logger::SEVERITY_HIGH,
-					__( 'wp-config.php returned HTTP 200 (possible exposure)', 'shieldscope-site-security-scanner' ),
+					ShieldScope_Logger::SEVERITY_LOW,
+					__( 'wp-config.php returned HTTP 200 (hardening opportunity)', 'shieldscope-site-security-scanner' ),
 					__( 'A request to /wp-config.php returned HTTP 200. Even if PHP processes it as code rather than serving it as text, this indicates the webserver is not explicitly blocking access. A PHP-processing failure could expose database credentials.', 'shieldscope-site-security-scanner' ),
 					__( 'Explicitly deny access to wp-config.php at the webserver level. Apache: <Files wp-config.php> deny from all </Files>. Nginx: location ~* wp-config\\.php { deny all; }', 'shieldscope-site-security-scanner' ),
 					$url

@@ -116,7 +116,7 @@ class ShieldScope_Logger {
 		$table = esc_sql( self::table() );
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $table is a fixed plugin table name escaped via esc_sql(); direct query required for plugin-managed table.
-		$sql  = "SELECT * FROM {$table} WHERE scan_id = %s ORDER BY FIELD(severity, 'critical','high','medium','low','info'), id ASC";
+		$sql  = "SELECT * FROM {$table} WHERE scan_id = %s ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, id ASC";
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $scan_id ), ARRAY_A );
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 

@@ -101,4 +101,95 @@ abstract class ShieldScope_Check_Base {
 			$context
 		);
 	}
+
+	/**
+	 * Shared resumable directory walker (two-queue design).
+	 *
+	 * Directories are always expanded fully into the file queue before the
+	 * per-call file budget is applied, so a batch boundary can never fall in
+	 * the middle of a directory and silently drop files — the file queue in
+	 * the cursor carries any leftovers to the next invocation.
+	 *
+	 * Cursor keys:
+	 *   dirs    — directories still to expand
+	 *   files   — file paths waiting to be handled
+	 *   checked — cumulative count of files handled
+	 *
+	 * @param string   $root           Root directory to walk.
+	 * @param array    $cursor         Cursor from the previous invocation (empty on first call).
+	 * @param callable $handle_file    Called once per matching file with the full path.
+	 * @param int      $files_per_call Max files to handle in this invocation.
+	 * @param array    $skip_dirs      Directory basenames to skip entirely.
+	 * @param string   $pattern        Regex a file basename must match to be handled.
+	 * @param bool     $skip_self      Skip files inside this plugin's own directory.
+	 * @return array { 'continue' => bool, 'cursor' => array }
+	 */
+	protected function walk_php_files_step( $root, array $cursor, callable $handle_file, $files_per_call = 25, array $skip_dirs = array( 'node_modules', 'vendor', '.git' ), $pattern = '/\.php$/i', $skip_self = true ) {
+		if ( ! is_dir( $root ) ) {
+			return array( 'continue' => false, 'cursor' => array() );
+		}
+		if ( ! isset( $cursor['dirs'] ) && ! isset( $cursor['files'] ) ) {
+			$cursor = array(
+				'dirs'    => array( $root ),
+				'files'   => array(),
+				'checked' => isset( $cursor['checked'] ) ? (int) $cursor['checked'] : 0,
+			);
+		}
+		$cursor['dirs']  = isset( $cursor['dirs'] ) ? (array) $cursor['dirs'] : array();
+		$cursor['files'] = isset( $cursor['files'] ) ? (array) $cursor['files'] : array();
+
+		$self_dir  = defined( 'SHIELDSCOPE_PLUGIN_DIR' )
+			? rtrim( str_replace( '\\', '/', SHIELDSCOPE_PLUGIN_DIR ), '/' ) . '/'
+			: '';
+		$processed = 0;
+
+		while ( $processed < $files_per_call ) {
+			// Drain the file queue before expanding another directory.
+			if ( ! empty( $cursor['files'] ) ) {
+				$full = array_shift( $cursor['files'] );
+				call_user_func( $handle_file, $full );
+				$processed++;
+				$cursor['checked']++;
+				continue;
+			}
+
+			if ( empty( $cursor['dirs'] ) ) {
+				break;
+			}
+
+			$current = array_shift( $cursor['dirs'] );
+			$entries = @scandir( $current ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			if ( false === $entries ) {
+				continue;
+			}
+
+			foreach ( $entries as $entry ) {
+				if ( '.' === $entry || '..' === $entry ) {
+					continue;
+				}
+				$full = $current . DIRECTORY_SEPARATOR . $entry;
+
+				// Skip this plugin's own files (our detection regexes would
+				// otherwise flag our own source strings).
+				if ( $skip_self && '' !== $self_dir && 0 === strpos( str_replace( '\\', '/', $full ) . '/', $self_dir ) ) {
+					continue;
+				}
+
+				if ( is_dir( $full ) ) {
+					if ( in_array( $entry, $skip_dirs, true ) ) {
+						continue;
+					}
+					$cursor['dirs'][] = $full;
+				} elseif ( preg_match( $pattern, $entry ) ) {
+					$cursor['files'][] = $full;
+				}
+			}
+			// Directory expansion does not count against the file budget.
+		}
+
+		return array(
+			'continue' => ! empty( $cursor['dirs'] ) || ! empty( $cursor['files'] ),
+			'cursor'   => $cursor,
+		);
+	}
 }

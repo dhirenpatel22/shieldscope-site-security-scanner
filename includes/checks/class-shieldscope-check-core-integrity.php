@@ -44,6 +44,25 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 	const EXTRAS_BATCH = 200;
 
 	/**
+	 * If more than this fraction of verified core files mismatch, treat the
+	 * result as an environment/distribution difference rather than per-file
+	 * tampering, and emit one summary finding instead of hundreds.
+	 */
+	const MASS_MISMATCH_RATIO = 0.30;
+
+	/**
+	 * Minimum absolute number of differing files before the mass-mismatch
+	 * summary can trigger (avoids the ratio firing on tiny installs).
+	 */
+	const MASS_MISMATCH_MIN = 20;
+
+	/**
+	 * Cap on individually detailed per-file findings; anything beyond this
+	 * is rolled into a summary so the report (and DB) is not flooded.
+	 */
+	const MAX_DETAILED_FINDINGS = 50;
+
+	/**
 	 * ID used in findings.
 	 *
 	 * @return string
@@ -103,6 +122,27 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 	 */
 	private function step_fetch() {
 		global $wp_version, $wp_local_package;
+
+		// Non-standard WordPress builds (WordPress Playground, wasm runtimes,
+		// SQLite-backed installs) ship patched core files that will never
+		// match the official checksums. Comparing them would produce a wall
+		// of false "modified core file" findings, so skip with one INFO note.
+		$env_reason = $this->detect_nonstandard_environment();
+		if ( '' !== $env_reason ) {
+			delete_transient( self::CHECKSUMS_TRANSIENT );
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_INFO,
+				__( 'Core integrity check skipped — non-standard WordPress build', 'shieldscope-site-security-scanner' ),
+				sprintf(
+					/* translators: %s: detected environment reason */
+					__( 'This site appears to be running a modified WordPress distribution (%s). Its core files intentionally differ from the official WordPress.org release, so checksum verification would report false positives and has been skipped. Run this check on your production hosting environment instead.', 'shieldscope-site-security-scanner' ),
+					$env_reason
+				),
+				'',
+				ABSPATH
+			);
+			return;
+		}
 
 		$version = isset( $wp_version ) ? $wp_version : '';
 		if ( '' === $version ) {
@@ -251,6 +291,11 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 			);
 		}
 
+		if ( ! isset( $cursor['bad_list'] ) ) {
+			$cursor['bad_list']     = array();
+			$cursor['missing_list'] = array();
+		}
+
 		$seen = 0;
 		while ( ! empty( $cursor['keys'] ) && $seen < self::VERIFY_BATCH ) {
 			$path     = array_shift( $cursor['keys'] );
@@ -258,19 +303,12 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 			$full     = ABSPATH . $path;
 
 			if ( ! file_exists( $full ) ) {
-				// Core file is missing — unusual; worth noting.
+				// Buffer rather than emit — findings are flushed once the
+				// whole walk is done, so mass differences can be aggregated.
 				$cursor['missing']++;
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_MEDIUM,
-					__( 'Missing WordPress core file', 'shieldscope-site-security-scanner' ),
-					sprintf(
-						/* translators: %s: relative path */
-						__( 'The core file %s is listed in the WordPress.org checksums but is not present on disk. It may have been deleted or the installation is incomplete.', 'shieldscope-site-security-scanner' ),
-						$path
-					),
-					__( 'Go to Dashboard → Updates and click "Re-install now" — this re-downloads all core files without touching your content, plugins, or wp-config.php. Alternatively, download the matching WordPress version from wordpress.org/download/releases and upload just the missing file via FTP.', 'shieldscope-site-security-scanner' ),
-					$path
-				);
+				if ( count( $cursor['missing_list'] ) < self::MAX_DETAILED_FINDINGS ) {
+					$cursor['missing_list'][] = $path;
+				}
 				$seen++;
 				continue;
 			}
@@ -283,23 +321,13 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 			$actual = md5_file( $full );
 			if ( false !== $actual && $actual !== $expected ) {
 				$cursor['bad']++;
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_HIGH,
-					__( 'Modified WordPress core file', 'shieldscope-site-security-scanner' ),
-					sprintf(
-						/* translators: 1: path, 2: expected hash, 3: actual hash */
-						__( 'The core file %1$s does not match the hash published on WordPress.org. Expected %2$s, got %3$s. This is almost always a sign of either a manual edit (don\'t do that) or a compromise.', 'shieldscope-site-security-scanner' ),
-						$path,
-						$expected,
-						$actual
-					),
-					__( 'Download a clean copy of the same WordPress version from wordpress.org/download/releases and compare the file. If you see injected or obfuscated code, your site is compromised — change all passwords, regenerate auth salts, and go to Dashboard → Updates to click "Re-install now" to restore all core files safely.', 'shieldscope-site-security-scanner' ),
-					$path,
-					array(
+				if ( count( $cursor['bad_list'] ) < self::MAX_DETAILED_FINDINGS ) {
+					$cursor['bad_list'][] = array(
+						'path'     => $path,
 						'expected' => $expected,
 						'actual'   => $actual,
-					)
-				);
+					);
+				}
 			}
 			$seen++;
 		}
@@ -309,7 +337,142 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 			return array( 'continue' => true, 'cursor' => $cursor );
 		}
 
+		$this->flush_verify_findings( $cursor );
 		return array( 'continue' => false, 'cursor' => array() );
+	}
+
+	/**
+	 * Emit findings for the completed verify walk.
+	 *
+	 * If the mismatch ratio indicates the whole installation differs from
+	 * the official build (Playground, hosting-patched distro, version or
+	 * locale mismatch), emit ONE medium summary. Otherwise emit per-file
+	 * findings, capped, with an overflow summary.
+	 *
+	 * @param array $cursor Completed cursor.
+	 * @return void
+	 */
+	private function flush_verify_findings( array $cursor ) {
+		$total   = isset( $cursor['total'] ) ? (int) $cursor['total'] : 0;
+		$bad     = isset( $cursor['bad'] ) ? (int) $cursor['bad'] : 0;
+		$missing = isset( $cursor['missing'] ) ? (int) $cursor['missing'] : 0;
+		$diff    = $bad + $missing;
+
+		if ( 0 === $diff ) {
+			return;
+		}
+
+		// Mass mismatch — one summary, not hundreds of HIGH findings.
+		if ( $total > 0 && $diff >= self::MASS_MISMATCH_MIN && ( $diff / $total ) > self::MASS_MISMATCH_RATIO ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'Core files differ from the official WordPress build en masse', 'shieldscope-site-security-scanner' ),
+				sprintf(
+					/* translators: 1: differing count, 2: total count */
+					__( '%1$d of %2$d core files do not match the official WordPress.org checksums. Differences at this scale almost always mean the installation is a modified distribution (WordPress Playground, a hosting-customised build) or a version/locale mismatch — not individual file tampering. Individual per-file findings have been suppressed.', 'shieldscope-site-security-scanner' ),
+					$diff,
+					$total
+				),
+				__( 'If this is a local, staging, or Playground environment, this is expected — re-run the scan on production. On a production site, verify your exact WordPress version and locale, then go to Dashboard → Updates and click "Re-install now" to restore official core files.', 'shieldscope-site-security-scanner' ),
+				ABSPATH,
+				array(
+					'differing' => $diff,
+					'total'     => $total,
+				)
+			);
+			return;
+		}
+
+		$missing_list = isset( $cursor['missing_list'] ) ? (array) $cursor['missing_list'] : array();
+		foreach ( $missing_list as $path ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'Missing WordPress core file', 'shieldscope-site-security-scanner' ),
+				sprintf(
+					/* translators: %s: relative path */
+					__( 'The core file %s is listed in the WordPress.org checksums but is not present on disk. It may have been deleted or the installation is incomplete.', 'shieldscope-site-security-scanner' ),
+					$path
+				),
+				__( 'Go to Dashboard → Updates and click "Re-install now" — this re-downloads all core files without touching your content, plugins, or wp-config.php. Alternatively, download the matching WordPress version from wordpress.org/download/releases and upload just the missing file via FTP.', 'shieldscope-site-security-scanner' ),
+				$path
+			);
+		}
+
+		$bad_list = isset( $cursor['bad_list'] ) ? (array) $cursor['bad_list'] : array();
+		foreach ( $bad_list as $item ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_HIGH,
+				__( 'Modified WordPress core file', 'shieldscope-site-security-scanner' ),
+				sprintf(
+					/* translators: 1: path, 2: expected hash, 3: actual hash */
+					__( 'The core file %1$s does not match the hash published on WordPress.org. Expected %2$s, got %3$s. This is almost always a sign of either a manual edit (don\'t do that) or a compromise.', 'shieldscope-site-security-scanner' ),
+					$item['path'],
+					$item['expected'],
+					$item['actual']
+				),
+				__( 'Download a clean copy of the same WordPress version from wordpress.org/download/releases and compare the file. If you see injected or obfuscated code, your site is compromised — change all passwords, regenerate auth salts, and go to Dashboard → Updates to click "Re-install now" to restore all core files safely.', 'shieldscope-site-security-scanner' ),
+				$item['path'],
+				array(
+					'expected' => $item['expected'],
+					'actual'   => $item['actual'],
+				)
+			);
+		}
+
+		// Overflow beyond the detailed cap.
+		$overflow = $diff - count( $missing_list ) - count( $bad_list );
+		if ( $overflow > 0 ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_HIGH,
+				__( 'Additional core file differences (summarised)', 'shieldscope-site-security-scanner' ),
+				sprintf(
+					/* translators: %d: count */
+					__( '%d further core files differ from the official checksums but were not individually listed to keep the report readable.', 'shieldscope-site-security-scanner' ),
+					$overflow
+				),
+				__( 'Go to Dashboard → Updates and click "Re-install now" to restore all official core files, then re-run the scan.', 'shieldscope-site-security-scanner' ),
+				ABSPATH
+			);
+		}
+	}
+
+	/**
+	 * Detect environments where core files legitimately differ from the
+	 * official WordPress.org build.
+	 *
+	 * Signals (any one is sufficient):
+	 *  - WordPress Playground / wasm PHP runtime (SERVER_SOFTWARE).
+	 *  - SQLite database integration (Playground default; core files patched).
+	 *  - The `shieldscope_skip_core_integrity` filter returning true.
+	 *
+	 * @return string Human-readable reason, or '' when the environment looks standard.
+	 */
+	protected function detect_nonstandard_environment() {
+		$server = isset( $_SERVER['SERVER_SOFTWARE'] ) ? (string) $_SERVER['SERVER_SOFTWARE'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- read-only comparison.
+		if ( '' !== $server && ( false !== stripos( $server, 'php.wasm' ) || false !== stripos( $server, 'playground' ) ) ) {
+			return __( 'WordPress Playground / WebAssembly runtime detected', 'shieldscope-site-security-scanner' );
+		}
+
+		// SQLite database integration — used by Playground and Studio; these
+		// distributions patch core files, so checksums will not match.
+		if ( ( defined( 'DB_ENGINE' ) && 'sqlite' === strtolower( (string) DB_ENGINE ) )
+			|| ( defined( 'DATABASE_TYPE' ) && 'sqlite' === strtolower( (string) DATABASE_TYPE ) )
+			|| class_exists( 'WP_SQLite_DB', false )
+		) {
+			return __( 'SQLite database integration detected', 'shieldscope-site-security-scanner' );
+		}
+
+		/**
+		 * Allow site owners / hosts with intentionally patched core files to
+		 * skip checksum verification.
+		 *
+		 * @param bool $skip Default false.
+		 */
+		if ( apply_filters( 'shieldscope_skip_core_integrity', false ) ) {
+			return __( 'skipped via shieldscope_skip_core_integrity filter', 'shieldscope-site-security-scanner' );
+		}
+
+		return '';
 	}
 
 	/**

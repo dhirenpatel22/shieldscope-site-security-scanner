@@ -129,12 +129,8 @@ class ShieldScope_Check_Users extends ShieldScope_Check_Base {
 
 		foreach ( (array) $rows as $row ) {
 			$hash = isset( $row['user_pass'] ) ? $row['user_pass'] : '';
-			// WordPress phpass hashes start with $P$ or $H$ and are 34 chars.
-			$is_phpass = ( strlen( $hash ) >= 34 && ( 0 === strpos( $hash, '$P$' ) || 0 === strpos( $hash, '$H$' ) ) );
-			// bcrypt hashes start with $2y$, modern WP (6.8+) may use these.
-			$is_bcrypt = ( 0 === strpos( $hash, '$2y$' ) || 0 === strpos( $hash, '$argon2' ) );
 
-			if ( ! $is_phpass && ! $is_bcrypt && '' !== $hash ) {
+			if ( ! self::is_recognized_hash( $hash ) && '' !== $hash ) {
 				$this->finding(
 					ShieldScope_Logger::SEVERITY_HIGH,
 					__( 'Non-standard password hash detected', 'shieldscope-site-security-scanner' ),
@@ -148,6 +144,37 @@ class ShieldScope_Check_Users extends ShieldScope_Check_Base {
 				);
 			}
 		}
+	}
+
+	/**
+	 * Is this a password hash format WordPress legitimately produces?
+	 *
+	 * Covers:
+	 *  - phpass portable hashes ($P$ / $H$, 34 chars) — WP < 6.8
+	 *  - WP 6.8+ prefixed bcrypt ($wp$2y$…) — the current default
+	 *  - plain bcrypt ($2y$ / $2a$ / $2b$) — plugins using wp_hash_password overrides
+	 *  - argon2 ($argon2i / $argon2id) — password-hashing plugins
+	 *
+	 * @param string $hash Stored user_pass value.
+	 * @return bool
+	 */
+	public static function is_recognized_hash( $hash ) {
+		if ( ! is_string( $hash ) || '' === $hash ) {
+			return false;
+		}
+		// WordPress phpass hashes start with $P$ or $H$ and are 34 chars.
+		if ( strlen( $hash ) >= 34 && ( 0 === strpos( $hash, '$P$' ) || 0 === strpos( $hash, '$H$' ) ) ) {
+			return true;
+		}
+		// WordPress 6.8+ wraps bcrypt with a $wp prefix: $wp$2y$10$…
+		if ( 0 === strpos( $hash, '$wp$' ) ) {
+			return true;
+		}
+		// Raw bcrypt variants and argon2.
+		if ( 0 === strpos( $hash, '$2y$' ) || 0 === strpos( $hash, '$2a$' ) || 0 === strpos( $hash, '$2b$' ) || 0 === strpos( $hash, '$argon2' ) ) {
+			return true;
+		}
+		return false;
 	}
 
 	/**
