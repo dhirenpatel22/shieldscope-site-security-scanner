@@ -55,8 +55,7 @@ class ShieldScope_Check_Users extends ShieldScope_Check_Base {
 				$this->check_admin_count();
 				break;
 			case 'weak_hashes':
-				$this->check_password_hashes();
-				break;
+				return $this->check_password_hashes( $cursor );
 			case 'empty_passwords':
 				$this->check_empty_passwords();
 				break;
@@ -78,7 +77,7 @@ class ShieldScope_Check_Users extends ShieldScope_Check_Base {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_HIGH,
 				__( "An administrator named 'admin' exists", 'shieldscope-site-security-scanner' ),
-				__( "The username 'admin' is the first target of brute-force attacks. Having a privileged account with this exact name halves the work an attacker needs to do.", 'shieldscope-site-security-scanner' ),
+				__( "Attackers often try the username 'admin' first.", 'shieldscope-site-security-scanner' ),
 				__( 'Go to Users → Add New and create a new Administrator with a unique username. Log in as the new admin, then delete the old "admin" account — on the deletion screen choose "Attribute all content to" your new account to transfer all posts.', 'shieldscope-site-security-scanner' ),
 				'user:' . $user->ID
 			);
@@ -116,19 +115,31 @@ class ShieldScope_Check_Users extends ShieldScope_Check_Base {
 	/**
 	 * Look for users with non-phpass password hashes (legacy or broken).
 	 *
-	 * @return void
+	 * Checks 500 users per call, resuming after the last ID in the cursor.
+	 *
+	 * @param array $cursor Cursor: 'last_id' of the previous batch.
+	 * @return array { 'continue' => bool, 'cursor' => array }
 	 */
-	private function check_password_hashes() {
+	private function check_password_hashes( array $cursor ) {
 		global $wpdb;
+
+		$batch   = 500;
+		$last_id = isset( $cursor['last_id'] ) ? (int) $cursor['last_id'] : 0;
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		$rows = $wpdb->get_results(
-			"SELECT ID, user_login, user_pass FROM {$wpdb->users} LIMIT 500",
+			$wpdb->prepare(
+				"SELECT ID, user_login, user_pass FROM {$wpdb->users} WHERE ID > %d ORDER BY ID LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$last_id,
+				$batch
+			),
 			ARRAY_A
 		);
+		$rows = (array) $rows;
 
-		foreach ( (array) $rows as $row ) {
-			$hash = isset( $row['user_pass'] ) ? $row['user_pass'] : '';
+		foreach ( $rows as $row ) {
+			$last_id = (int) $row['ID'];
+			$hash    = isset( $row['user_pass'] ) ? $row['user_pass'] : '';
 
 			if ( ! self::is_recognized_hash( $hash ) && '' !== $hash ) {
 				$this->finding(
@@ -144,6 +155,14 @@ class ShieldScope_Check_Users extends ShieldScope_Check_Base {
 				);
 			}
 		}
+
+		if ( count( $rows ) < $batch ) {
+			return array( 'continue' => false, 'cursor' => array() );
+		}
+		return array(
+			'continue' => true,
+			'cursor'   => array( 'last_id' => $last_id ),
+		);
 	}
 
 	/**
