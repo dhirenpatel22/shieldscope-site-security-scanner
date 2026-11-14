@@ -20,6 +20,18 @@ class ShieldScope_Admin {
 	private $hook_suffix = '';
 
 	/**
+	 * Capability needed to open the ShieldScope pages and call its AJAX actions.
+	 *
+	 * On multisite the scan reads network-wide data (all users, every installed
+	 * plugin, server paths), so only super admins may run it.
+	 *
+	 * @return string
+	 */
+	public static function required_capability() {
+		return is_multisite() ? 'manage_network_options' : SHIELDSCOPE_MIN_CAP;
+	}
+
+	/**
 	 * Register hooks.
 	 *
 	 * @return void
@@ -39,7 +51,7 @@ class ShieldScope_Admin {
 		$this->hook_suffix = add_menu_page(
 			__( 'ShieldScope', 'shieldscope-site-security-scanner' ),
 			__( 'ShieldScope', 'shieldscope-site-security-scanner' ),
-			SHIELDSCOPE_MIN_CAP,
+			self::required_capability(),
 			SHIELDSCOPE_SLUG,
 			array( $this, 'render_scan_page' ),
 			'dashicons-shield-alt',
@@ -50,7 +62,7 @@ class ShieldScope_Admin {
 			SHIELDSCOPE_SLUG,
 			__( 'Scan', 'shieldscope-site-security-scanner' ),
 			__( 'Scan', 'shieldscope-site-security-scanner' ),
-			SHIELDSCOPE_MIN_CAP,
+			self::required_capability(),
 			SHIELDSCOPE_SLUG,
 			array( $this, 'render_scan_page' )
 		);
@@ -59,7 +71,7 @@ class ShieldScope_Admin {
 			SHIELDSCOPE_SLUG,
 			__( 'Last Report', 'shieldscope-site-security-scanner' ),
 			__( 'Last Report', 'shieldscope-site-security-scanner' ),
-			SHIELDSCOPE_MIN_CAP,
+			self::required_capability(),
 			SHIELDSCOPE_SLUG . '-report',
 			array( $this, 'render_report_page' )
 		);
@@ -68,7 +80,7 @@ class ShieldScope_Admin {
 			SHIELDSCOPE_SLUG,
 			__( 'Settings', 'shieldscope-site-security-scanner' ),
 			__( 'Settings', 'shieldscope-site-security-scanner' ),
-			SHIELDSCOPE_MIN_CAP,
+			self::required_capability(),
 			SHIELDSCOPE_SLUG . '-settings',
 			array( $this, 'render_settings_page' )
 		);
@@ -151,7 +163,7 @@ class ShieldScope_Admin {
 	 * @return void
 	 */
 	public function render_scan_page() {
-		if ( ! current_user_can( SHIELDSCOPE_MIN_CAP ) ) {
+		if ( ! current_user_can( self::required_capability() ) ) {
 			wp_die( esc_html__( 'Insufficient permissions.', 'shieldscope-site-security-scanner' ) );
 		}
 		$scanner = new ShieldScope_Scanner();
@@ -166,7 +178,7 @@ class ShieldScope_Admin {
 	 * @return void
 	 */
 	public function render_report_page() {
-		if ( ! current_user_can( SHIELDSCOPE_MIN_CAP ) ) {
+		if ( ! current_user_can( self::required_capability() ) ) {
 			wp_die( esc_html__( 'Insufficient permissions.', 'shieldscope-site-security-scanner' ) );
 		}
 		$logger      = new ShieldScope_Logger();
@@ -183,7 +195,7 @@ class ShieldScope_Admin {
 	 * @return void
 	 */
 	public function render_settings_page() {
-		if ( ! current_user_can( SHIELDSCOPE_MIN_CAP ) ) {
+		if ( ! current_user_can( self::required_capability() ) ) {
 			wp_die( esc_html__( 'Insufficient permissions.', 'shieldscope-site-security-scanner' ) );
 		}
 		$this->maybe_save_settings();
@@ -215,7 +227,7 @@ class ShieldScope_Admin {
 		if ( ! wp_verify_nonce( $nonce, 'shieldscope_save_settings' ) ) {
 			wp_die( esc_html__( 'Security check failed.', 'shieldscope-site-security-scanner' ) );
 		}
-		if ( ! current_user_can( SHIELDSCOPE_MIN_CAP ) ) {
+		if ( ! current_user_can( self::required_capability() ) ) {
 			wp_die( esc_html__( 'Insufficient permissions.', 'shieldscope-site-security-scanner' ) );
 		}
 
