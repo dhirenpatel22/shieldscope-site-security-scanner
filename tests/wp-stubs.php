@@ -219,7 +219,10 @@ function wp_get_upload_dir() {
 	return array( 'basedir' => SS_TESTS_WP_ROOT . '/wp-content/uploads', 'baseurl' => 'https://example.test/wp-content/uploads' );
 }
 function is_admin() { return false; }
-function is_multisite() { return false; }
+function is_multisite() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'is_multisite', array() );
+	return $hit ? $result : false;
+}
 
 // ---------------------------------------------------------------------------
 // URLs. One source of truth: override 'get_site_url' (and optionally
@@ -403,4 +406,28 @@ class SS_Test_WPDB {
 	public function query( $sql ) { $this->queries[] = $sql; return 0; }
 	public function get_var( $sql = null ) { return null; }
 	public function get_results( $sql = null, $output = null ) { return array(); }
+}
+
+// ---------------------------------------------------------------------------
+// Admin menus and request exits (A-14)
+// ---------------------------------------------------------------------------
+
+/**
+ * Thrown by the wp_die() and wp_send_json_error() stubs, which exit in WordPress.
+ */
+class SS_Test_Exit extends Exception {}
+
+function add_menu_page( $page_title, $menu_title, $capability, $menu_slug, $callback = '', $icon_url = '', $position = null ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'add_menu_page', array( $page_title, $menu_title, $capability, $menu_slug ) );
+	return $hit ? $result : 'toplevel_page_' . $menu_slug;
+}
+function add_submenu_page( $parent_slug, $page_title, $menu_title, $capability, $menu_slug, $callback = '', $position = null ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'add_submenu_page', array( $parent_slug, $page_title, $menu_title, $capability, $menu_slug ) );
+	return $hit ? $result : $parent_slug . '_page_' . $menu_slug;
+}
+function wp_die( $message = '' ) {
+	throw new SS_Test_Exit( (string) $message );
+}
+function wp_send_json_error( $data = null, $status_code = null ) {
+	throw new SS_Test_Exit( (string) wp_json_encode( $data ), (int) $status_code );
 }

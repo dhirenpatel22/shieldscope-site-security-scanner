@@ -33,6 +33,7 @@ define( 'SHIELDSCOPE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SHIELDSCOPE_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 define( 'SHIELDSCOPE_WP_PLUGINS_DIR', WP_PLUGIN_DIR );
 define( 'SHIELDSCOPE_WP_CONTENT_DIR', WP_CONTENT_DIR );
+// Single-site capability. On multisite ShieldScope_Admin::required_capability() requires manage_network_options.
 define( 'SHIELDSCOPE_MIN_CAP', 'manage_options' );
 define( 'SHIELDSCOPE_SLUG', 'shieldscope' );
 
