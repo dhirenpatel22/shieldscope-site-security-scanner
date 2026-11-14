@@ -7,29 +7,6 @@
 
 use PHPUnit\Framework\TestCase;
 
-// Stubs missing from tests/wp-stubs.php, defined here so shared test files stay untouched.
-if ( ! function_exists( 'esc_html_e' ) ) {
-	function esc_html_e( $text, $domain = 'default' ) { echo $text; } // phpcs:ignore
-}
-if ( ! function_exists( 'esc_attr_e' ) ) {
-	function esc_attr_e( $text, $domain = 'default' ) { echo $text; } // phpcs:ignore
-}
-if ( ! function_exists( '_n' ) ) {
-	function _n( $single, $plural, $number, $domain = 'default' ) { return 1 === (int) $number ? $single : $plural; } // phpcs:ignore
-}
-if ( ! function_exists( 'disabled' ) ) {
-	function disabled( $disabled, $current = true, $echo = true ) { // phpcs:ignore
-		$out = ( (string) $disabled === (string) $current ) ? " disabled='disabled'" : '';
-		if ( $echo ) {
-			echo $out; // phpcs:ignore
-		}
-		return $out;
-	}
-}
-if ( ! function_exists( 'wp_date' ) ) {
-	function wp_date( $format, $timestamp = null ) { return gmdate( $format, $timestamp ); } // phpcs:ignore
-}
-
 /**
  * wpdb double for A-15: records SQL, simulates a missing table and failed inserts.
  */

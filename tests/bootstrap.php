@@ -18,7 +18,8 @@ error_reporting( E_ALL );
 // Fake WordPress root (ABSPATH) in the temp dir
 // ---------------------------------------------------------------------------
 
-define( 'SS_TESTS_WP_ROOT', sys_get_temp_dir() . '/shieldscope-tests-wproot' );
+// Unique per run, so parallel runs (other worktrees, CI matrix) never share it.
+define( 'SS_TESTS_WP_ROOT', sys_get_temp_dir() . '/shieldscope-tests-wproot-' . getmypid() . '-' . bin2hex( random_bytes( 4 ) ) );
 
 /**
  * Recursively delete a directory.
@@ -34,7 +35,7 @@ function ss_tests_rmdir( $dir ) {
 		RecursiveIteratorIterator::CHILD_FIRST
 	);
 	foreach ( $items as $item ) {
-		$item->isDir() ? rmdir( $item->getPathname() ) : unlink( $item->getPathname() );
+		( $item->isDir() && ! $item->isLink() ) ? rmdir( $item->getPathname() ) : unlink( $item->getPathname() );
 	}
 	rmdir( $dir );
 }
@@ -48,6 +49,7 @@ function ss_tests_reset_wp_root() {
 }
 
 ss_tests_reset_wp_root();
+register_shutdown_function( 'ss_tests_rmdir', SS_TESTS_WP_ROOT );
 
 // ---------------------------------------------------------------------------
 // Constants the plugin expects (normally defined by WP / the plugin bootstrap)

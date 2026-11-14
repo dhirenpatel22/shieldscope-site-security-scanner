@@ -12,40 +12,7 @@
 
 use PHPUnit\Framework\TestCase;
 
-// Stubs this ticket needs that tests/wp-stubs.php does not provide (yet).
-if ( ! function_exists( 'wp_date' ) ) {
-	function wp_date( $format, $timestamp = null, $timezone = null ) {
-		return gmdate( $format, null === $timestamp ? time() : $timestamp );
-	}
-}
-if ( ! function_exists( 'get_site_url' ) ) {
-	function get_site_url() {
-		list( $hit, $result ) = ss_tests_maybe_override( 'get_site_url', array() );
-		return $hit ? $result : 'https://example.test';
-	}
-}
-if ( ! function_exists( 'wp_login_url' ) ) {
-	function wp_login_url() {
-		return get_site_url() . '/wp-login.php';
-	}
-}
-if ( ! function_exists( 'get_plugins' ) ) {
-	function get_plugins() {
-		list( $hit, $result ) = ss_tests_maybe_override( 'get_plugins', array() );
-		return $hit ? $result : array();
-	}
-}
-if ( ! function_exists( 'wp_remote_head' ) ) {
-	function wp_remote_head( $url, $args = array() ) {
-		list( $hit, $result ) = ss_tests_maybe_override( 'wp_remote_head', array( $url, $args ) );
-		return $hit ? $result : new WP_Error( 'no_network', 'Network disabled in tests' );
-	}
-}
-if ( ! function_exists( 'wp_remote_retrieve_header' ) ) {
-	function wp_remote_retrieve_header( $response, $header ) {
-		return isset( $response['headers'][ $header ] ) ? $response['headers'][ $header ] : '';
-	}
-}
+// Test doubles specific to this file.
 
 if ( ! class_exists( 'SS_EOL_Fake_WPDB' ) ) {
 	/**
@@ -353,7 +320,6 @@ class Test_EOL_Data extends TestCase {
 		$this->assertCount( 1, $low );
 		$this->assertStringContainsString( '302', $low[0]['description'] );
 	}
-
 
 	// -----------------------------------------------------------------------
 	// Security-config check

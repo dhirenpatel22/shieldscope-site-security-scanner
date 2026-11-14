@@ -15,9 +15,18 @@ class Test_Scanner_State extends TestCase {
 	/** @var ShieldScope_Scanner */
 	private $scanner;
 
+	/** @var mixed $wpdb before this test. */
+	private $saved_wpdb;
+
 	protected function setUp(): void {
 		ss_tests_reset_state();
-		$this->scanner = new ShieldScope_Scanner();
+		$this->saved_wpdb = isset( $GLOBALS['wpdb'] ) ? $GLOBALS['wpdb'] : null;
+		$GLOBALS['wpdb']  = new SS_Test_WPDB();
+		$this->scanner    = new ShieldScope_Scanner();
+	}
+
+	protected function tearDown(): void {
+		$GLOBALS['wpdb'] = $this->saved_wpdb;
 	}
 
 	public function test_default_state_is_idle() {

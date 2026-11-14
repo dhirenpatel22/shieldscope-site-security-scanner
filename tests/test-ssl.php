@@ -16,52 +16,6 @@
 
 use PHPUnit\Framework\TestCase;
 
-// Stubs missing from tests/wp-stubs.php (owned by another ticket), defined here.
-if ( ! function_exists( 'get_site_url' ) ) {
-	function get_site_url() {
-		list( $hit, $result ) = ss_tests_maybe_override( 'get_site_url', array() );
-		return $hit ? $result : 'https://shop.example.test';
-	}
-}
-if ( ! function_exists( 'home_url' ) ) {
-	function home_url( $path = '' ) {
-		return rtrim( get_site_url(), '/' ) . $path;
-	}
-}
-if ( ! function_exists( 'wp_parse_url' ) ) {
-	function wp_parse_url( $url, $component = -1 ) {
-		return parse_url( $url, $component ); // phpcs:ignore
-	}
-}
-if ( ! function_exists( 'remove_action' ) ) {
-	function remove_action( $hook, $cb, $prio = 10 ) {
-		if ( empty( $GLOBALS['ss_test_filters'][ $hook ] ) ) {
-			return false;
-		}
-		foreach ( $GLOBALS['ss_test_filters'][ $hook ] as $i => $registered ) {
-			if ( $registered === $cb ) {
-				unset( $GLOBALS['ss_test_filters'][ $hook ][ $i ] );
-				return true;
-			}
-		}
-		return false;
-	}
-}
-if ( ! function_exists( 'wp_remote_head' ) ) {
-	function wp_remote_head( $url, $args = array() ) {
-		list( $hit, $result ) = ss_tests_maybe_override( 'wp_remote_head', array( $url, $args ) );
-		if ( $hit ) {
-			return $result;
-		}
-		return new WP_Error( 'no_network', 'Network disabled in tests' );
-	}
-}
-if ( ! function_exists( '_n' ) ) {
-	function _n( $single, $plural, $number, $domain = 'default' ) {
-		return 1 === (int) $number ? $single : $plural;
-	}
-}
-
 /**
  * SSL check with the network seams replaced by canned results.
  */
@@ -102,6 +56,12 @@ class Test_A07_SSL extends TestCase {
 
 	protected function setUp(): void {
 		ss_tests_reset_state();
+		ss_tests_override(
+			'get_site_url',
+			function () {
+				return 'https://shop.example.test';
+			}
+		);
 		$this->logger = new SS_Fake_Logger();
 	}
 
