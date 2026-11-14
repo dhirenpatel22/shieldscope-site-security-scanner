@@ -17,6 +17,11 @@ defined( 'ABSPATH' ) || exit;
 abstract class ShieldScope_Check_Base {
 
 	/**
+	 * Most directories the walker expands in one call.
+	 */
+	const MAX_DIRS_PER_CALL = 50;
+
+	/**
 	 * Scan identifier.
 	 *
 	 * @var string
@@ -29,6 +34,14 @@ abstract class ShieldScope_Check_Base {
 	 * @var ShieldScope_Logger
 	 */
 	protected $logger;
+
+	/**
+	 * microtime() after which a step should save its cursor and return
+	 * (0 = no limit).
+	 *
+	 * @var float
+	 */
+	private $deadline = 0.0;
 
 	/**
 	 * Constructor.
@@ -79,6 +92,25 @@ abstract class ShieldScope_Check_Base {
 	abstract public function run_step( $step, array $cursor = array() );
 
 	/**
+	 * Set the time budget for the next step.
+	 *
+	 * @param float $deadline microtime() at which work should stop; 0 for none.
+	 * @return void
+	 */
+	public function set_deadline( $deadline ) {
+		$this->deadline = (float) $deadline;
+	}
+
+	/**
+	 * Has the current step used its time budget?
+	 *
+	 * @return bool
+	 */
+	protected function out_of_time() {
+		return $this->deadline > 0 && microtime( true ) >= $this->deadline;
+	}
+
+	/**
 	 * Helper — record a finding with this check's id.
 	 *
 	 * @param string $severity       Severity.
@@ -110,14 +142,20 @@ abstract class ShieldScope_Check_Base {
 	 * the middle of a directory and silently drop files — the file queue in
 	 * the cursor carries any leftovers to the next invocation.
 	 *
+	 * Each call stops when the time budget is spent (after at least one unit
+	 * of work), after $files_per_call files or after MAX_DIRS_PER_CALL
+	 * directory expansions. Symlinked directories are not followed. When the
+	 * walk ends, one Info finding lists what was skipped, if anything.
+	 *
 	 * Cursor keys:
 	 *   dirs    — directories still to expand
 	 *   files   — file paths waiting to be handled
 	 *   checked — cumulative count of files handled
+	 *   skipped — counts: 'dirs' (skip list), 'links' (symlinks), 'files' (handler returned false)
 	 *
 	 * @param string   $root           Root directory to walk.
 	 * @param array    $cursor         Cursor from the previous invocation (empty on first call).
-	 * @param callable $handle_file    Called once per matching file with the full path.
+	 * @param callable $handle_file    Called once per matching file with the full path; returns false if it skipped the file.
 	 * @param int      $files_per_call Max files to handle in this invocation.
 	 * @param array    $skip_dirs      Directory basenames to skip entirely.
 	 * @param string   $pattern        Regex a file basename must match to be handled.
@@ -135,29 +173,39 @@ abstract class ShieldScope_Check_Base {
 				'checked' => isset( $cursor['checked'] ) ? (int) $cursor['checked'] : 0,
 			);
 		}
-		$cursor['dirs']  = isset( $cursor['dirs'] ) ? (array) $cursor['dirs'] : array();
-		$cursor['files'] = isset( $cursor['files'] ) ? (array) $cursor['files'] : array();
+		$cursor['dirs']    = isset( $cursor['dirs'] ) ? (array) $cursor['dirs'] : array();
+		$cursor['files']   = isset( $cursor['files'] ) ? (array) $cursor['files'] : array();
+		$cursor['skipped'] = isset( $cursor['skipped'] ) ? (array) $cursor['skipped'] : array();
+		$cursor['skipped'] += array( 'dirs' => 0, 'links' => 0, 'files' => 0 );
 
 		$self_dir  = defined( 'SHIELDSCOPE_PLUGIN_DIR' )
 			? rtrim( str_replace( '\\', '/', SHIELDSCOPE_PLUGIN_DIR ), '/' ) . '/'
 			: '';
 		$processed = 0;
+		$expanded  = 0;
 
 		while ( $processed < $files_per_call ) {
+			if ( ( $processed > 0 || $expanded > 0 ) && $this->out_of_time() ) {
+				break;
+			}
+
 			// Drain the file queue before expanding another directory.
 			if ( ! empty( $cursor['files'] ) ) {
 				$full = array_shift( $cursor['files'] );
-				call_user_func( $handle_file, $full );
+				if ( false === call_user_func( $handle_file, $full ) ) {
+					$cursor['skipped']['files']++;
+				}
 				$processed++;
 				$cursor['checked']++;
 				continue;
 			}
 
-			if ( empty( $cursor['dirs'] ) ) {
+			if ( empty( $cursor['dirs'] ) || $expanded >= self::MAX_DIRS_PER_CALL ) {
 				break;
 			}
 
 			$current = array_shift( $cursor['dirs'] );
+			$expanded++;
 			$entries = @scandir( $current ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 			if ( false === $entries ) {
 				continue;
@@ -176,7 +224,13 @@ abstract class ShieldScope_Check_Base {
 				}
 
 				if ( is_dir( $full ) ) {
+					if ( is_link( $full ) ) {
+						// Not followed: a link can point back up the tree.
+						$cursor['skipped']['links']++;
+						continue;
+					}
 					if ( in_array( $entry, $skip_dirs, true ) ) {
+						$cursor['skipped']['dirs']++;
 						continue;
 					}
 					$cursor['dirs'][] = $full;
@@ -187,8 +241,25 @@ abstract class ShieldScope_Check_Base {
 			// Directory expansion does not count against the file budget.
 		}
 
+		$continue = ! empty( $cursor['dirs'] ) || ! empty( $cursor['files'] );
+		if ( ! $continue && array_sum( $cursor['skipped'] ) > 0 ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_INFO,
+				__( 'Some files were not scanned', 'shieldscope-site-security-scanner' ),
+				sprintf(
+					/* translators: 1: number of folders, 2: number of symlinked folders, 3: number of files */
+					__( 'Folders skipped (vendor, node_modules, .git): %1$d. Symlinked folders not followed: %2$d. Files skipped (too large or unreadable): %3$d.', 'shieldscope-site-security-scanner' ),
+					$cursor['skipped']['dirs'],
+					$cursor['skipped']['links'],
+					$cursor['skipped']['files']
+				),
+				'',
+				$root
+			);
+		}
+
 		return array(
-			'continue' => ! empty( $cursor['dirs'] ) || ! empty( $cursor['files'] ),
+			'continue' => $continue,
 			'cursor'   => $cursor,
 		);
 	}

@@ -488,10 +488,14 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 	 * limit only applies to file processing.  On resume the files queue
 	 * carries any leftover entries from the last expanded directory.
 	 *
-	 * Cursor:
+	 * Each call also stops when the time budget is spent (after at least one
+	 * unit of work) or after MAX_DIRS_PER_CALL expansions. Symlinked
+	 * directories are not followed.
+	 *
+	 * Cursor (the checksum map stays in its transient, not in the cursor,
+	 * because the cursor is saved after every step):
 	 *   dirs  — directories still to expand
 	 *   files — file paths pending inspection
-	 *   known — associative array of known core paths (from checksums)
 	 *   seen  — cumulative files examined across all batches
 	 *
 	 * @param array $cursor Cursor.
@@ -510,22 +514,28 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 					'is_dir'
 				) ),
 				'files' => array(),
-				'known' => $cached['checksums'], // path => md5 map.
 				'seen'  => 0,
 			);
 		}
+		unset( $cursor['known'] ); // Cursors saved by 1.3.2 carried the map.
+		$known = $cached['checksums']; // path => md5 map.
 
 		$abs_path = wp_normalize_path( ABSPATH );
 		$seen     = 0;
+		$expanded = 0;
 
 		while ( $seen < self::EXTRAS_BATCH ) {
+			if ( ( $seen > 0 || $expanded > 0 ) && $this->out_of_time() ) {
+				break;
+			}
+
 			// Drain the file queue before expanding another directory.
 			if ( ! empty( $cursor['files'] ) ) {
 				$full  = array_shift( $cursor['files'] );
 				$entry = basename( $full );
 				$rel   = ltrim( str_replace( $abs_path, '', wp_normalize_path( $full ) ), '/' );
 
-				if ( ! isset( $cursor['known'][ $rel ] ) ) {
+				if ( ! isset( $known[ $rel ] ) ) {
 					// Only flag code-executing files — images, translations, etc.
 					// can legitimately appear in core dirs via plugins.
 					if ( preg_match( '/\.(php|phtml|php5|php7|phar|inc)$/i', $entry ) ) {
@@ -547,11 +557,12 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 			}
 
 			// File queue empty — expand the next directory.
-			if ( empty( $cursor['dirs'] ) ) {
+			if ( empty( $cursor['dirs'] ) || $expanded >= self::MAX_DIRS_PER_CALL ) {
 				break;
 			}
 
 			$dir     = array_shift( $cursor['dirs'] );
+			$expanded++;
 			$entries = @scandir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 			if ( false === $entries ) {
 				continue;
@@ -563,7 +574,9 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 				}
 				$full = $dir . DIRECTORY_SEPARATOR . $entry_name;
 				if ( is_dir( $full ) ) {
-					$cursor['dirs'][] = $full;
+					if ( ! is_link( $full ) ) {
+						$cursor['dirs'][] = $full;
+					}
 				} else {
 					$cursor['files'][] = $full;
 				}
