@@ -13,19 +13,21 @@
 // In-memory state stores
 // ---------------------------------------------------------------------------
 
-$GLOBALS['ss_test_options']    = array();
-$GLOBALS['ss_test_transients'] = array();
-$GLOBALS['ss_test_filters']    = array();
-$GLOBALS['ss_test_overrides']  = array(); // callable overrides keyed by function name.
+$GLOBALS['ss_test_options']      = array(); // The "database" options table.
+$GLOBALS['ss_test_option_cache'] = array(); // Per-request object cache in front of it, as in WP.
+$GLOBALS['ss_test_transients']   = array();
+$GLOBALS['ss_test_filters']      = array();
+$GLOBALS['ss_test_overrides']    = array(); // callable overrides keyed by function name.
 
 /**
  * Reset all stub state between tests.
  */
 function ss_tests_reset_state() {
-	$GLOBALS['ss_test_options']    = array();
-	$GLOBALS['ss_test_transients'] = array();
-	$GLOBALS['ss_test_filters']    = array();
-	$GLOBALS['ss_test_overrides']  = array();
+	$GLOBALS['ss_test_options']      = array();
+	$GLOBALS['ss_test_option_cache'] = array();
+	$GLOBALS['ss_test_transients']   = array();
+	$GLOBALS['ss_test_filters']      = array();
+	$GLOBALS['ss_test_overrides']    = array();
 	unset( $_SERVER['SERVER_SOFTWARE'] );
 	$GLOBALS['wp_version'] = '6.8.1';
 }
@@ -38,6 +40,24 @@ function ss_tests_reset_state() {
  */
 function ss_tests_override( $fn, $callback ) {
 	$GLOBALS['ss_test_overrides'][ $fn ] = $callback;
+}
+
+/**
+ * Run a callable as if it were a separate HTTP request: it starts with an
+ * empty option cache and its cache is discarded afterwards, so only its
+ * "database" writes are visible to the current request.
+ *
+ * @param callable $callback Work done by the other request.
+ * @return mixed Return value of $callback.
+ */
+function ss_tests_in_other_request( $callback ) {
+	$own_cache                       = $GLOBALS['ss_test_option_cache'];
+	$GLOBALS['ss_test_option_cache'] = array();
+	try {
+		return call_user_func( $callback );
+	} finally {
+		$GLOBALS['ss_test_option_cache'] = $own_cache;
+	}
 }
 
 function ss_tests_maybe_override( $fn, $args ) {
@@ -67,20 +87,38 @@ function wp_unslash( $value ) { return is_array( $value ) ? array_map( 'wp_unsla
 // Options & transients
 // ---------------------------------------------------------------------------
 
+// Like WordPress without a persistent object cache, the first read of an
+// option in a request fills the cache and later reads in that request are
+// served from it, so writes made by other requests are not seen.
 function get_option( $name, $default = false ) {
-	return array_key_exists( $name, $GLOBALS['ss_test_options'] ) ? $GLOBALS['ss_test_options'][ $name ] : $default;
+	if ( array_key_exists( $name, $GLOBALS['ss_test_option_cache'] ) ) {
+		return $GLOBALS['ss_test_option_cache'][ $name ];
+	}
+	if ( ! array_key_exists( $name, $GLOBALS['ss_test_options'] ) ) {
+		return $default;
+	}
+	$GLOBALS['ss_test_option_cache'][ $name ] = $GLOBALS['ss_test_options'][ $name ];
+	return $GLOBALS['ss_test_options'][ $name ];
 }
 function update_option( $name, $value, $autoload = null ) {
-	$GLOBALS['ss_test_options'][ $name ] = $value;
+	$GLOBALS['ss_test_options'][ $name ]      = $value;
+	$GLOBALS['ss_test_option_cache'][ $name ] = $value;
 	return true;
 }
 function add_option( $name, $value = '' ) {
 	if ( array_key_exists( $name, $GLOBALS['ss_test_options'] ) ) { return false; }
-	$GLOBALS['ss_test_options'][ $name ] = $value;
+	$GLOBALS['ss_test_options'][ $name ]      = $value;
+	$GLOBALS['ss_test_option_cache'][ $name ] = $value;
 	return true;
 }
 function delete_option( $name ) {
-	unset( $GLOBALS['ss_test_options'][ $name ] );
+	unset( $GLOBALS['ss_test_options'][ $name ], $GLOBALS['ss_test_option_cache'][ $name ] );
+	return true;
+}
+function wp_cache_delete( $key, $group = '' ) {
+	if ( 'options' === $group ) {
+		unset( $GLOBALS['ss_test_option_cache'][ $key ] );
+	}
 	return true;
 }
 function get_transient( $name ) {
