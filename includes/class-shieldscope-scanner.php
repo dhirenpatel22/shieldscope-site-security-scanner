@@ -505,7 +505,9 @@ class ShieldScope_Scanner {
 		// Done?
 		if ( self::STATUS_RUNNING === $state['status'] && $state['check_index'] >= $total_checks ) {
 			$state['status']       = self::STATUS_COMPLETED;
-			$state['last_message'] = __( 'Scan complete.', 'shieldscope-site-security-scanner' );
+			$state['last_message'] = ShieldScope_Logger::save_failed( $state['scan_id'] )
+				? __( 'Scan finished, but some results could not be saved. This report is incomplete.', 'shieldscope-site-security-scanner' )
+				: __( 'Scan complete.', 'shieldscope-site-security-scanner' );
 			$state['done_steps']   = $state['total_steps'];
 
 			update_option( 'shieldscope_last_scan', $state['scan_id'], false );

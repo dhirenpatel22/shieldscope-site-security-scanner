@@ -25,6 +25,9 @@ class SS_A11a_WPDB {
 	public $insert_id = 0;
 	public $findings  = array();
 
+	/** @var bool When true, every insert fails like a missing table. */
+	public $fail_inserts = false;
+
 	public function prepare( $sql, ...$args ) {
 		foreach ( $args as $a ) {
 			$sql = preg_replace( '/%[sd]/', is_int( $a ) ? (string) $a : "'" . addslashes( (string) $a ) . "'", $sql, 1 );
@@ -33,6 +36,9 @@ class SS_A11a_WPDB {
 	}
 
 	public function insert( $table, $data ) {
+		if ( $this->fail_inserts ) {
+			return false;
+		}
 		$this->insert_id++;
 		$this->findings[ $this->insert_id ] = $data;
 		return 1;

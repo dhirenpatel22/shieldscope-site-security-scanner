@@ -145,6 +145,7 @@ class ShieldScope_Ajax {
 			'scan_id'      => (string) $state['scan_id'],
 			'summary'      => $summary,
 			'busy'         => ! empty( $state['busy'] ),
+			'save_failed'  => ShieldScope_Logger::save_failed( (string) $state['scan_id'] ),
 		);
 	}
 }
