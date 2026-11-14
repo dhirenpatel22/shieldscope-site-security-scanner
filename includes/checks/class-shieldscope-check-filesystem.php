@@ -13,6 +13,11 @@ defined( 'ABSPATH' ) || exit;
 class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 
 	/**
+	 * Body of an Apache/Nginx directory index page.
+	 */
+	const LISTING_SIGNATURE = '/Index of \/|<title>Index of/i';
+
+	/**
 	 * ID.
 	 *
 	 * @return string
@@ -93,16 +98,16 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 		}
 
 		$perms = fileperms( $path ) & 0777;
-		if ( $perms & 0044 ) {
+		if ( $perms & 0004 ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
+				ShieldScope_Logger::SEVERITY_LOW,
 				__( 'wp-config.php is world-readable', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: octal permissions */
-					__( 'Permissions on wp-config.php are %s. Other users on the server could read the database credentials.', 'shieldscope-site-security-scanner' ),
+					__( 'Permissions on wp-config.php are %s, so every account on the server can read the database credentials. This matters on shared servers; some hosts need this setting for PHP to read the file.', 'shieldscope-site-security-scanner' ),
 					'0' . decoct( $perms )
 				),
-				__( 'Change permissions to 0640 or 0600 (chmod 600 wp-config.php).', 'shieldscope-site-security-scanner' ),
+				__( 'If PHP runs as the file owner, change permissions to 0640 or 0600 (chmod 640 wp-config.php). Check with your host first and load the site after the change.', 'shieldscope-site-security-scanner' ),
 				$path
 			);
 		}
@@ -159,15 +164,8 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 	private function check_readme() {
 		$readme = ABSPATH . 'readme.html';
 		if ( file_exists( $readme ) ) {
-			$url      = home_url( '/readme.html' );
-			$response = wp_remote_get(
-				$url,
-				array(
-					'timeout'   => 5,
-					'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
-				)
-			);
-			if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
+			$probe = new ShieldScope_Probe();
+			if ( $probe->serves( home_url( '/readme.html' ), '/<title>[^<]*ReadMe/i' ) ) {
 				$this->finding(
 					ShieldScope_Logger::SEVERITY_LOW,
 					__( 'readme.html is publicly accessible', 'shieldscope-site-security-scanner' ),
@@ -254,50 +252,24 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 	 *
 	 * Even when file permissions are correct, a misconfigured webserver could
 	 * serve wp-config.php as plain text if PHP processing fails. This check
-	 * performs an actual HTTP request to confirm.
+	 * performs an actual HTTP request to confirm. An empty 200 is normal (PHP
+	 * ran the file) and is not reported.
 	 *
 	 * @return void
 	 */
 	private function check_wp_config_http() {
-		$url      = site_url( '/wp-config.php' );
-		$response = wp_remote_get(
-			$url,
-			array(
-				'timeout'   => 5,
-				'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
-			)
-		);
+		$url   = site_url( '/wp-config.php' );
+		$probe = new ShieldScope_Probe();
 
-		if ( is_wp_error( $response ) ) {
-			return;
+		if ( $probe->serves( $url, '/DB_(?:NAME|USER|PASSWORD|HOST)/i' ) ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_CRITICAL,
+				__( 'wp-config.php is publicly readable and contains credentials', 'shieldscope-site-security-scanner' ),
+				__( 'A request to /wp-config.php returned HTTP 200 and the response body contains database constants (DB_NAME, DB_USER, DB_PASSWORD). Your database credentials are exposed to anyone on the internet.', 'shieldscope-site-security-scanner' ),
+				__( 'Block access to wp-config.php at the webserver level immediately. Apache: add a <Files wp-config.php> deny from all </Files> block. Nginx: add "location ~* wp-config\\.php { deny all; }". Also rotate your database password immediately.', 'shieldscope-site-security-scanner' ),
+				$url
+			);
 		}
-
-		$code = (int) wp_remote_retrieve_response_code( $response );
-		$body = wp_remote_retrieve_body( $response );
-
-		// A 200 response that contains DB_ constants is a definite credential leak.
-		if ( 200 === $code ) {
-			$has_credentials = $body && preg_match( '/DB_(?:NAME|USER|PASSWORD|HOST)/i', $body );
-
-			if ( $has_credentials ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_CRITICAL,
-					__( 'wp-config.php is publicly readable and contains credentials', 'shieldscope-site-security-scanner' ),
-					__( 'A request to /wp-config.php returned HTTP 200 and the response body contains database constants (DB_NAME, DB_USER, DB_PASSWORD). Your database credentials are exposed to anyone on the internet.', 'shieldscope-site-security-scanner' ),
-					__( 'Block access to wp-config.php at the webserver level immediately. Apache: add a <Files wp-config.php> deny from all </Files> block. Nginx: add "location ~* wp-config\\.php { deny all; }". Also rotate your database password immediately.', 'shieldscope-site-security-scanner' ),
-					$url
-				);
-			} else {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_LOW,
-					__( 'wp-config.php returned HTTP 200 (hardening opportunity)', 'shieldscope-site-security-scanner' ),
-					__( 'A request to /wp-config.php returned HTTP 200. Even if PHP processes it as code rather than serving it as text, this indicates the webserver is not explicitly blocking access. A PHP-processing failure could expose database credentials.', 'shieldscope-site-security-scanner' ),
-					__( 'Explicitly deny access to wp-config.php at the webserver level. Apache: <Files wp-config.php> deny from all </Files>. Nginx: location ~* wp-config\\.php { deny all; }', 'shieldscope-site-security-scanner' ),
-					$url
-				);
-			}
-		}
-		// 403 or 404 are both acceptable; no finding needed.
 	}
 
 	/**
@@ -307,13 +279,16 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 	 * WordPress-specific files that leak version information or enable abuse:
 	 *  - license.txt       — discloses WordPress version in the copyright year line
 	 *  - wp-activate.php   — activation endpoint; should return 302/403, not 200+content
-	 *  - wp-cron.php       — should not be directly accessible; enables resource abuse
 	 *  - .htaccess         — Apache rewrite rules; may reveal path structure
+	 *
+	 * wp-cron.php is not requested: a request runs due cron events. WP-Cron is
+	 * assessed from DISABLE_WP_CRON by ShieldScope_Check_Security_Config.
 	 *
 	 * @return void
 	 */
 	private function check_sensitive_urls() {
-		$base = trailingslashit( home_url() );
+		$base  = trailingslashit( home_url() );
+		$probe = new ShieldScope_Probe();
 
 		$checks = array(
 			'license.txt'     => array(
@@ -321,55 +296,27 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 				'title'    => __( 'license.txt is publicly accessible', 'shieldscope-site-security-scanner' ),
 				'desc'     => __( 'The WordPress license file is accessible and discloses the WordPress version in its copyright year/version line.', 'shieldscope-site-security-scanner' ),
 				'rec'      => __( 'Delete license.txt from the webroot, or block it at the webserver level.', 'shieldscope-site-security-scanner' ),
-				'match'    => null, // 200 response is enough.
+				'match'    => '/WordPress - Web publishing software/i',
 			),
 			'wp-activate.php' => array(
 				'severity' => ShieldScope_Logger::SEVERITY_LOW,
 				'title'    => __( 'wp-activate.php is publicly accessible', 'shieldscope-site-security-scanner' ),
 				'desc'     => __( 'The wp-activate.php file is reachable from the internet. On single-site WordPress it serves no purpose and its content includes the WordPress version in the page title.', 'shieldscope-site-security-scanner' ),
 				'rec'      => __( 'Block access to wp-activate.php at the webserver level unless you are running WordPress Multisite with email-based user activation.', 'shieldscope-site-security-scanner' ),
-				'match'    => null,
-			),
-			'wp-cron.php'     => array(
-				'severity' => ShieldScope_Logger::SEVERITY_MEDIUM,
-				'title'    => __( 'wp-cron.php is publicly accessible', 'shieldscope-site-security-scanner' ),
-				'desc'     => __( 'wp-cron.php is reachable by any visitor. Repeated requests can trigger all scheduled tasks simultaneously, wasting server resources. Malicious actors use this for denial-of-service and to exhaust hosting CPU quotas.', 'shieldscope-site-security-scanner' ),
-				'rec'      => __( "Block direct HTTP access to wp-cron.php at the webserver level and use a real server cron job instead: define('DISABLE_WP_CRON', true); in wp-config.php, then: */5 * * * * php /path/to/wordpress/wp-cron.php", 'shieldscope-site-security-scanner' ),
-				'match'    => null,
+				'match'    => '/<html/i', // Single-site redirects (302); a page means it is served.
 			),
 			'.htaccess'       => array(
 				'severity' => ShieldScope_Logger::SEVERITY_MEDIUM,
 				'title'    => __( '.htaccess file is publicly accessible', 'shieldscope-site-security-scanner' ),
 				'desc'     => __( 'The .htaccess file returned HTTP 200. It may contain rewrite rules, directory configurations, or access controls that expose your site structure and configuration to attackers.', 'shieldscope-site-security-scanner' ),
 				'rec'      => __( "Ensure your webserver is configured to block direct access to dotfiles. For Apache, add: <FilesMatch '^\\.'> deny from all </FilesMatch>", 'shieldscope-site-security-scanner' ),
-				'match'    => null,
+				'match'    => '/RewriteEngine|RewriteRule|<IfModule|<Files|Options\s+[-+]|Deny from|Require all/i',
 			),
 		);
 
 		foreach ( $checks as $file => $meta ) {
-			$response = wp_remote_get(
-				$base . ltrim( $file, '/' ),
-				array(
-					'timeout'   => 5,
-					'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
-				)
-			);
-
-			if ( is_wp_error( $response ) ) {
+			if ( ! $probe->serves( $base . ltrim( $file, '/' ), $meta['match'] ) ) {
 				continue;
-			}
-
-			$code = (int) wp_remote_retrieve_response_code( $response );
-			if ( 200 !== $code ) {
-				continue;
-			}
-
-			// Optional body-content match.
-			if ( null !== $meta['match'] ) {
-				$body = wp_remote_retrieve_body( $response );
-				if ( ! $body || false === strpos( $body, $meta['match'] ) ) {
-					continue;
-				}
 			}
 
 			$this->finding(
@@ -394,21 +341,8 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 			return;
 		}
 
-		$response = wp_remote_get(
-			$url,
-			array(
-				'timeout'   => 5,
-				'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
-			)
-		);
-		if ( is_wp_error( $response ) ) {
-			return;
-		}
-		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
-			return;
-		}
-		$body = wp_remote_retrieve_body( $response );
-		if ( false !== stripos( $body, 'Index of /' ) || false !== stripos( $body, '<title>Index of' ) ) {
+		$probe = new ShieldScope_Probe();
+		if ( $probe->serves( $url, self::LISTING_SIGNATURE ) ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_MEDIUM,
 				__( 'Directory listing enabled on uploads', 'shieldscope-site-security-scanner' ),
@@ -430,35 +364,14 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 	private function check_directory_listing_all() {
 		$dirs = array(
 			content_url( '/' )           => 'wp-content',
-			plugins_url( '/', SHIELDSCOPE_PLUGIN_FILE ) => 'wp-content/plugins',
+			plugins_url( '/' )           => 'wp-content/plugins',
 			get_theme_root_uri() . '/'   => 'wp-content/themes',
 		);
 
+		$probe = new ShieldScope_Probe();
 		foreach ( $dirs as $url => $label ) {
-			$url      = trailingslashit( $url );
-			$response = wp_remote_get(
-				$url,
-				array(
-					'timeout'   => 5,
-					'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
-				)
-			);
-
-			if ( is_wp_error( $response ) ) {
-				continue;
-			}
-
-			$code = (int) wp_remote_retrieve_response_code( $response );
-			if ( 200 !== $code ) {
-				continue;
-			}
-
-			$body = wp_remote_retrieve_body( $response );
-			if ( ! $body ) {
-				continue;
-			}
-
-			if ( false !== stripos( $body, 'Index of /' ) || false !== stripos( $body, '<title>Index of' ) ) {
+			$url = trailingslashit( $url );
+			if ( $probe->serves( $url, self::LISTING_SIGNATURE ) ) {
 				$this->finding(
 					ShieldScope_Logger::SEVERITY_HIGH,
 					sprintf(
