@@ -3,8 +3,8 @@
  * Vulnerable and Outdated Components checks.
  *
  * Assesses the patch level of core infrastructure components: database server
- * version (MySQL/MariaDB EOL), WordPress known-CVE version windows, HSTS
- * enforcement, and plugins with a high historical CVE count.
+ * version (MySQL/MariaDB EOL), WordPress known-CVE version windows and
+ * HTTP-to-HTTPS redirect enforcement.
  *
  * @package ShieldScope
  */
@@ -31,7 +31,6 @@ class ShieldScope_Check_Components extends ShieldScope_Check_Base {
 		return array(
 			'database_version',
 			'wp_vuln_ranges',
-			'high_risk_plugins',
 			'http_redirect',
 		);
 	}
@@ -50,9 +49,6 @@ class ShieldScope_Check_Components extends ShieldScope_Check_Base {
 				break;
 			case 'wp_vuln_ranges':
 				$this->check_wp_vuln_ranges();
-				break;
-			case 'high_risk_plugins':
-				$this->check_high_risk_plugins();
 				break;
 			case 'http_redirect':
 				$this->check_http_to_https_redirect();
@@ -75,87 +71,94 @@ class ShieldScope_Check_Components extends ShieldScope_Check_Base {
 		}
 
 		$is_mariadb = ( false !== stripos( $full_version, 'mariadb' ) );
+		$engine     = $is_mariadb ? 'MariaDB' : 'MySQL';
+		$ver        = preg_match( '/\d+\.\d+\.\d+/', $full_version, $m ) ? $m[0] : $full_version;
+		$eol        = ShieldScope_EOL_Data::lookup( $is_mariadb ? 'mariadb' : 'mysql', $ver );
+		$context    = array( 'version' => $ver, 'engine' => $engine, 'eol_date' => $eol['eol_date'], 'eol_data_reviewed' => ShieldScope_EOL_Data::LAST_REVIEWED );
 
-		if ( $is_mariadb ) {
-			// Extract numeric version from e.g. "10.11.5-MariaDB".
-			preg_match( '/(\d+)\.(\d+)\.(\d+)/i', $full_version, $m );
-			$major = isset( $m[1] ) ? (int) $m[1] : 0;
-			$minor = isset( $m[2] ) ? (int) $m[2] : 0;
-			$ver   = isset( $m[0] ) ? $m[0] : $full_version;
-
-			// MariaDB supported: 10.6 LTS (Jul 2026), 10.11 LTS (Feb 2028), 11.4 LTS (May 2029).
-			// 10.7-10.10 went EOL May-Nov 2023; 11.0-11.3 went EOL Jun 2024-Mar 2025.
-			if ( $major < 10 ) {
-				$is_eol = true;
-			} elseif ( 10 === $major ) {
-				$is_eol = ! in_array( $minor, array( 6, 11 ), true );
-			} elseif ( 11 === $major ) {
-				$is_eol = ( $minor < 4 );
-			} else {
-				$is_eol = false; // 12.x and later — assume supported.
-			}
-
-			if ( $is_eol ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_HIGH,
-					__( 'MariaDB version is end-of-life', 'shieldscope-site-security-scanner' ),
-					sprintf(
-						/* translators: %s: MariaDB version */
-						__( 'MariaDB %s no longer receives security patches. Known CVEs will remain permanently unpatched.', 'shieldscope-site-security-scanner' ),
-						$ver
-					),
-					__( 'Upgrade to MariaDB 10.11 LTS or 11.x. Contact your hosting provider or upgrade via your database control panel.', 'shieldscope-site-security-scanner' ),
-					'database',
-					array( 'version' => $ver, 'engine' => 'MariaDB' )
+		if ( ShieldScope_EOL_Data::STATUS_EOL === $eol['status'] ) {
+			if ( null !== $eol['eol_date'] ) {
+				$description = sprintf(
+					/* translators: 1: database engine (MySQL or MariaDB), 2: version, 3: end-of-life date */
+					__( '%1$s %2$s reached end of life on %3$s and no longer receives security patches. Known CVEs will remain permanently unpatched.', 'shieldscope-site-security-scanner' ),
+					$engine,
+					$ver,
+					ShieldScope_EOL_Data::format_date( $eol['eol_date'] )
 				);
 			} else {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_INFO,
-					sprintf(
-						/* translators: %s: MariaDB version */
-						__( 'MariaDB %s is a supported version', 'shieldscope-site-security-scanner' ),
-						$ver
-					),
-					'',
-					'',
-					'database',
-					array( 'version' => $ver, 'engine' => 'MariaDB' )
+				$description = sprintf(
+					/* translators: 1: database engine (MySQL or MariaDB), 2: version */
+					__( '%1$s %2$s is an old or short-term release that a newer release has replaced. It no longer receives security patches. Known CVEs will remain permanently unpatched.', 'shieldscope-site-security-scanner' ),
+					$engine,
+					$ver
 				);
 			}
-		} else {
-			// MySQL EOL: 5.5 Dec 2018, 5.6 Feb 2021, 5.7 Oct 2023, 8.0 active, 8.4 LTS active.
-			preg_match( '/(\d+)\.(\d+)\.(\d+)/i', $full_version, $m );
-			$major = isset( $m[1] ) ? (int) $m[1] : 0;
-			$ver   = isset( $m[0] ) ? $m[0] : $wpdb->db_version();
 
-			if ( $major < 8 ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_HIGH,
-					__( 'MySQL version is end-of-life', 'shieldscope-site-security-scanner' ),
-					sprintf(
-						/* translators: %s: MySQL version */
-						__( 'MySQL %s no longer receives security patches. Known CVEs will remain permanently unpatched.', 'shieldscope-site-security-scanner' ),
-						$ver
-					),
-					__( 'Upgrade to MySQL 8.0 or 8.4 LTS. Contact your hosting provider.', 'shieldscope-site-security-scanner' ),
-					'database',
-					array( 'version' => $ver, 'engine' => 'MySQL' )
-				);
-			} else {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_INFO,
-					sprintf(
-						/* translators: %s: MySQL version */
-						__( 'MySQL %s is a supported version', 'shieldscope-site-security-scanner' ),
-						$ver
-					),
-					'',
-					'',
-					'database',
-					array( 'version' => $ver, 'engine' => 'MySQL' )
-				);
-			}
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_HIGH,
+				sprintf(
+					/* translators: %s: database engine (MySQL or MariaDB) */
+					__( '%s version is end-of-life', 'shieldscope-site-security-scanner' ),
+					$engine
+				),
+				$description,
+				$is_mariadb
+					? __( 'Upgrade to a supported MariaDB long-term release such as 10.11 or 11.4. Contact your hosting provider or upgrade via your database control panel.', 'shieldscope-site-security-scanner' )
+					: __( 'Upgrade to a supported MySQL LTS release such as 8.4. Contact your hosting provider.', 'shieldscope-site-security-scanner' ),
+				'database',
+				$context
+			);
+			return;
 		}
+
+		if ( ShieldScope_EOL_Data::STATUS_SUPPORTED === $eol['status'] ) {
+			$description = null !== $eol['eol_date']
+				? sprintf(
+					/* translators: 1: end-of-life date, 2: date the end-of-life data was last reviewed */
+					__( 'Security support until %1$s (end-of-life data last reviewed %2$s).', 'shieldscope-site-security-scanner' ),
+					ShieldScope_EOL_Data::format_date( $eol['eol_date'] ),
+					ShieldScope_EOL_Data::format_date( ShieldScope_EOL_Data::LAST_REVIEWED )
+				)
+				: sprintf(
+					/* translators: %s: date the end-of-life data was last reviewed */
+					__( 'Supported, with no end-of-life date announced (end-of-life data last reviewed %s).', 'shieldscope-site-security-scanner' ),
+					ShieldScope_EOL_Data::format_date( ShieldScope_EOL_Data::LAST_REVIEWED )
+				);
+
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_INFO,
+				sprintf(
+					/* translators: 1: database engine (MySQL or MariaDB), 2: version */
+					__( '%1$s %2$s is a supported version', 'shieldscope-site-security-scanner' ),
+					$engine,
+					$ver
+				),
+				$description,
+				'',
+				'database',
+				$context
+			);
+			return;
+		}
+
+		$this->finding(
+			ShieldScope_Logger::SEVERITY_INFO,
+			sprintf(
+				/* translators: 1: database engine (MySQL or MariaDB), 2: version */
+				__( '%1$s %2$s support status could not be determined', 'shieldscope-site-security-scanner' ),
+				$engine,
+				$ver
+			),
+			sprintf(
+				/* translators: 1: version, 2: date the end-of-life data was last reviewed */
+				__( 'Version %1$s is not in ShieldScope\'s end-of-life table (last reviewed %2$s). Check the vendor\'s lifecycle page to confirm it still receives security patches.', 'shieldscope-site-security-scanner' ),
+				$ver,
+				ShieldScope_EOL_Data::format_date( ShieldScope_EOL_Data::LAST_REVIEWED )
+			),
+			'',
+			'database',
+			$context
+		);
 	}
 
 	/**
@@ -169,25 +172,34 @@ class ShieldScope_Check_Components extends ShieldScope_Check_Base {
 	private function check_wp_vuln_ranges() {
 		global $wp_version;
 
-		$version_float = (float) $wp_version;
+		$eol = ShieldScope_EOL_Data::lookup( 'wordpress', $wp_version );
 
-		if ( $version_float < 4.7 ) {
+		if ( ShieldScope_EOL_Data::STATUS_EOL === $eol['status'] ) {
+			$no_updates = null !== $eol['eol_date']
+				? sprintf(
+					/* translators: 1: WordPress version, 2: date security backports ended */
+					__( 'WordPress %1$s no longer receives security updates: the WordPress Security Team stopped backporting fixes to this branch on %2$s.', 'shieldscope-site-security-scanner' ),
+					$wp_version,
+					ShieldScope_EOL_Data::format_date( $eol['eol_date'] )
+				)
+				: sprintf(
+					/* translators: %s: WordPress version */
+					__( 'WordPress %s no longer receives security updates.', 'shieldscope-site-security-scanner' ),
+					$wp_version
+				);
+
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_CRITICAL,
 				__( 'WordPress version contains critical publicly-known CVEs', 'shieldscope-site-security-scanner' ),
-				sprintf(
-					/* translators: %s: WordPress version */
-					__( 'WordPress %s is within a version range that includes unauthenticated remote code execution CVEs (e.g. CVE-2017-1000600). These are actively exploited in the wild.', 'shieldscope-site-security-scanner' ),
-					$wp_version
-				),
+				$no_updates . ' ' . __( 'Publicly known vulnerabilities remain unpatched, for example CVE-2017-1000600 (remote code execution by an authenticated user through PHAR deserialisation in thumbnail processing).', 'shieldscope-site-security-scanner' ),
 				__( 'Update WordPress immediately via Dashboard → Updates. Back up your database and files first.', 'shieldscope-site-security-scanner' ),
 				'wordpress-core',
-				array( 'version' => $wp_version )
+				array( 'version' => $wp_version, 'eol_date' => $eol['eol_date'], 'eol_data_reviewed' => ShieldScope_EOL_Data::LAST_REVIEWED )
 			);
 			return;
 		}
 
-		if ( $version_float < 5.0 ) {
+		if ( version_compare( $wp_version, '5.0', '<' ) ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_HIGH,
 				__( 'WordPress version is significantly out of date with known high-severity CVEs', 'shieldscope-site-security-scanner' ),
@@ -202,53 +214,6 @@ class ShieldScope_Check_Components extends ShieldScope_Check_Base {
 			);
 		}
 		// Current update availability is already reported by ShieldScope_Check_Core.
-	}
-
-	/**
-	 * Flag installed plugins that historically have high CVE counts.
-	 *
-	 * This is not about whether they are currently vulnerable — it is a
-	 * signal to watch these plugins extra-carefully and keep them updated.
-	 *
-	 * @return void
-	 */
-	private function check_high_risk_plugins() {
-		$high_cve_history = array(
-			'contact-form-7/wp-contact-form-7.php'                            => 'Contact Form 7',
-			'woocommerce/woocommerce.php'                                      => 'WooCommerce',
-			'wp-fastest-cache/wpFastestCache.php'                             => 'WP Fastest Cache',
-			'duplicator/duplicator.php'                                        => 'Duplicator',
-			'all-in-one-wp-migration/all-in-one-wp-migration.php'             => 'All-in-One WP Migration',
-			'wp-file-manager/file_folder_manager.php'                         => 'File Manager',
-			'essential-addons-for-elementor-lite/essential_adons_elementor.php' => 'Essential Addons for Elementor',
-			'download-manager/download-manager.php'                           => 'WP Download Manager',
-			'newsletter/plugin.php'                                            => 'Newsletter',
-			'ninja-forms/ninja-forms.php'                                     => 'Ninja Forms',
-		);
-
-		$installed = get_plugins();
-		$flagged   = array();
-
-		foreach ( $high_cve_history as $slug => $name ) {
-			if ( isset( $installed[ $slug ] ) ) {
-				$flagged[] = sprintf( '%s v%s', $name, $installed[ $slug ]['Version'] );
-			}
-		}
-
-		if ( ! empty( $flagged ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_MEDIUM,
-				__( 'Plugins with high historical CVE count detected', 'shieldscope-site-security-scanner' ),
-				sprintf(
-					/* translators: %s: comma-separated list of plugin names and versions */
-					__( 'The following installed plugins have historically had critical security vulnerabilities and are common attack targets: %s. Keeping them updated and monitoring security advisories is essential.', 'shieldscope-site-security-scanner' ),
-					implode( ', ', $flagged )
-				),
-				__( 'Ensure these plugins are fully updated. Subscribe to WPScan (wpscan.com) or Patchstack advisories to receive early notification of new CVEs.', 'shieldscope-site-security-scanner' ),
-				'',
-				array( 'plugins' => $flagged )
-			);
-		}
 	}
 
 	/**
@@ -293,7 +258,7 @@ class ShieldScope_Check_Components extends ShieldScope_Check_Base {
 				__( 'Add a permanent HTTP-to-HTTPS redirect in your webserver config (.htaccess RewriteRule for Apache, return 301 for Nginx). This is separate from FORCE_SSL_ADMIN.', 'shieldscope-site-security-scanner' ),
 				$http_url
 			);
-		} elseif ( 301 !== $code ) {
+		} elseif ( ! in_array( $code, array( 301, 308 ), true ) ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_LOW,
 				__( 'HTTP-to-HTTPS redirect uses a non-permanent status code', 'shieldscope-site-security-scanner' ),

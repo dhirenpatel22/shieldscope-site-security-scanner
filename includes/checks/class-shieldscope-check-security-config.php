@@ -70,78 +70,66 @@ class ShieldScope_Check_Security_Config extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * PHP version end-of-life check.
-	 *
-	 * EOL dates: 7.x and below — EOL. 8.0 — Nov 2023. 8.1 — Dec 2024.
-	 * 8.2 — Dec 2025. 8.3 — Dec 2026 (active). 8.4 — Dec 2027 (current).
+	 * PHP version end-of-life check, driven by ShieldScope_EOL_Data.
 	 *
 	 * @return void
 	 */
 	private function check_php_version() {
-		$version = PHP_VERSION;
-		$major   = PHP_MAJOR_VERSION;
-		$minor   = PHP_MINOR_VERSION;
+		$version  = PHP_VERSION;
+		$eol      = ShieldScope_EOL_Data::lookup( 'php', $version );
+		$reviewed = ShieldScope_EOL_Data::format_date( ShieldScope_EOL_Data::LAST_REVIEWED );
+		$context  = array( 'php_version' => $version, 'eol_date' => $eol['eol_date'], 'eol_data_reviewed' => ShieldScope_EOL_Data::LAST_REVIEWED );
 
-		if ( $major < 8 ) {
+		if ( ShieldScope_EOL_Data::STATUS_EOL === $eol['status'] ) {
+			$context['minimum_recommended'] = '8.3';
+			$eol_date                       = null !== $eol['eol_date'] ? ShieldScope_EOL_Data::format_date( $eol['eol_date'] ) : '';
+
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
-				__( 'PHP version is end-of-life and receives no security updates', 'shieldscope-site-security-scanner' ),
-				sprintf(
-					/* translators: %s: PHP version string */
-					__( 'PHP %s no longer receives security patches. Known vulnerabilities in this version will never be fixed.', 'shieldscope-site-security-scanner' ),
-					$version
-				),
-				__( 'Upgrade to PHP 8.3 via your hosting control panel — look for "PHP Version" or "PHP Selector" under Software or Domain settings (cPanel, Plesk, or your managed host\'s dashboard). Always test on a staging copy first to check plugin compatibility.', 'shieldscope-site-security-scanner' ),
+				version_compare( $version, '8.0', '<' ) ? ShieldScope_Logger::SEVERITY_CRITICAL : ShieldScope_Logger::SEVERITY_HIGH,
+				'' !== $eol_date
+					? sprintf(
+						/* translators: 1: PHP branch, e.g. 8.1, 2: end-of-life date */
+						__( 'PHP %1$s is end-of-life (since %2$s)', 'shieldscope-site-security-scanner' ),
+						$eol['branch'],
+						$eol_date
+					)
+					: __( 'PHP version is end-of-life and receives no security updates', 'shieldscope-site-security-scanner' ),
+				'' !== $eol_date
+					? sprintf(
+						/* translators: 1: PHP version string, 2: end-of-life date */
+						__( 'PHP %1$s reached end-of-life on %2$s and no longer receives security patches. Known vulnerabilities in this version will never be fixed.', 'shieldscope-site-security-scanner' ),
+						$version,
+						$eol_date
+					)
+					: sprintf(
+						/* translators: %s: PHP version string */
+						__( 'PHP %s no longer receives security patches. Known vulnerabilities in this version will never be fixed.', 'shieldscope-site-security-scanner' ),
+						$version
+					),
+				__( 'Upgrade to PHP 8.3 or later via your hosting control panel — look for "PHP Version" or "PHP Selector" under Software or Domain settings (cPanel, Plesk, or your managed host\'s dashboard). Always test on a staging copy first to check plugin compatibility.', 'shieldscope-site-security-scanner' ),
 				'php.ini',
-				array( 'php_version' => $version, 'minimum_recommended' => '8.3' )
+				$context
 			);
 			return;
 		}
 
-		if ( 8 === $major && 0 === $minor ) {
+		if ( ShieldScope_EOL_Data::STATUS_SUPPORTED === $eol['status'] && null !== $eol['eol_date'] ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
-				__( 'PHP 8.0 is end-of-life (EOL November 2023)', 'shieldscope-site-security-scanner' ),
+				ShieldScope_Logger::SEVERITY_INFO,
 				sprintf(
 					/* translators: %s: PHP version string */
-					__( 'PHP %s reached end-of-life in November 2023 and no longer receives security patches.', 'shieldscope-site-security-scanner' ),
+					__( 'PHP %s is a currently supported version', 'shieldscope-site-security-scanner' ),
 					$version
 				),
-				__( 'Upgrade to PHP 8.3 via your hosting control panel — look for "PHP Version" or "PHP Selector" under Software settings (cPanel/Plesk). Test on a staging copy first to check plugin compatibility.', 'shieldscope-site-security-scanner' ),
-				'php.ini',
-				array( 'php_version' => $version )
-			);
-			return;
-		}
-
-		if ( 8 === $major && 1 === $minor ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_MEDIUM,
-				__( 'PHP 8.1 is end-of-life (EOL December 2024)', 'shieldscope-site-security-scanner' ),
 				sprintf(
-					/* translators: %s: PHP version string */
-					__( 'PHP %s reached end-of-life in December 2024. No further security updates are available.', 'shieldscope-site-security-scanner' ),
-					$version
+					/* translators: 1: end-of-life date, 2: date the end-of-life data was last reviewed */
+					__( 'Security support until %1$s (end-of-life data last reviewed %2$s).', 'shieldscope-site-security-scanner' ),
+					ShieldScope_EOL_Data::format_date( $eol['eol_date'] ),
+					$reviewed
 				),
-				__( 'Upgrade to PHP 8.3 via your hosting control panel — look for "PHP Version" or "PHP Selector" under Software settings (cPanel/Plesk). Test on a staging copy first to check plugin compatibility.', 'shieldscope-site-security-scanner' ),
+				'',
 				'php.ini',
-				array( 'php_version' => $version )
-			);
-			return;
-		}
-
-		if ( 8 === $major && 2 === $minor ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_LOW,
-				__( 'PHP 8.2 is end-of-life (EOL December 2025)', 'shieldscope-site-security-scanner' ),
-				sprintf(
-					/* translators: %s: PHP version string */
-					__( 'PHP %s reached end-of-life in December 2025. No further security updates are available.', 'shieldscope-site-security-scanner' ),
-					$version
-				),
-				__( 'Upgrade to PHP 8.3 or later.', 'shieldscope-site-security-scanner' ),
-				'php.ini',
-				array( 'php_version' => $version )
+				$context
 			);
 			return;
 		}
@@ -150,13 +138,18 @@ class ShieldScope_Check_Security_Config extends ShieldScope_Check_Base {
 			ShieldScope_Logger::SEVERITY_INFO,
 			sprintf(
 				/* translators: %s: PHP version string */
-				__( 'PHP %s is a currently supported version', 'shieldscope-site-security-scanner' ),
+				__( 'PHP %s support status could not be determined', 'shieldscope-site-security-scanner' ),
 				$version
 			),
-			'',
+			sprintf(
+				/* translators: 1: PHP version string, 2: date the end-of-life data was last reviewed */
+				__( 'Version %1$s is not in ShieldScope\'s end-of-life table (last reviewed %2$s). Check php.net/supported-versions.php to confirm it still receives security patches.', 'shieldscope-site-security-scanner' ),
+				$version,
+				$reviewed
+			),
 			'',
 			'php.ini',
-			array( 'php_version' => $version )
+			$context
 		);
 	}
 
@@ -314,15 +307,7 @@ class ShieldScope_Check_Security_Config extends ShieldScope_Check_Base {
 	private function check_cookie_security() {
 		$is_https = ( 0 === stripos( get_site_url(), 'https://' ) );
 
-		if ( $is_https && ( ! defined( 'FORCE_SSL_ADMIN' ) || ! FORCE_SSL_ADMIN ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_MEDIUM,
-				__( 'FORCE_SSL_ADMIN not set — auth cookies may lack the Secure flag', 'shieldscope-site-security-scanner' ),
-				__( 'Without FORCE_SSL_ADMIN, WordPress may issue authentication cookies without the Secure attribute, allowing them to be transmitted over HTTP and intercepted by a network attacker.', 'shieldscope-site-security-scanner' ),
-				__( "Add define( 'FORCE_SSL_ADMIN', true ); to wp-config.php.", 'shieldscope-site-security-scanner' ),
-				'wp-config.php'
-			);
-		}
+		// FORCE_SSL_ADMIN is reported once, by ShieldScope_Check_Core.
 
 		// COOKIE_DOMAIN = '' disables domain scoping — only flag if explicitly set to empty.
 		if ( defined( 'COOKIE_DOMAIN' ) && '' === COOKIE_DOMAIN ) {
