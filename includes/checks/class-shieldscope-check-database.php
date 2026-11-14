@@ -102,9 +102,9 @@ class ShieldScope_Check_Database extends ShieldScope_Check_Base {
 		// Admins registerable to anyone is risky.
 		if ( get_option( 'users_can_register' ) && 'administrator' === get_option( 'default_role' ) ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
+				ShieldScope_Logger::SEVERITY_HIGH,
 				__( 'Open registration with administrator default role', 'shieldscope-site-security-scanner' ),
-				__( 'Anyone can register and is automatically granted administrator. This is almost certainly a compromise.', 'shieldscope-site-security-scanner' ),
+				__( 'Anyone can register and is automatically granted administrator. WordPress does not ship with this setting, so it is a common sign of compromise.', 'shieldscope-site-security-scanner' ),
 				__( 'Go to Settings → General and either disable "Anyone can register" or change the default role from Administrator to Subscriber. Then go to Users → All Users, filter by Administrator, and delete any accounts you do not recognise.', 'shieldscope-site-security-scanner' )
 			);
 		}
@@ -117,11 +117,11 @@ class ShieldScope_Check_Database extends ShieldScope_Check_Base {
 			$home_host = wp_parse_url( $home, PHP_URL_HOST );
 			if ( $site_host && $home_host && $site_host !== $home_host ) {
 				$this->finding(
-					ShieldScope_Logger::SEVERITY_HIGH,
+					ShieldScope_Logger::SEVERITY_MEDIUM,
 					__( 'siteurl and home point to different domains', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: 1: siteurl, 2: home */
-						__( 'siteurl (%1$s) and home (%2$s) resolve to different hosts. Malware often sets one of these to an attacker-controlled domain.', 'shieldscope-site-security-scanner' ),
+						__( 'siteurl (%1$s) and home (%2$s) resolve to different hosts. Some sites are set up this way on purpose, but a changed value can also be a sign of compromise.', 'shieldscope-site-security-scanner' ),
 						$site_url,
 						$home
 					),

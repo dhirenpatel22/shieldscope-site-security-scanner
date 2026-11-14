@@ -98,7 +98,7 @@ class ShieldScope_Check_Core extends ShieldScope_Check_Base {
 			foreach ( $update->updates as $u ) {
 				if ( isset( $u->response ) && 'upgrade' === $u->response ) {
 					$this->finding(
-						ShieldScope_Logger::SEVERITY_HIGH,
+						ShieldScope_Logger::SEVERITY_MEDIUM,
 						__( 'WordPress core is out of date', 'shieldscope-site-security-scanner' ),
 						sprintf(
 							/* translators: 1: current version, 2: new version */
@@ -106,7 +106,7 @@ class ShieldScope_Check_Core extends ShieldScope_Check_Base {
 							$wp_version,
 							isset( $u->current ) ? $u->current : 'latest'
 						),
-						__( 'Back up your site first (use your host\'s backup tool or export a database dump), then go to Dashboard → Updates and click "Update Now". Core updates are safe and usually take under 2 minutes.', 'shieldscope-site-security-scanner' ),
+						__( 'Back up your site first (use your host\'s backup tool or export a database dump), then go to Dashboard → Updates and click "Update Now".', 'shieldscope-site-security-scanner' ),
 						'wordpress-core'
 					);
 					return;
@@ -133,7 +133,7 @@ class ShieldScope_Check_Core extends ShieldScope_Check_Base {
 	private function check_constants() {
 		if ( ! defined( 'DISALLOW_FILE_EDIT' ) || ! DISALLOW_FILE_EDIT ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_MEDIUM,
+				ShieldScope_Logger::SEVERITY_LOW,
 				__( 'Theme/plugin file editor is enabled', 'shieldscope-site-security-scanner' ),
 				__( 'The built-in editor lets administrators run arbitrary PHP from the dashboard. If an admin account is compromised, the entire site can be backdoored.', 'shieldscope-site-security-scanner' ),
 				__( "Add to wp-config.php: define('DISALLOW_FILE_EDIT', true);", 'shieldscope-site-security-scanner' ),
@@ -143,20 +143,10 @@ class ShieldScope_Check_Core extends ShieldScope_Check_Base {
 
 		if ( ! defined( 'DISALLOW_FILE_MODS' ) || ! DISALLOW_FILE_MODS ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_LOW,
+				ShieldScope_Logger::SEVERITY_INFO,
 				__( 'File modifications from the dashboard are allowed', 'shieldscope-site-security-scanner' ),
 				__( 'DISALLOW_FILE_MODS is not set. Consider disabling plugin/theme installation and updates via the dashboard in strict environments.', 'shieldscope-site-security-scanner' ),
 				__( "Add to wp-config.php: define('DISALLOW_FILE_MODS', true); — note this also blocks automatic updates.", 'shieldscope-site-security-scanner' ),
-				'wp-config.php'
-			);
-		}
-
-		if ( ! defined( 'FORCE_SSL_ADMIN' ) || ! FORCE_SSL_ADMIN ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_MEDIUM,
-				__( 'FORCE_SSL_ADMIN is not enabled', 'shieldscope-site-security-scanner' ),
-				__( 'Admin logins and cookies can be sent over HTTP without this constant.', 'shieldscope-site-security-scanner' ),
-				__( "Add to wp-config.php: define('FORCE_SSL_ADMIN', true);", 'shieldscope-site-security-scanner' ),
 				'wp-config.php'
 			);
 		}
@@ -188,26 +178,40 @@ class ShieldScope_Check_Core extends ShieldScope_Check_Base {
 			'NONCE_SALT',
 		);
 
-		$bad = array();
+		$fallback = array();
+		$short    = array();
 		foreach ( $keys as $k ) {
 			if ( ! defined( $k ) ) {
-				$bad[] = $k . ' (missing)';
+				$fallback[] = $k . ' (missing)';
 				continue;
 			}
-			$v = constant( $k );
-			if ( ! is_string( $v ) || strlen( $v ) < 40 || false !== stripos( $v, 'put your unique phrase here' ) ) {
-				$bad[] = $k . ' (weak/placeholder)';
+			$v = (string) constant( $k );
+			if ( '' === $v || 'put your unique phrase here' === $v ) {
+				$fallback[] = $k . ' (placeholder)';
+			} elseif ( strlen( $v ) < 40 ) {
+				$short[] = $k . ' (short)';
 			}
 		}
 
-		if ( $bad ) {
+		if ( $short ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
-				__( 'Weak or missing authentication salts', 'shieldscope-site-security-scanner' ),
-				__( 'One or more AUTH/NONCE keys in wp-config.php are missing, short, or still set to their placeholder value. An attacker who learns a weak salt may forge cookies.', 'shieldscope-site-security-scanner' ),
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'Short authentication keys or salts', 'shieldscope-site-security-scanner' ),
+				__( 'One or more AUTH/NONCE keys or salts in wp-config.php are shorter than 40 characters. WordPress uses these values as they are to sign login cookies and nonces, so short values are easier to guess.', 'shieldscope-site-security-scanner' ),
 				__( 'Visit https://api.wordpress.org/secret-key/1.1/salt/ to generate 8 fresh random keys, then replace all AUTH_KEY / SALT lines in wp-config.php with the generated block. All active sessions will be logged out — this is expected and safe.', 'shieldscope-site-security-scanner' ),
 				'wp-config.php',
-				array( 'failed_keys' => $bad )
+				array( 'failed_keys' => $short )
+			);
+		}
+
+		if ( $fallback ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_LOW,
+				__( 'Authentication keys or salts not set in wp-config.php', 'shieldscope-site-security-scanner' ),
+				__( 'One or more AUTH/NONCE keys or salts are missing or still the placeholder. WordPress then generates random values and stores them in the database, so login cookies stay protected, but anyone who can read the database (for example from a leaked backup) also gets these values.', 'shieldscope-site-security-scanner' ),
+				__( 'Visit https://api.wordpress.org/secret-key/1.1/salt/ to generate 8 fresh random keys, then replace all AUTH_KEY / SALT lines in wp-config.php with the generated block. All active sessions will be logged out — this is expected and safe.', 'shieldscope-site-security-scanner' ),
+				'wp-config.php',
+				array( 'failed_keys' => $fallback )
 			);
 		}
 	}
@@ -222,7 +226,7 @@ class ShieldScope_Check_Core extends ShieldScope_Check_Base {
 			$display = defined( 'WP_DEBUG_DISPLAY' ) ? WP_DEBUG_DISPLAY : true;
 			if ( $display ) {
 				$this->finding(
-					ShieldScope_Logger::SEVERITY_HIGH,
+					ShieldScope_Logger::SEVERITY_MEDIUM,
 					__( 'WP_DEBUG is enabled and errors are displayed', 'shieldscope-site-security-scanner' ),
 					__( 'Error messages leak path and software version information to visitors and attackers.', 'shieldscope-site-security-scanner' ),
 					__( 'In production, set WP_DEBUG to false, or at minimum set WP_DEBUG_DISPLAY to false and log to a file with WP_DEBUG_LOG.', 'shieldscope-site-security-scanner' ),
@@ -248,10 +252,10 @@ class ShieldScope_Check_Core extends ShieldScope_Check_Base {
 		global $wpdb;
 		if ( 'wp_' === $wpdb->prefix ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_LOW,
+				ShieldScope_Logger::SEVERITY_INFO,
 				__( "Default database prefix 'wp_' in use", 'shieldscope-site-security-scanner' ),
-				__( 'Using the default prefix is not itself a vulnerability, but can make blind SQL injection exploitation marginally easier.', 'shieldscope-site-security-scanner' ),
-				__( 'Low priority — only attempt with a full database backup. Rename all tables to a custom prefix via your host\'s phpMyAdmin or database tool, then update $table_prefix in wp-config.php to match. Do not attempt manual SQL renaming without a current backup.', 'shieldscope-site-security-scanner' )
+				__( 'The default prefix is not a vulnerability, and changing it gives little protection against SQL injection.', 'shieldscope-site-security-scanner' ),
+				__( 'No action needed. Renaming the tables of an existing site is risky; if you do it, take a full database backup first and update $table_prefix in wp-config.php to match.', 'shieldscope-site-security-scanner' )
 			);
 		}
 	}
@@ -282,10 +286,10 @@ class ShieldScope_Check_Core extends ShieldScope_Check_Base {
 	private function check_xmlrpc() {
 		if ( apply_filters( 'xmlrpc_enabled', true ) ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- reading WP core filter
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_MEDIUM,
+				ShieldScope_Logger::SEVERITY_LOW,
 				__( 'XML-RPC is enabled', 'shieldscope-site-security-scanner' ),
 				__( 'XML-RPC is commonly abused for password brute-force (system.multicall) and pingback-based DDoS. If you do not use Jetpack, the mobile app, or XML-RPC-based clients, disable it.', 'shieldscope-site-security-scanner' ),
-				__( 'Add to your theme\'s functions.php or a must-use plugin: add_filter(\'xmlrpc_enabled\', \'__return_false\'); Or block it at the webserver level: Apache .htaccess — <Files xmlrpc.php> deny from all </Files>. Skip this if you use Jetpack or the WordPress mobile app.', 'shieldscope-site-security-scanner' ),
+				__( 'Add to your theme\'s functions.php or a must-use plugin: add_filter(\'xmlrpc_enabled\', \'__return_false\'); Or block it at the webserver level: Apache 2.4 .htaccess — <Files xmlrpc.php> Require all denied </Files>. Skip this if you use Jetpack or the WordPress mobile app.', 'shieldscope-site-security-scanner' ),
 				'/xmlrpc.php'
 			);
 		}
@@ -317,7 +321,7 @@ class ShieldScope_Check_Core extends ShieldScope_Check_Base {
 			$decoded = json_decode( $body, true );
 			if ( is_array( $decoded ) && ! empty( $decoded ) ) {
 				$this->finding(
-					ShieldScope_Logger::SEVERITY_MEDIUM,
+					ShieldScope_Logger::SEVERITY_LOW,
 					__( 'REST API exposes user list to unauthenticated requests', 'shieldscope-site-security-scanner' ),
 					__( 'GET /wp/v2/users returns usernames without authentication, aiding targeted brute-force attempts.', 'shieldscope-site-security-scanner' ),
 					__( 'Block the endpoint in functions.php or a must-use plugin: add_filter(\'rest_endpoints\', function($e){ if(!is_user_logged_in()){ unset($e[\'/wp/v2/users\']); unset($e[\'/wp/v2/users/(?P<id>[\\d]+)\']); } return $e; });', 'shieldscope-site-security-scanner' ),
