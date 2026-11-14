@@ -25,7 +25,7 @@ Every finding gets one severity from this table. Rate what the scan actually obs
 | X-Frame-Options, Content-Security-Policy, HSTS missing | Medium | Low (HSTS only checked when the home URL is HTTPS; browsers ignore it over HTTP) |
 | X-XSS-Protection missing | Low, advised `1; mode=block` | No finding. Low only when the header enables the legacy filter; advice: send `0` or omit it |
 | No login-throttling plugin (config) | Medium | Removed; brute-force protection is checked by the access-control check only |
-| `FORCE_SSL_ADMIN` not set (core) | Medium | Removed; reported by the security-config check on HTTPS sites only |
+| `FORCE_SSL_ADMIN` not set (core) | Medium | Low; reported once, by the core check, on HTTPS sites only |
 | WordPress core update available | High | Medium |
 | Theme update available | High | Medium |
 | File editor enabled | Medium | Low |
