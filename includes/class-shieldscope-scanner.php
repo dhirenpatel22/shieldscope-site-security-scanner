@@ -27,6 +27,16 @@ class ShieldScope_Scanner {
 	const STATUS_ABORTED   = 'aborted';
 
 	/**
+	 * Option row used as a mutex so only one tick works on a scan at a time.
+	 */
+	const LOCK_OPTION = 'shieldscope_tick_lock';
+
+	/**
+	 * Seconds after which a lock left by a killed request is taken over.
+	 */
+	const LOCK_TIMEOUT = 60;
+
+	/**
 	 * Logger.
 	 *
 	 * @var ShieldScope_Logger
@@ -39,6 +49,13 @@ class ShieldScope_Scanner {
 	 * @var ShieldScope_Throttle
 	 */
 	private $throttle;
+
+	/**
+	 * Value of the lock row while this instance holds it.
+	 *
+	 * @var string
+	 */
+	private $lock_token = '';
 
 	/**
 	 * Constructor.
@@ -104,6 +121,65 @@ class ShieldScope_Scanner {
 			$state = array();
 		}
 		return array_merge( $default, $state );
+	}
+
+	/**
+	 * Retrieve the state straight from the database, bypassing the request's
+	 * option cache, so changes made by other requests (Pause, Abort, a new
+	 * scan) are seen.
+	 *
+	 * @return array
+	 */
+	private function get_fresh_state() {
+		wp_cache_delete( self::STATE_OPTION, 'options' );
+		return $this->get_state();
+	}
+
+	/**
+	 * Take the tick lock. The INSERT IGNORE is atomic, unlike add_option(),
+	 * which upserts; this is the pattern WP_Upgrader::create_lock() uses.
+	 *
+	 * @return bool True when this instance now holds the lock.
+	 */
+	private function acquire_lock() {
+		global $wpdb;
+
+		$token = time() . ':' . wp_generate_password( 12, false, false );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- atomic lock row; the options API cannot do this.
+		$created = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO `{$wpdb->options}` ( `option_name`, `option_value`, `autoload` ) VALUES ( %s, %s, 'no' )", self::LOCK_OPTION, $token ) );
+		if ( ! $created ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- must read the current row, not the cache.
+			$held = (string) $wpdb->get_var( $wpdb->prepare( "SELECT `option_value` FROM `{$wpdb->options}` WHERE `option_name` = %s", self::LOCK_OPTION ) );
+			if ( (int) $held > time() - self::LOCK_TIMEOUT ) {
+				return false;
+			}
+			// Expired: take it over only if nobody else did first.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- compare-and-set on the lock row.
+			$created = $wpdb->query( $wpdb->prepare( "UPDATE `{$wpdb->options}` SET `option_value` = %s WHERE `option_name` = %s AND `option_value` = %s", $token, self::LOCK_OPTION, $held ) );
+			if ( ! $created ) {
+				return false;
+			}
+		}
+
+		$this->lock_token = $token;
+		return true;
+	}
+
+	/**
+	 * Release the tick lock if this instance still holds it.
+	 *
+	 * @return void
+	 */
+	private function release_lock() {
+		global $wpdb;
+
+		if ( '' === $this->lock_token ) {
+			return;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- delete only our own lock row.
+		$wpdb->query( $wpdb->prepare( "DELETE FROM `{$wpdb->options}` WHERE `option_name` = %s AND `option_value` = %s", self::LOCK_OPTION, $this->lock_token ) );
+		$this->lock_token = '';
 	}
 
 	/**
@@ -190,7 +266,7 @@ class ShieldScope_Scanner {
 	}
 
 	/**
-	 * Abort a scan entirely.
+	 * Abort a scan entirely and discard its partial findings.
 	 *
 	 * @return array
 	 */
@@ -200,6 +276,7 @@ class ShieldScope_Scanner {
 			$state['status']       = self::STATUS_ABORTED;
 			$state['last_message'] = __( 'Scan aborted by user.', 'shieldscope-site-security-scanner' );
 			$this->save_state( $state );
+			$this->logger->clear_scan( $state['scan_id'] );
 		}
 		return $state;
 	}
@@ -207,11 +284,45 @@ class ShieldScope_Scanner {
 	/**
 	 * Run a single chunk of work and return updated state.
 	 *
+	 * Only one chunk runs at a time; an overlapping call returns the current
+	 * state with 'busy' => true and does no work.
+	 *
 	 * @param bool $from_cron True when invoked from wp-cron.
 	 * @return array
 	 */
 	public function run_chunk( $from_cron = false ) {
-		$state = $this->get_state();
+		$state = $this->get_fresh_state();
+		if ( self::STATUS_RUNNING !== $state['status'] ) {
+			return $state;
+		}
+
+		if ( ! $this->acquire_lock() ) {
+			$state         = $this->get_fresh_state();
+			$state['busy'] = true;
+			return $state;
+		}
+
+		try {
+			$state = $this->run_locked_chunk();
+		} finally {
+			$this->release_lock();
+		}
+
+		// If we were called from cron and the scan is still running, re-schedule.
+		if ( $from_cron && self::STATUS_RUNNING === $state['status'] && ! wp_next_scheduled( 'shieldscope_run_scan_chunk' ) ) {
+			wp_schedule_single_event( time() + 10, 'shieldscope_run_scan_chunk' );
+		}
+
+		return $state;
+	}
+
+	/**
+	 * Body of run_chunk(), called while holding the tick lock.
+	 *
+	 * @return array
+	 */
+	private function run_locked_chunk() {
+		$state = $this->get_fresh_state();
 
 		if ( self::STATUS_RUNNING !== $state['status'] ) {
 			return $state;
@@ -278,13 +389,28 @@ class ShieldScope_Scanner {
 			// Throttle proportional to work just done.
 			$this->throttle->throttle( $elapsed );
 
-			// Re-read status in case UI paused us mid-chunk.
-			$fresh = $this->get_state();
-			if ( self::STATUS_RUNNING !== $fresh['status'] ) {
-				// Preserve counters we advanced — merge current iteration state back in.
-				$state['status'] = $fresh['status'];
+			// Stop early if the UI paused, aborted or restarted the scan mid-chunk.
+			$fresh = $this->get_fresh_state();
+			if ( self::STATUS_RUNNING !== $fresh['status'] || $fresh['scan_id'] !== $state['scan_id'] ) {
 				break;
 			}
+		}
+
+		// Re-read right before saving so this chunk never overwrites a status
+		// set by another request while it was working.
+		$fresh = $this->get_fresh_state();
+		if ( $fresh['scan_id'] !== $state['scan_id'] || self::STATUS_ABORTED === $fresh['status'] ) {
+			// Scan aborted or replaced: drop this chunk and the findings it
+			// recorded after the abort or restart cleared the others.
+			$this->logger->clear_scan( $state['scan_id'] );
+			return $fresh;
+		}
+		if ( self::STATUS_PAUSED === $fresh['status'] ) {
+			// Keep the progress, but stay paused.
+			$state['status']       = self::STATUS_PAUSED;
+			$state['last_message'] = $fresh['last_message'];
+		} elseif ( self::STATUS_RUNNING !== $fresh['status'] ) {
+			return $fresh;
 		}
 
 		// Done?
@@ -297,11 +423,6 @@ class ShieldScope_Scanner {
 		}
 
 		$this->save_state( $state );
-
-		// If we were called from cron and the scan is still running, re-schedule.
-		if ( $from_cron && self::STATUS_RUNNING === $state['status'] && ! wp_next_scheduled( 'shieldscope_run_scan_chunk' ) ) {
-			wp_schedule_single_event( time() + 10, 'shieldscope_run_scan_chunk' );
-		}
 
 		return $state;
 	}
