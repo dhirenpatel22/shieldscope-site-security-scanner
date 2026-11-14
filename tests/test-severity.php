@@ -9,7 +9,8 @@
  * - X-XSS-Protection advice said "1; mode=block"; OWASP says send 0 or omit it.
  * - The asset-version advice pasted a callback that does not exist (fatal).
  * - Brute-force throttling was checked here and in access-control.
- * - FORCE_SSL_ADMIN was reported here and in security-config.
+ * - FORCE_SSL_ADMIN was reported twice, then by neither check after A-05;
+ *   it is now reported once, by the core check, on HTTPS sites only.
  * - Placeholder salts were Critical, although WordPress then uses random
  *   salts stored in the database.
  *
@@ -17,79 +18,6 @@
  */
 
 use PHPUnit\Framework\TestCase;
-
-// ---------------------------------------------------------------------------
-// Stubs this test needs that tests/wp-stubs.php does not provide.
-// ---------------------------------------------------------------------------
-
-if ( ! function_exists( 'home_url' ) ) {
-	function home_url( $path = '' ) {
-		return rtrim( $GLOBALS['ss_a09_home'], '/' ) . '/' . ltrim( (string) $path, '/' );
-	}
-}
-if ( ! function_exists( 'get_home_url' ) ) {
-	function get_home_url() {
-		return $GLOBALS['ss_a09_home'];
-	}
-}
-if ( ! function_exists( 'get_site_url' ) ) {
-	function get_site_url() {
-		return $GLOBALS['ss_a09_home'];
-	}
-}
-if ( ! function_exists( 'rest_url' ) ) {
-	function rest_url( $path = '' ) {
-		return rtrim( $GLOBALS['ss_a09_home'], '/' ) . '/wp-json/' . ltrim( (string) $path, '/' );
-	}
-}
-if ( ! function_exists( 'get_feed_link' ) ) {
-	function get_feed_link( $feed = '' ) {
-		return rtrim( $GLOBALS['ss_a09_home'], '/' ) . '/feed/';
-	}
-}
-if ( ! function_exists( 'wp_remote_retrieve_headers' ) ) {
-	function wp_remote_retrieve_headers( $response ) {
-		return isset( $response['headers'] ) ? $response['headers'] : array();
-	}
-}
-if ( ! function_exists( 'get_site_transient' ) ) {
-	function get_site_transient( $name ) {
-		return isset( $GLOBALS['ss_a09_site_transients'][ $name ] ) ? $GLOBALS['ss_a09_site_transients'][ $name ] : false;
-	}
-}
-if ( ! class_exists( 'SS_A09_Theme' ) ) {
-	class SS_A09_Theme {
-		private $name;
-		public function __construct( $name ) { $this->name = $name; }
-		public function get( $key ) { return 'Name' === $key ? $this->name : ''; }
-	}
-}
-if ( ! function_exists( 'wp_get_theme' ) ) {
-	function wp_get_theme( $slug = '' ) {
-		return new SS_A09_Theme( (string) $slug );
-	}
-}
-if ( ! function_exists( 'wp_get_themes' ) ) {
-	function wp_get_themes() {
-		return isset( $GLOBALS['ss_a09_themes'] ) ? $GLOBALS['ss_a09_themes'] : array();
-	}
-}
-if ( ! function_exists( 'get_stylesheet' ) ) {
-	function get_stylesheet() { return 'active-theme'; }
-}
-if ( ! function_exists( 'get_template' ) ) {
-	function get_template() { return 'active-theme'; }
-}
-if ( ! function_exists( 'get_users' ) ) {
-	function get_users( $args = array() ) {
-		return isset( $GLOBALS['ss_a09_users'] ) ? $GLOBALS['ss_a09_users'] : array();
-	}
-}
-if ( ! function_exists( 'wp_parse_url' ) ) {
-	function wp_parse_url( $url, $component = -1 ) {
-		return parse_url( $url, $component ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
-	}
-}
 
 /**
  * Class Test_Severity
@@ -116,12 +44,8 @@ class Test_Severity extends TestCase {
 
 	protected function setUp(): void {
 		ss_tests_reset_state();
-		$GLOBALS['ss_a09_home']            = 'https://example.test';
-		$GLOBALS['ss_a09_site_transients'] = array();
-		$GLOBALS['ss_a09_themes']          = array();
-		$GLOBALS['ss_a09_users']           = array();
-		$this->saved_wpdb                  = isset( $GLOBALS['wpdb'] ) ? $GLOBALS['wpdb'] : null;
-		$GLOBALS['wpdb']                   = (object) array( 'prefix' => 'wp_' );
+		$this->saved_wpdb = isset( $GLOBALS['wpdb'] ) ? $GLOBALS['wpdb'] : null;
+		$GLOBALS['wpdb']  = (object) array( 'prefix' => 'wp_' );
 	}
 
 	protected function tearDown(): void {
@@ -202,7 +126,12 @@ class Test_Severity extends TestCase {
 	}
 
 	public function test_hsts_not_reported_on_http_only_site() {
-		$GLOBALS['ss_a09_home'] = 'http://example.test';
+		ss_tests_override(
+			'get_site_url',
+			function () {
+				return 'http://example.test';
+			}
+		);
 		$this->serve_home( array() );
 		$findings = $this->run_check( 'ShieldScope_Check_Config', array( 'headers' ) );
 
@@ -287,16 +216,55 @@ class Test_Severity extends TestCase {
 		$this->assertSame( ShieldScope_Logger::SEVERITY_INFO, $findings[0]['severity'] );
 	}
 
-	public function test_core_constants_follow_rubric_and_force_ssl_admin_is_not_duplicated() {
+	public function test_core_constants_follow_rubric() {
 		$findings = $this->run_check( 'ShieldScope_Check_Core', array( 'constants' ) );
 
-		$this->assertNull( $this->find_title( $findings, 'FORCE_SSL_ADMIN' ) );
 		$this->assertSame( ShieldScope_Logger::SEVERITY_LOW, $this->find_title( $findings, 'file editor' )['severity'] );
 		$this->assertSame( ShieldScope_Logger::SEVERITY_INFO, $this->find_title( $findings, 'File modifications' )['severity'] );
 	}
 
+	/**
+	 * FORCE_SSL_ADMIN must be reported exactly once (core check), only on
+	 * HTTPS sites, without claiming cookies lack the Secure flag
+	 * (wp_set_auth_cookie() already uses is_ssl()).
+	 */
+	public function test_force_ssl_admin_reported_once_on_https_site() {
+		$findings = array_merge(
+			$this->run_check( 'ShieldScope_Check_Core', array( 'constants' ) ),
+			$this->run_check( 'ShieldScope_Check_Security_Config', array( 'cookie_security' ) )
+		);
+		$matches  = array_values(
+			array_filter(
+				$findings,
+				function ( $f ) {
+					return false !== strpos( $f['title'], 'FORCE_SSL_ADMIN' );
+				}
+			)
+		);
+
+		$this->assertCount( 1, $matches );
+		$this->assertSame( 'core', $matches[0]['check_id'] );
+		$this->assertSame( ShieldScope_Logger::SEVERITY_LOW, $matches[0]['severity'] );
+		$this->assertStringNotContainsStringIgnoringCase( 'Secure flag', $matches[0]['description'] );
+		$this->assertStringContainsString( "define( 'FORCE_SSL_ADMIN', true );", $matches[0]['recommendation'] );
+	}
+
+	public function test_force_ssl_admin_not_reported_on_http_only_site() {
+		ss_tests_override(
+			'get_site_url',
+			function () {
+				return 'http://example.test';
+			}
+		);
+		$findings = array_merge(
+			$this->run_check( 'ShieldScope_Check_Core', array( 'constants' ) ),
+			$this->run_check( 'ShieldScope_Check_Security_Config', array( 'cookie_security' ) )
+		);
+		$this->assertNull( $this->find_title( $findings, 'FORCE_SSL_ADMIN' ) );
+	}
+
 	public function test_core_update_available_is_medium() {
-		$GLOBALS['ss_a09_site_transients']['update_core'] = (object) array(
+		$GLOBALS['ss_test_site_transients']['update_core'] = (object) array(
 			'updates' => array( (object) array( 'response' => 'upgrade', 'current' => '6.9' ) ),
 		);
 		$findings = $this->run_check( 'ShieldScope_Check_Core', array( 'version' ) );
@@ -348,7 +316,7 @@ class Test_Severity extends TestCase {
 	// -----------------------------------------------------------------------
 
 	public function test_theme_update_available_is_medium() {
-		$GLOBALS['ss_a09_site_transients']['update_themes'] = (object) array(
+		$GLOBALS['ss_test_site_transients']['update_themes'] = (object) array(
 			'response' => array( 'old-theme' => array( 'new_version' => '2.0' ) ),
 		);
 		$findings = $this->run_check( 'ShieldScope_Check_Themes', array( 'updates' ) );
@@ -383,7 +351,7 @@ class Test_Severity extends TestCase {
 		if ( ! defined( 'AUTOMATIC_UPDATER_DISABLED' ) ) {
 			define( 'AUTOMATIC_UPDATER_DISABLED', true );
 		}
-		$GLOBALS['ss_a09_site_transients']['update_core'] = (object) array(
+		$GLOBALS['ss_test_site_transients']['update_core'] = (object) array(
 			'updates' => array( (object) array( 'response' => 'upgrade', 'current' => '6.9' ) ),
 		);
 		$body = '<meta name="generator" content="WordPress 6.8.1" />'

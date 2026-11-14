@@ -18,6 +18,9 @@ $GLOBALS['ss_test_option_cache'] = array(); // Per-request object cache in front
 $GLOBALS['ss_test_transients']   = array();
 $GLOBALS['ss_test_filters']      = array();
 $GLOBALS['ss_test_overrides']    = array(); // callable overrides keyed by function name.
+$GLOBALS['ss_test_site_transients'] = array(); // get_site_transient() store.
+$GLOBALS['ss_test_plugins']         = array(); // get_plugins() result.
+$GLOBALS['ss_test_theme']           = null;    // wp_get_theme() result for the active theme.
 
 /**
  * Reset all stub state between tests.
@@ -28,6 +31,9 @@ function ss_tests_reset_state() {
 	$GLOBALS['ss_test_transients']   = array();
 	$GLOBALS['ss_test_filters']      = array();
 	$GLOBALS['ss_test_overrides']    = array();
+	$GLOBALS['ss_test_site_transients'] = array();
+	$GLOBALS['ss_test_plugins']         = array();
+	$GLOBALS['ss_test_theme']           = null;
 	unset( $_SERVER['SERVER_SOFTWARE'] );
 	$GLOBALS['wp_version'] = '6.8.1';
 }
@@ -214,3 +220,187 @@ function wp_get_upload_dir() {
 }
 function is_admin() { return false; }
 function is_multisite() { return false; }
+
+// ---------------------------------------------------------------------------
+// URLs. One source of truth: override 'get_site_url' (and optionally
+// 'get_home_url') to change the scheme or host for a test.
+// ---------------------------------------------------------------------------
+
+function get_site_url() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_site_url', array() );
+	return $hit ? $result : 'https://example.test';
+}
+function get_home_url() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_home_url', array() );
+	return $hit ? $result : get_site_url();
+}
+function home_url( $path = '' ) {
+	$url = rtrim( get_home_url(), '/' );
+	if ( is_string( $path ) && '' !== $path ) {
+		$url .= '/' . ltrim( $path, '/' );
+	}
+	return $url;
+}
+function rest_url( $path = '' ) {
+	return rtrim( get_home_url(), '/' ) . '/wp-json/' . ltrim( (string) $path, '/' );
+}
+function wp_login_url() { return rtrim( get_site_url(), '/' ) . '/wp-login.php'; }
+function get_feed_link( $feed = '' ) { return home_url( '/feed/' ); }
+function wp_parse_url( $url, $component = -1 ) {
+	return parse_url( $url, $component ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
+}
+
+// ---------------------------------------------------------------------------
+// More HTTP API
+// ---------------------------------------------------------------------------
+
+function wp_remote_post( $url, $args = array() ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_remote_post', array( $url, $args ) );
+	return $hit ? $result : new WP_Error( 'no_network', 'Network disabled in tests' );
+}
+function wp_remote_head( $url, $args = array() ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_remote_head', array( $url, $args ) );
+	return $hit ? $result : new WP_Error( 'no_network', 'Network disabled in tests' );
+}
+function wp_remote_retrieve_header( $response, $header ) {
+	return isset( $response['headers'][ $header ] ) ? $response['headers'][ $header ] : '';
+}
+function wp_remote_retrieve_headers( $response ) {
+	return isset( $response['headers'] ) ? $response['headers'] : array();
+}
+class WP_Http_Cookie {
+	public function __construct( $data = array() ) {}
+}
+
+// ---------------------------------------------------------------------------
+// i18n / output helpers
+// ---------------------------------------------------------------------------
+
+function _n( $single, $plural, $number, $domain = 'default' ) { return 1 === (int) $number ? $single : $plural; } // phpcs:ignore
+function esc_html_e( $text, $domain = 'default' ) { echo $text; } // phpcs:ignore
+function esc_attr_e( $text, $domain = 'default' ) { echo $text; } // phpcs:ignore
+function disabled( $disabled, $current = true, $echo = true ) { // phpcs:ignore
+	$out = ( (string) $disabled === (string) $current ) ? " disabled='disabled'" : '';
+	if ( $echo ) {
+		echo $out; // phpcs:ignore
+	}
+	return $out;
+}
+function wp_date( $format, $timestamp = null, $timezone = null ) {
+	return gmdate( $format, null === $timestamp ? time() : $timestamp );
+}
+function remove_action( $hook, $cb, $prio = 10 ) {
+	if ( empty( $GLOBALS['ss_test_filters'][ $hook ] ) ) {
+		return false;
+	}
+	foreach ( $GLOBALS['ss_test_filters'][ $hook ] as $i => $registered ) {
+		if ( $registered === $cb ) {
+			unset( $GLOBALS['ss_test_filters'][ $hook ][ $i ] );
+			return true;
+		}
+	}
+	return false;
+}
+function wp_list_pluck( $list, $field ) {
+	$out = array();
+	foreach ( (array) $list as $item ) {
+		$out[] = is_object( $item ) ? $item->$field : $item[ $field ];
+	}
+	return $out;
+}
+
+// ---------------------------------------------------------------------------
+// Site transients, plugins, themes
+// ---------------------------------------------------------------------------
+
+function get_site_transient( $name ) {
+	return array_key_exists( $name, $GLOBALS['ss_test_site_transients'] ) ? $GLOBALS['ss_test_site_transients'][ $name ] : false;
+}
+function get_plugins() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_plugins', array() );
+	return $hit ? $result : $GLOBALS['ss_test_plugins'];
+}
+function is_plugin_active( $plugin ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'is_plugin_active', array( $plugin ) );
+	return $hit ? $result : false;
+}
+
+/**
+ * Minimal WP_Theme double.
+ */
+class SS_Test_Theme {
+	private $stylesheet;
+	private $headers;
+	public function __construct( $stylesheet, array $headers = array() ) {
+		$this->stylesheet = $stylesheet;
+		$this->headers    = $headers;
+	}
+	public function exists() { return true; }
+	public function get_stylesheet() { return $this->stylesheet; }
+	public function get( $key ) { return isset( $this->headers[ $key ] ) ? $this->headers[ $key ] : false; }
+	public function parent() { return false; }
+}
+
+/**
+ * With a slug, returns a theme named after it; without, the active theme
+ * from $GLOBALS['ss_test_theme'] (null when none is set).
+ */
+function wp_get_theme( $stylesheet = null ) {
+	if ( null !== $stylesheet ) {
+		return new SS_Test_Theme( (string) $stylesheet, array( 'Name' => (string) $stylesheet ) );
+	}
+	return $GLOBALS['ss_test_theme'];
+}
+function wp_get_themes() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_get_themes', array() );
+	return $hit ? $result : array();
+}
+function get_stylesheet() { return 'active-theme'; }
+function get_template() { return 'active-theme'; }
+
+// ---------------------------------------------------------------------------
+// Users, posts, application passwords
+// ---------------------------------------------------------------------------
+
+function get_users( $args = array() ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_users', array( $args ) );
+	return $hit ? $result : array();
+}
+function get_user_by( $field, $value ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_user_by', array( $field, $value ) );
+	return $hit ? $result : false;
+}
+function user_can( $user, $cap ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'user_can', array( $user, $cap ) );
+	return $hit ? (bool) $result : false;
+}
+function wp_delete_post( $post_id = 0, $force = false ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_delete_post', array( $post_id, $force ) );
+	return $hit ? $result : false;
+}
+function wp_is_application_passwords_available() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_is_application_passwords_available', array() );
+	return $hit ? $result : true;
+}
+class WP_Application_Passwords {
+	public static function get_user_application_passwords( $user_id ) {
+		list( $hit, $result ) = ss_tests_maybe_override( 'WP_Application_Passwords::get_user_application_passwords', array( $user_id ) );
+		return $hit ? $result : array();
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Database
+// ---------------------------------------------------------------------------
+
+/**
+ * Inert wpdb double for tests that touch the findings table only in passing.
+ */
+class SS_Test_WPDB {
+	public $prefix  = 'wp_';
+	public $queries = array();
+	public function prepare( $sql ) { return $sql; }
+	public function query( $sql ) { $this->queries[] = $sql; return 0; }
+	public function get_var( $sql = null ) { return null; }
+	public function get_results( $sql = null, $output = null ) { return array(); }
+}

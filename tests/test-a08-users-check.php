@@ -13,20 +13,6 @@ if ( ! defined( 'ARRAY_A' ) ) {
 	define( 'ARRAY_A', 'ARRAY_A' );
 }
 
-// Stubs missing from tests/wp-stubs.php (owned by another ticket), defined here.
-if ( ! function_exists( 'get_user_by' ) ) {
-	function get_user_by( $field, $value ) {
-		list( $hit, $result ) = ss_tests_maybe_override( 'get_user_by', array( $field, $value ) );
-		return $hit ? $result : false;
-	}
-}
-if ( ! function_exists( 'user_can' ) ) {
-	function user_can( $user, $cap ) {
-		list( $hit, $result ) = ss_tests_maybe_override( 'user_can', array( $user, $cap ) );
-		return $hit ? (bool) $result : false;
-	}
-}
-
 /**
  * In-memory wp_users table that honours `ID > n ORDER BY ID LIMIT n`.
  */

@@ -151,6 +151,17 @@ class ShieldScope_Check_Core extends ShieldScope_Check_Base {
 			);
 		}
 
+		// Only meaningful once the site has HTTPS; HTTP-only sites get "Site URL is not HTTPS" instead.
+		if ( 0 === stripos( get_site_url(), 'https://' ) && ( ! defined( 'FORCE_SSL_ADMIN' ) || ! FORCE_SSL_ADMIN ) ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_LOW,
+				__( 'FORCE_SSL_ADMIN is not enabled', 'shieldscope-site-security-scanner' ),
+				__( 'The site uses HTTPS, but WordPress does not force logins and the admin area onto it. With FORCE_SSL_ADMIN set, WordPress redirects any plain-HTTP login or wp-admin request to HTTPS, so passwords and admin cookies are never sent in the clear.', 'shieldscope-site-security-scanner' ),
+				__( "Add to wp-config.php: define( 'FORCE_SSL_ADMIN', true );", 'shieldscope-site-security-scanner' ),
+				'wp-config.php'
+			);
+		}
+
 		if ( defined( 'AUTOMATIC_UPDATER_DISABLED' ) && AUTOMATIC_UPDATER_DISABLED ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_MEDIUM,

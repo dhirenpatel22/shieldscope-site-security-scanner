@@ -14,37 +14,6 @@
 
 use PHPUnit\Framework\TestCase;
 
-// Stubs this test needs that tests/wp-stubs.php does not provide (A-04 may not edit that file).
-if ( ! function_exists( 'get_plugins' ) ) {
-	function get_plugins() {
-		return isset( $GLOBALS['ss_a04_plugins'] ) ? $GLOBALS['ss_a04_plugins'] : array();
-	}
-}
-if ( ! function_exists( 'get_site_transient' ) ) {
-	function get_site_transient( $name ) {
-		return isset( $GLOBALS['ss_a04_site_transients'][ $name ] ) ? $GLOBALS['ss_a04_site_transients'][ $name ] : false;
-	}
-}
-if ( ! class_exists( 'SS_A04_Fake_Theme' ) ) {
-	class SS_A04_Fake_Theme {
-		private $stylesheet;
-		private $headers;
-		public function __construct( $stylesheet, array $headers ) {
-			$this->stylesheet = $stylesheet;
-			$this->headers    = $headers;
-		}
-		public function exists() { return true; }
-		public function get_stylesheet() { return $this->stylesheet; }
-		public function get( $key ) { return isset( $this->headers[ $key ] ) ? $this->headers[ $key ] : false; }
-		public function parent() { return false; }
-	}
-}
-if ( ! function_exists( 'wp_get_theme' ) ) {
-	function wp_get_theme() {
-		return isset( $GLOBALS['ss_a04_theme'] ) ? $GLOBALS['ss_a04_theme'] : null;
-	}
-}
-
 /**
  * Class Test_Vuln_DB
  */
@@ -60,9 +29,6 @@ class Test_Vuln_DB extends TestCase {
 		ss_tests_reset_state();
 		$this->logger                      = new SS_Fake_Logger();
 		$this->requests                    = array();
-		$GLOBALS['ss_a04_plugins']         = array();
-		$GLOBALS['ss_a04_site_transients'] = array();
-		$GLOBALS['ss_a04_theme']           = null;
 	}
 
 	// ---------------------------------------------------------------------
@@ -76,12 +42,12 @@ class Test_Vuln_DB extends TestCase {
 		$no_update = array();
 		foreach ( $plugins as $file => $version ) {
 			$slug                                   = explode( '/', $file )[0];
-			$GLOBALS['ss_a04_plugins'][ $file ]     = array( 'Name' => ucfirst( $slug ), 'Version' => $version );
+			$GLOBALS['ss_test_plugins'][ $file ]     = array( 'Name' => ucfirst( $slug ), 'Version' => $version );
 			if ( ! in_array( $file, $not_on_org, true ) ) {
 				$no_update[ $file ] = (object) array( 'slug' => $slug );
 			}
 		}
-		$GLOBALS['ss_a04_site_transients']['update_plugins'] = (object) array(
+		$GLOBALS['ss_test_site_transients']['update_plugins'] = (object) array(
 			'response'  => array(),
 			'no_update' => $no_update,
 		);
@@ -431,8 +397,8 @@ class Test_Vuln_DB extends TestCase {
 
 	public function test_active_theme_is_looked_up_when_on_wordpress_org() {
 		$this->set_key();
-		$GLOBALS['ss_a04_theme']                            = new SS_A04_Fake_Theme( 'twentytwenty', array( 'Name' => 'Twenty Twenty', 'Version' => '1.0' ) );
-		$GLOBALS['ss_a04_site_transients']['update_themes'] = (object) array(
+		$GLOBALS['ss_test_theme']                            = new SS_Test_Theme( 'twentytwenty', array( 'Name' => 'Twenty Twenty', 'Version' => '1.0' ) );
+		$GLOBALS['ss_test_site_transients']['update_themes'] = (object) array(
 			'response'  => array(),
 			'no_update' => array( 'twentytwenty' => array( 'theme' => 'twentytwenty' ) ),
 		);
