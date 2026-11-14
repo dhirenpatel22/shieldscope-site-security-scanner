@@ -74,7 +74,7 @@ class ShieldScope_Check_Themes extends ShieldScope_Check_Base {
 		foreach ( $updates->response as $slug => $info ) {
 			$theme = wp_get_theme( $slug );
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
+				ShieldScope_Logger::SEVERITY_MEDIUM,
 				__( 'Theme update available', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: 1: name, 2: version */
