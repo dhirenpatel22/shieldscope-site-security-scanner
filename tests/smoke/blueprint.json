@@ -1,0 +1,17 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"preferredVersions": {
+		"php": "7.4",
+		"wp": "latest"
+	},
+	"steps": [
+		{
+			"step": "runPHP",
+			"code": "<?php require '/smoke/driver.inc'; shieldscope_smoke( 'setup' );"
+		},
+		{
+			"step": "runPHP",
+			"code": "<?php require '/smoke/driver.inc'; shieldscope_smoke( 'scan' );"
+		}
+	]
+}

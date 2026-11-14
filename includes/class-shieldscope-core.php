@@ -92,12 +92,13 @@ final class ShieldScope_Core {
 	}
 
 	/**
-	 * Create/upgrade persistent structures when the stored version is stale.
+	 * Create/upgrade persistent structures when the stored version is stale
+	 * or this site's findings table is missing (e.g. network activation).
 	 *
 	 * @return void
 	 */
 	public function maybe_upgrade() {
-		if ( get_option( 'shieldscope_version' ) === SHIELDSCOPE_VERSION ) {
+		if ( get_option( 'shieldscope_version' ) === SHIELDSCOPE_VERSION && ShieldScope_Logger::table_exists() ) {
 			return;
 		}
 		self::on_activate();

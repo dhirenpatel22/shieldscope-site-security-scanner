@@ -59,7 +59,32 @@ foreach ( $severity_order as $sev ) {
 		<div class="notice notice-info">
 			<p><?php esc_html_e( 'No completed scan yet. Run a scan first.', 'shieldscope-site-security-scanner' ); ?></p>
 		</div>
+	<?php elseif ( empty( $findings ) ) : ?>
+		<div class="notice notice-<?php echo esc_attr( ShieldScope_Logger::save_failed( $last_scan ) ? 'error' : 'warning' ); ?>">
+			<p>
+				<?php
+				if ( ShieldScope_Logger::save_failed( $last_scan ) ) {
+					esc_html_e( 'The results of this scan could not be saved, so no report is available. Run a new scan.', 'shieldscope-site-security-scanner' );
+				} else {
+					esc_html_e( 'Report expired, run a new scan.', 'shieldscope-site-security-scanner' );
+				}
+				?>
+			</p>
+		</div>
 	<?php else : ?>
+		<?php if ( ShieldScope_Logger::save_failed( $last_scan ) ) : ?>
+			<div class="notice notice-error">
+				<p><?php esc_html_e( 'The results of this scan could not be saved in full, so this report may be missing findings. Run a new scan.', 'shieldscope-site-security-scanner' ); ?></p>
+			</div>
+		<?php endif; ?>
+		<?php
+		$scan_time = '';
+		foreach ( $findings as $f ) {
+			if ( ! empty( $f['created_at'] ) && $f['created_at'] > $scan_time ) {
+				$scan_time = $f['created_at'];
+			}
+		}
+		?>
 		<p class="description">
 			<?php
 			printf(
@@ -67,6 +92,14 @@ foreach ( $severity_order as $sev ) {
 				esc_html__( 'Scan ID: %s', 'shieldscope-site-security-scanner' ),
 				'<code>' . esc_html( $last_scan ) . '</code>'
 			);
+			if ( '' !== $scan_time ) {
+				echo ' &middot; ';
+				printf(
+					/* translators: %s: date and time the scan finished */
+					esc_html__( 'Scan date: %s', 'shieldscope-site-security-scanner' ),
+					esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $scan_time . ' UTC' ) ) )
+				);
+			}
 			?>
 		</p>
 
