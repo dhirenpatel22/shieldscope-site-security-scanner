@@ -3,8 +3,8 @@
  * Access control vulnerability checks.
  *
  * Detects missing or inadequate restrictions on authenticated actions:
- * unauthenticated REST API writes, application passwords, author enumeration,
- * unprotected login page, and AJAX handlers lacking nonce or capability checks.
+ * application passwords, author enumeration, unprotected login page, and
+ * AJAX handlers lacking nonce or capability checks.
  *
  * @package ShieldScope
  */
@@ -50,11 +50,9 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 	/** @return array */
 	public function get_steps() {
 		return array(
-			'rest_write',
 			'app_passwords',
 			'author_enum',
 			'login_page',
-			'login_error_enum',
 			'scan_plugins',
 		);
 	}
@@ -68,9 +66,6 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 	 */
 	public function run_step( $step, array $cursor = array() ) {
 		switch ( $step ) {
-			case 'rest_write':
-				$this->check_rest_write();
-				break;
 			case 'app_passwords':
 				$this->check_application_passwords();
 				break;
@@ -80,60 +75,10 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 			case 'login_page':
 				$this->check_login_page();
 				break;
-			case 'login_error_enum':
-				$this->check_login_error_enumeration();
-				break;
 			case 'scan_plugins':
 				return $this->scan_plugins_for_auth( $cursor );
 		}
 		return array( 'continue' => false, 'cursor' => array() );
-	}
-
-	/**
-	 * Test whether the REST API rejects unauthenticated write requests.
-	 *
-	 * @return void
-	 */
-	private function check_rest_write() {
-		$url      = rest_url( 'wp/v2/posts' );
-		$response = wp_remote_post(
-			$url,
-			array(
-				'timeout'   => 5,
-				'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
-				'headers'   => array(
-					'Content-Type' => 'application/json',
-				),
-				'body'      => wp_json_encode(
-					array(
-						'title'   => 'Test',
-						'content' => '',
-						'status'  => 'draft',
-					)
-				),
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			return;
-		}
-
-		$code = wp_remote_retrieve_response_code( $response );
-		if ( in_array( $code, array( 200, 201 ), true ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
-				__( 'REST API allows unauthenticated content creation', 'shieldscope-site-security-scanner' ),
-				__( 'A POST to /wp-json/wp/v2/posts with no credentials returned 200/201. Attackers can create, edit, or delete content without a valid account.', 'shieldscope-site-security-scanner' ),
-				__( 'Audit plugins that modify REST API authentication. Ensure no code removes the authentication callbacks from REST endpoints.', 'shieldscope-site-security-scanner' ),
-				'/wp-json/wp/v2/posts'
-			);
-
-			// Attempt to clean up the accidental draft, best-effort.
-			$body = json_decode( wp_remote_retrieve_body( $response ), true );
-			if ( isset( $body['id'] ) ) {
-				wp_delete_post( (int) $body['id'], true );
-			}
-		}
 	}
 
 	/**
@@ -145,7 +90,7 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 		if ( ! function_exists( 'wp_is_application_passwords_available' ) ) {
 			return;
 		}
-		if ( ! wp_is_application_passwords_available() ) {
+		if ( ! wp_is_application_passwords_available() || ! class_exists( 'WP_Application_Passwords' ) ) {
 			return;
 		}
 
@@ -156,6 +101,16 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 				'meta_compare' => 'EXISTS',
 				'number'       => 20,
 				'fields'       => array( 'ID', 'user_login', 'roles' ),
+			)
+		);
+
+		// The meta row stays (as an empty array) after every password is revoked.
+		$users_with_app_pw = array_values(
+			array_filter(
+				(array) $users_with_app_pw,
+				static function ( $u ) {
+					return ! empty( WP_Application_Passwords::get_user_application_passwords( $u->ID ) );
+				}
 			)
 		);
 
@@ -324,103 +279,6 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Test whether WordPress login error messages reveal valid usernames.
-	 *
-	 * WordPress default behaviour returns different error messages for
-	 * "username does not exist" vs "incorrect password for <username>".
-	 * This lets attackers confirm whether a username is registered before
-	 * starting a password brute-force — halving their work.
-	 *
-	 * The check submits a login attempt with a known-valid admin username and
-	 * a clearly bogus password, then inspects the error message. If the message
-	 * names the username or says "incorrect password", username enumeration is
-	 * possible via login errors.
-	 *
-	 * @return void
-	 */
-	private function check_login_error_enumeration() {
-		// Get the first administrator username to use as the test subject.
-		$admins = get_users(
-			array(
-				'role'   => 'administrator',
-				'number' => 1,
-				'fields' => 'user_login',
-			)
-		);
-
-		if ( empty( $admins ) ) {
-			return;
-		}
-
-		$username = is_object( $admins[0] ) ? $admins[0]->user_login : (string) $admins[0];
-		if ( '' === $username ) {
-			return;
-		}
-
-		// Use a password that will never match, but looks realistic.
-		$fake_password = 'ShieldScope_test_' . wp_generate_password( 12, false, false ) . '_probe';
-
-		$login_url = wp_login_url();
-		$response  = wp_remote_post(
-			$login_url,
-			array(
-				'timeout'     => 8,
-				'redirection' => 5,
-				'sslverify'   => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
-				'body'        => array(
-					'log'       => $username,
-					'pwd'       => $fake_password,
-					'wp-submit' => 'Log In',
-					'testcookie' => '1',
-				),
-				'cookies'     => array(
-					new WP_Http_Cookie(
-						array(
-							'name'  => 'wordpress_test_cookie',
-							'value' => 'WP Cookie check',
-						)
-					),
-				),
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			return;
-		}
-
-		$body = wp_remote_retrieve_body( $response );
-		if ( ! $body ) {
-			return;
-		}
-
-		// WordPress default strings that confirm the username exists:
-		//   "The password you entered for the username <b>xxx</b> is incorrect."
-		//   "incorrect password" (some translations)
-		//   "Error: The password you entered"
-		$username_confirmed = (
-			false !== stripos( $body, 'incorrect password' ) ||
-			false !== stripos( $body, 'the password you entered' ) ||
-			false !== stripos( $body, htmlspecialchars( $username, ENT_QUOTES ) )
-		);
-
-		// If the response contains the exact username or a password-specific
-		// error message, username enumeration via login errors is possible.
-		if ( $username_confirmed ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_LOW,
-				__( 'Login error messages reveal valid usernames', 'shieldscope-site-security-scanner' ),
-				sprintf(
-					/* translators: %s: the admin username used in the test */
-					__( 'The login error response for username "%s" confirms that the account exists by returning a password-specific error. Attackers can exploit this to enumerate valid accounts before brute-forcing passwords.', 'shieldscope-site-security-scanner' ),
-					esc_html( $username )
-				),
-				__( 'Add a filter to return a generic error for both bad usernames and bad passwords: add_filter(\'login_errors\', function(){ return \'Invalid credentials.\'; }); This prevents confirming whether a username exists without affecting the login process.', 'shieldscope-site-security-scanner' ),
-				$login_url
-			);
-		}
-	}
-
-	/**
 	 * Scan plugin PHP files for AJAX handlers without proper authorisation.
 	 *
 	 * @param array $cursor Cursor.
@@ -438,7 +296,7 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Check one file for AJAX / admin-page handlers lacking auth.
+	 * Check one file for AJAX handlers lacking auth.
 	 *
 	 * @param string $path File path.
 	 * @return void
@@ -462,19 +320,19 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 			$has_nonce = (bool) preg_match( '/check_ajax_referer|wp_verify_nonce|check_admin_referer/i', $contents );
 			if ( ! $has_nonce ) {
 				$this->finding(
-					ShieldScope_Logger::SEVERITY_HIGH,
-					__( 'Unauthenticated AJAX handler without nonce verification', 'shieldscope-site-security-scanner' ),
+					ShieldScope_Logger::SEVERITY_LOW,
+					__( 'Needs review: public AJAX handler with no nonce check in the same file', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %d: number of hooks found */
 						_n(
-							'Found %d wp_ajax_nopriv_ hook in a file with no nonce checks. Unauthenticated AJAX handlers without CSRF protection can be exploited by any visitor.',
-							'Found %d wp_ajax_nopriv_ hooks in a file with no nonce checks. Unauthenticated AJAX handlers without CSRF protection can be exploited by any visitor.',
+							'Found %d wp_ajax_nopriv_ hook in a file that contains no nonce check. This is a file-level pattern match: the check may live in another file, and some public handlers do not need one. Review the handler to confirm.',
+							'Found %d wp_ajax_nopriv_ hooks in a file that contains no nonce check. This is a file-level pattern match: the check may live in another file, and some public handlers do not need one. Review the handlers to confirm.',
 							$nopriv_count,
 							'shieldscope-site-security-scanner'
 						),
 						$nopriv_count
 					),
-					__( 'Add check_ajax_referer() or wp_verify_nonce() to all AJAX handlers, including public ones, to prevent cross-site request forgery.', 'shieldscope-site-security-scanner' ),
+					__( 'If the handler changes data, it should call check_ajax_referer() or wp_verify_nonce() to prevent cross-site request forgery.', 'shieldscope-site-security-scanner' ),
 					$path
 				);
 			}
@@ -489,32 +347,19 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 			$has_auth = (bool) preg_match( '/current_user_can|check_ajax_referer|wp_verify_nonce|check_admin_referer/i', $contents );
 			if ( ! $has_auth ) {
 				$this->finding(
-					ShieldScope_Logger::SEVERITY_MEDIUM,
-					__( 'Admin AJAX handler may lack capability or nonce check', 'shieldscope-site-security-scanner' ),
+					ShieldScope_Logger::SEVERITY_LOW,
+					__( 'Needs review: AJAX handler with no capability or nonce check in the same file', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %d: number of hooks found */
 						_n(
-							'Found %d wp_ajax_ hook in a file with no current_user_can() or nonce check. Any logged-in user could trigger privileged actions.',
-							'Found %d wp_ajax_ hooks in a file with no current_user_can() or nonce check. Any logged-in user could trigger privileged actions.',
+							'Found %d wp_ajax_ hook in a file that contains no current_user_can() or nonce check. This is a file-level pattern match: the checks may live in another file. If they are missing, any logged-in user could trigger the action.',
+							'Found %d wp_ajax_ hooks in a file that contains no current_user_can() or nonce check. This is a file-level pattern match: the checks may live in another file. If they are missing, any logged-in user could trigger the actions.',
 							$priv_count,
 							'shieldscope-site-security-scanner'
 						),
 						$priv_count
 					),
 					__( 'Call current_user_can() with the required capability and use check_ajax_referer() or wp_verify_nonce() to prevent CSRF.', 'shieldscope-site-security-scanner' ),
-					$path
-				);
-			}
-		}
-
-		// Admin menu registration without a visible capability check in the callback.
-		if ( preg_match( "/add_(?:menu|submenu)_page\s*\(/i", $contents ) ) {
-			if ( ! preg_match( '/current_user_can\s*\(/i', $contents ) ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_MEDIUM,
-					__( 'Admin page registered without a visible current_user_can() check', 'shieldscope-site-security-scanner' ),
-					__( 'add_menu_page() or add_submenu_page() found without current_user_can() in the page callback. The capability parameter in add_menu_page() only hides the menu item — it does not block direct URL access to the callback.', 'shieldscope-site-security-scanner' ),
-					__( 'Add current_user_can( \'manage_options\' ) (or the required capability) at the top of every admin page callback and call wp_die() if it returns false.', 'shieldscope-site-security-scanner' ),
 					$path
 				);
 			}
