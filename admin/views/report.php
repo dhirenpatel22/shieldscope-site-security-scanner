@@ -102,10 +102,12 @@ foreach ( (array) $findings as $f ) {
 					<span class="dashicons dashicons-pdf" aria-hidden="true"></span>
 					<?php esc_html_e( 'Download PDF report', 'shieldscope-site-security-scanner' ); ?>
 				</a>
-				<span class="description"><?php esc_html_e( 'File paths in the PDF are shown relative to the WordPress folder.', 'shieldscope-site-security-scanner' ); ?></span>
 			<?php else : ?>
 				<p class="description"><?php echo esc_html( $shieldscope_pdf_reason ); ?></p>
 			<?php endif; ?>
+			<a class="button" href="<?php echo esc_url( ShieldScope_Export::download_url( 'csv' ) ); ?>"><?php esc_html_e( 'Download CSV', 'shieldscope-site-security-scanner' ); ?></a>
+			<a class="button" href="<?php echo esc_url( ShieldScope_Export::download_url( 'json' ) ); ?>"><?php esc_html_e( 'Download JSON', 'shieldscope-site-security-scanner' ); ?></a>
+			<span class="description"><?php esc_html_e( 'File paths in downloads are shown relative to the WordPress folder.', 'shieldscope-site-security-scanner' ); ?></span>
 		</div>
 
 		<div class="shieldscope-card shieldscope-summary-card">
