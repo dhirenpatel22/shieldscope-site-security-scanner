@@ -1,13 +1,16 @@
 <?php
 /**
- * CPU throttle helper.
+ * Scan pacing.
  *
- * Keeps the scanner's CPU usage at or below a configured percentage by
- * measuring how long a unit of work took and then sleeping for a
- * proportional amount of time before continuing.
+ * The scanner works in chunks of at most chunk_time_limit seconds. After a
+ * chunk it rests for a time proportional to the work done, so that work is
+ * about cpu_limit percent of the elapsed time (the "scan pace" setting).
+ * The rest is not slept inside the request: the request returns and the
+ * caller (the browser tab or WP-Cron) waits rest_seconds() before the next
+ * chunk, so no PHP worker is held while idle (S-14).
  *
- * Example: if cpu_limit = 20 (%), the scanner will sleep 4× the time
- * the last unit of work took (work / total = 20%).
+ * Example: pace 20% and 1.5 s of work → rest 6 s before the next chunk.
+ * This paces the scan; it does not measure or cap CPU use.
  *
  * @package ShieldScope
  */
@@ -41,6 +44,18 @@ class ShieldScope_Throttle {
 	private $chunk_started_at = 0.0;
 
 	/**
+	 * Work done in this chunk, in seconds.
+	 *
+	 * @var float
+	 */
+	private $worked = 0.0;
+
+	/**
+	 * Longest rest between chunks, in seconds.
+	 */
+	const MAX_REST = 30.0;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param int   $cpu_limit         Percentage (1-100).
@@ -61,6 +76,7 @@ class ShieldScope_Throttle {
 	 */
 	public function start_chunk() {
 		$this->chunk_started_at = microtime( true );
+		$this->worked           = 0.0;
 	}
 
 	/**
@@ -76,28 +92,23 @@ class ShieldScope_Throttle {
 	}
 
 	/**
-	 * Sleep proportionally to keep CPU usage at or below the configured limit.
+	 * Record a unit of work. Does not sleep.
 	 *
 	 * @param float $work_seconds Time the last unit of work took.
 	 * @return void
 	 */
 	public function throttle( $work_seconds ) {
-		$work_seconds = max( 0.0, (float) $work_seconds );
-		if ( $work_seconds <= 0.0 ) {
-			return;
-		}
+		$this->worked += max( 0.0, (float) $work_seconds );
+	}
 
-		// total_time * (cpu_limit/100) = work_seconds.
-		// => sleep_seconds = work_seconds * (100 - cpu_limit) / cpu_limit.
-		$sleep_seconds = $work_seconds * ( 100 - $this->cpu_limit ) / $this->cpu_limit;
-
-		// Hard cap sleep at 2 seconds so we never stall for too long.
-		$sleep_seconds = min( 2.0, $sleep_seconds );
-
-		if ( $sleep_seconds > 0.0 ) {
-			// usleep expects microseconds.
-			usleep( (int) ( $sleep_seconds * 1000000 ) );
-		}
+	/**
+	 * How long to rest before the next chunk:
+	 * work × (100 − pace) / pace, capped at MAX_REST.
+	 *
+	 * @return float Seconds.
+	 */
+	public function rest_seconds() {
+		return min( self::MAX_REST, $this->worked * ( 100 - $this->cpu_limit ) / $this->cpu_limit );
 	}
 
 	/**

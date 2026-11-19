@@ -51,32 +51,34 @@ class Test_Throttle extends TestCase {
 		$this->assertTrue( $throttle->should_yield() );
 	}
 
-	public function test_throttle_sleeps_proportionally_to_cpu_limit() {
-		// 20% CPU → sleep = work × (100−20)/20 = 4× work. 50ms work → ~200ms sleep.
+	public function test_rest_is_proportional_to_work_and_pace() {
+		// Pace 20% → rest = work × (100−20)/20 = 4× work.
 		$throttle = new ShieldScope_Throttle( 20, 2.0 );
-		$start    = microtime( true );
+		$throttle->start_chunk();
 		$throttle->throttle( 0.05 );
-		$elapsed = microtime( true ) - $start;
-
-		$this->assertGreaterThan( 0.15, $elapsed, 'Expected roughly 4× the work time asleep.' );
-		$this->assertLessThan( 0.6, $elapsed );
+		$throttle->throttle( 0.05 );
+		$this->assertEqualsWithDelta( 0.4, $throttle->rest_seconds(), 0.0001 );
 	}
 
-	public function test_throttle_sleep_is_capped_at_two_seconds() {
-		$throttle = new ShieldScope_Throttle( 1, 2.0 ); // 1% CPU → 99× multiplier.
-		$start    = microtime( true );
-		$throttle->throttle( 0.5 ); // Uncapped would be 49.5s.
-		$elapsed = microtime( true ) - $start;
-
-		$this->assertLessThan( 2.5, $elapsed, 'Sleep must be hard-capped at 2 seconds.' );
+	public function test_rest_is_capped() {
+		$throttle = new ShieldScope_Throttle( 1, 2.0 ); // 99× multiplier.
+		$throttle->start_chunk();
+		$throttle->throttle( 5 );
+		$this->assertSame( ShieldScope_Throttle::MAX_REST, $throttle->rest_seconds() );
 	}
 
-	public function test_zero_or_negative_work_does_not_sleep() {
-		$throttle = new ShieldScope_Throttle( 10, 2.0 );
+	public function test_throttle_never_sleeps_and_new_chunk_resets_work() {
+		$throttle = new ShieldScope_Throttle( 1, 2.0 );
 		$start    = microtime( true );
-		$throttle->throttle( 0 );
+		$throttle->throttle( 5 );
 		$throttle->throttle( -1 );
-		$this->assertLessThan( 0.05, microtime( true ) - $start );
+		$this->assertLessThan( 0.05, microtime( true ) - $start, 'No sleep inside the request (S-14).' );
+		$throttle->start_chunk();
+		$this->assertSame( 0.0, $throttle->rest_seconds() );
+	}
+
+	public function test_throttle_source_has_no_sleep() {
+		$this->assertDoesNotMatchRegularExpression( '/\busleep\s*\(|\bsleep\s*\(/', file_get_contents( SHIELDSCOPE_PLUGIN_DIR . 'includes/class-shieldscope-throttle.php' ) );
 	}
 
 	public function test_run_throttled_returns_callable_result() {

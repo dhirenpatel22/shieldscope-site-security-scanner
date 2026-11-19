@@ -27,6 +27,7 @@
 	var tickTimer = null;
 	var pollTimer = null;
 	var inFlight  = false;
+	var nextTickAt = 0; // Date.now() before which no tick is sent (server-requested rest).
 	var lastStatus = $panel.data( 'status' ) || 'idle';
 	var awaitingResume = false; // user-intent flag: scan should continue once tab refocused.
 
@@ -147,6 +148,10 @@
 		if ( inFlight ) {
 			return;
 		}
+		// Rest the server asked for after the last chunk (scan pace).
+		if ( Date.now() < nextTickAt ) {
+			return;
+		}
 		// Only run work chunks while the tab is visible and focused.
 		if ( cfg.pauseOnBlur && ! isTabActive() ) {
 			return;
@@ -159,6 +164,7 @@
 		ajax( 'tick' )
 			.done( function ( resp ) {
 				if ( resp && resp.success ) {
+					nextTickAt = Date.now() + Math.min( 30000, Math.max( 0, parseInt( resp.data.rest_ms, 10 ) || 0 ) );
 					updateUI( resp.data );
 					if ( 'completed' === resp.data.status ) {
 						$msg.text( cfg.i18n.finished );
