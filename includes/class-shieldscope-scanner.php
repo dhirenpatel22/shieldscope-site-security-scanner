@@ -129,6 +129,7 @@ class ShieldScope_Scanner {
 			'last_message' => '',
 			'owner_id'     => 0,
 			'started_step' => null,
+			'check_status' => array(),
 		);
 
 		$state = get_option( self::STATE_OPTION, array() );
@@ -264,6 +265,7 @@ class ShieldScope_Scanner {
 			'done_steps'   => 0,
 			'last_message' => __( 'Scan started.', 'shieldscope-site-security-scanner' ),
 			'owner_id'     => get_current_user_id(),
+			'check_status' => array(),
 		);
 		$this->save_state( $state );
 		return $state;
@@ -380,6 +382,7 @@ class ShieldScope_Scanner {
 			$steps = $check->get_steps();
 
 			if ( $state['step_index'] >= count( $steps ) ) {
+				$state = self::mark_check( $state, $check, ShieldScope_Coverage::DONE );
 				$state['check_index']++;
 				$state['step_index'] = 0;
 				$state['cursor']     = array();
@@ -406,6 +409,13 @@ class ShieldScope_Scanner {
 						$step
 					),
 					__( 'This step did not finish in two attempts, so the scan skipped it and continued. Its results are missing from this report.', 'shieldscope-site-security-scanner' )
+				);
+				$state                 = self::mark_check(
+					$state,
+					$check,
+					ShieldScope_Coverage::PARTIAL,
+					/* translators: %s: step id */
+					sprintf( __( 'step "%s" timed out and was skipped', 'shieldscope-site-security-scanner' ), $step )
 				);
 				$state['started_step'] = null;
 				$state['step_index']++;
@@ -444,7 +454,17 @@ class ShieldScope_Scanner {
 					__( 'Check module error', 'shieldscope-site-security-scanner' ),
 					$e->getMessage()
 				);
+				$state  = self::mark_check(
+					$state,
+					$check,
+					ShieldScope_Coverage::ERROR,
+					/* translators: %s: step id */
+					sprintf( __( 'step "%s" failed with an error', 'shieldscope-site-security-scanner' ), $step )
+				);
 				$result = array( 'continue' => false, 'cursor' => array() );
+			}
+			foreach ( $check->take_coverage_notes() as $note ) {
+				$state = self::mark_check( $state, $check, ShieldScope_Coverage::PARTIAL, $note );
 			}
 			$elapsed = microtime( true ) - $started;
 
@@ -511,11 +531,56 @@ class ShieldScope_Scanner {
 			$state['done_steps']   = $state['total_steps'];
 
 			update_option( 'shieldscope_last_scan', $state['scan_id'], false );
+			ShieldScope_Coverage::save( $state['scan_id'], $state['check_status'], $this->check_labels() );
 		}
 
 		$this->save_state( $state );
 
 		return array( $state, self::STATUS_RUNNING !== $state['status'] );
+	}
+
+	/**
+	 * Record a check's status in the scan state. A worse status wins
+	 * (error over partial over done); notes accumulate.
+	 *
+	 * @param array                  $state  State.
+	 * @param ShieldScope_Check_Base $check  Check.
+	 * @param string                 $status ShieldScope_Coverage status.
+	 * @param string                 $note   Optional note.
+	 * @return array State.
+	 */
+	private static function mark_check( array $state, $check, $status, $note = '' ) {
+		$id   = $check->get_id();
+		$all  = isset( $state['check_status'] ) && is_array( $state['check_status'] ) ? $state['check_status'] : array();
+		$item = isset( $all[ $id ] ) ? $all[ $id ] : array(
+			'status' => ShieldScope_Coverage::DONE,
+			'notes'  => array(),
+		);
+		if ( ShieldScope_Coverage::rank( $status ) > ShieldScope_Coverage::rank( $item['status'] ) ) {
+			$item['status'] = $status;
+		}
+		if ( '' !== $note && ! in_array( $note, $item['notes'], true ) ) {
+			$item['notes'][] = $note;
+		}
+		$all[ $id ]            = $item;
+		$state['check_status'] = $all;
+		return $state;
+	}
+
+	/**
+	 * Check id => label.
+	 *
+	 * @return array
+	 */
+	private function check_labels() {
+		$labels = array();
+		foreach ( $this->get_check_classes() as $cls ) {
+			if ( class_exists( $cls ) ) {
+				$check                      = new $cls( '', $this->logger );
+				$labels[ $check->get_id() ] = $check->get_label();
+			}
+		}
+		return $labels;
 	}
 
 	/**

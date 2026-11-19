@@ -92,6 +92,35 @@ abstract class ShieldScope_Check_Base {
 	abstract public function run_step( $step, array $cursor = array() );
 
 	/**
+	 * Coverage notes raised during the current step (read by the scanner).
+	 *
+	 * @var string[]
+	 */
+	private $coverage_notes = array();
+
+	/**
+	 * Note that this check could not cover everything (for example files
+	 * skipped). The scanner marks the check "partial" and shows the note.
+	 *
+	 * @param string $note Short reason.
+	 * @return void
+	 */
+	protected function note_partial( $note ) {
+		$this->coverage_notes[] = (string) $note;
+	}
+
+	/**
+	 * Return and clear the coverage notes.
+	 *
+	 * @return string[]
+	 */
+	public function take_coverage_notes() {
+		$notes                = $this->coverage_notes;
+		$this->coverage_notes = array();
+		return $notes;
+	}
+
+	/**
 	 * Set the time budget for the next step.
 	 *
 	 * @param float $deadline microtime() at which work should stop; 0 for none.
@@ -485,6 +514,14 @@ abstract class ShieldScope_Check_Base {
 
 		$continue = ! empty( $cursor['dirs'] ) || ! empty( $cursor['files'] );
 		if ( ! $continue && array_sum( $cursor['skipped'] ) > 0 ) {
+			$this->note_partial(
+				sprintf(
+					/* translators: 1: number of files, 2: number of folders */
+					__( '%1$d file(s) and %2$d folder(s) not scanned', 'shieldscope-site-security-scanner' ),
+					$cursor['skipped']['files'],
+					$cursor['skipped']['dirs'] + $cursor['skipped']['links']
+				)
+			);
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_INFO,
 				__( 'Some files were not scanned', 'shieldscope-site-security-scanner' ),
