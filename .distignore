@@ -31,10 +31,14 @@ package.json
 package-lock.json
 .npmrc
 
-# Composer (uncomment if you add PHP dependencies)
+# Composer: vendor/ is only the input to bin/prefix-vendor.php; the shipped
+# copy of the PDF library is vendor-prefixed/ (committed, not ignored).
 /vendor
 composer.json
 composer.lock
+
+# Developer scripts
+/bin
 
 # Tests (uncomment if you add a test suite)
 /tests

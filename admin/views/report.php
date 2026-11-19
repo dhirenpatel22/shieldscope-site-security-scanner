@@ -103,6 +103,19 @@ foreach ( $severity_order as $sev ) {
 			?>
 		</p>
 
+		<div class="shieldscope-export">
+			<?php $shieldscope_pdf_reason = ShieldScope_PDF_Report::unavailable_reason(); ?>
+			<?php if ( '' === $shieldscope_pdf_reason ) : ?>
+				<a class="button button-primary" href="<?php echo esc_url( ShieldScope_PDF_Report::download_url() ); ?>">
+					<span class="dashicons dashicons-pdf" aria-hidden="true"></span>
+					<?php esc_html_e( 'Download PDF report', 'shieldscope-site-security-scanner' ); ?>
+				</a>
+				<span class="description"><?php esc_html_e( 'File paths in the PDF are shown relative to the WordPress folder.', 'shieldscope-site-security-scanner' ); ?></span>
+			<?php else : ?>
+				<p class="description"><?php echo esc_html( $shieldscope_pdf_reason ); ?></p>
+			<?php endif; ?>
+		</div>
+
 		<!-- Summary counts — tiles with findings are clickable to jump to that tab -->
 		<div class="shieldscope-card">
 			<ul class="shieldscope-summary-grid">

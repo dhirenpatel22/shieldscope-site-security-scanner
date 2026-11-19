@@ -88,6 +88,10 @@ If you enter a WPScan API key in Settings, the Vulnerability Database check send
 * Privacy policy: https://automattic.com/privacy/
 * Terms of service: https://wpscan.com/terms/
 
+= Bundled libraries =
+
+The PDF report is built on your server, with no network requests, using Dompdf 3.1.6 (LGPL-2.1) and its dependencies php-font-lib (LGPL-2.1-or-later), php-svg-lib (LGPL-3.0-or-later), masterminds/html5 (MIT) and sabberworm/php-css-parser (MIT), with DejaVu fonts (https://dejavu-fonts.github.io/License.html). They are in the `vendor-prefixed` folder, moved under the ShieldScope\Vendor namespace, with their licence files. Source: https://github.com/dompdf/dompdf
+
 == Installation ==
 
 1. In your WordPress admin, go to **Plugins → Add New** and search for **ShieldScope**, then click **Install Now** and **Activate**.

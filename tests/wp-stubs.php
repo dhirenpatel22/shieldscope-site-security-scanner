@@ -461,3 +461,26 @@ function wp_die( $message = '' ) {
 function wp_send_json_error( $data = null, $status_code = null ) {
 	throw new SS_Test_Exit( (string) wp_json_encode( $data ), (int) $status_code );
 }
+
+// ---------------------------------------------------------------------------
+// PDF export (S-06)
+// ---------------------------------------------------------------------------
+
+function get_temp_dir() { return rtrim( sys_get_temp_dir(), '/' ) . '/'; }
+function untrailingslashit( $value ) { return rtrim( (string) $value, '/\\' ); }
+function sanitize_file_name( $name ) { return preg_replace( '/[^A-Za-z0-9._-]/', '', (string) $name ); }
+function get_bloginfo( $show = '' ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_bloginfo', array( $show ) );
+	return $hit ? $result : 'Test Site';
+}
+function wp_specialchars_decode( $text, $quote_style = ENT_NOQUOTES ) { return htmlspecialchars_decode( (string) $text, $quote_style ); }
+function admin_url( $path = '' ) { return 'https://example.com/wp-admin/' . ltrim( (string) $path, '/' ); }
+function wp_nonce_url( $url, $action = -1 ) { return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . '_wpnonce=nonce-' . $action; }
+function check_admin_referer( $action = -1 ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'check_admin_referer', array( $action ) );
+	if ( $hit && false === $result ) {
+		throw new SS_Test_Exit( 'bad nonce', 403 );
+	}
+	return 1;
+}
+function nocache_headers() {}
