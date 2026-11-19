@@ -165,6 +165,9 @@ function shieldscope_smoke_scan( array &$result ) {
 	$result['wp']      = get_bloginfo( 'version' );
 	$result['steps']   = $state['done_steps'] . '/' . $state['total_steps'];
 	$result['summary'] = $logger->get_summary( $state['scan_id'] );
+	$coverage          = ShieldScope_Coverage::get( $state['scan_id'] );
+	$result['coverage'] = null === $coverage ? null : ShieldScope_Coverage::summary( $coverage );
+	$result['coverage_checks'] = null === $coverage ? 0 : count( $coverage );
 
 	// PDF export of the finished scan (S-06), on the real WordPress and PHP.
 	$result['pdf_unavailable'] = ShieldScope_PDF_Report::unavailable_reason();

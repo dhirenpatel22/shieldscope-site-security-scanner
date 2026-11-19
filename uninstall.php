@@ -22,6 +22,7 @@ $shieldscope_options = array(
 	'shieldscope_scan_state',
 	'shieldscope_save_failed',
 	'shieldscope_tick_lock',
+	'shieldscope_coverage',
 );
 
 /**

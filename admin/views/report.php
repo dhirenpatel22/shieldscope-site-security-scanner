@@ -135,6 +135,33 @@ foreach ( $severity_order as $sev ) {
 			</ul>
 		</div>
 
+		<?php $shieldscope_coverage = ShieldScope_Coverage::get( $last_scan ); ?>
+		<?php if ( null !== $shieldscope_coverage ) : ?>
+			<div class="shieldscope-card shieldscope-coverage">
+				<p><strong><?php esc_html_e( 'Coverage:', 'shieldscope-site-security-scanner' ); ?></strong>
+				<?php echo esc_html( ShieldScope_Coverage::summary( $shieldscope_coverage ) ); ?></p>
+				<details>
+					<summary><?php esc_html_e( 'Show every check', 'shieldscope-site-security-scanner' ); ?></summary>
+					<table class="widefat striped">
+						<thead><tr>
+							<th scope="col"><?php esc_html_e( 'Check', 'shieldscope-site-security-scanner' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Result', 'shieldscope-site-security-scanner' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Notes', 'shieldscope-site-security-scanner' ); ?></th>
+						</tr></thead>
+						<tbody>
+						<?php foreach ( $shieldscope_coverage as $shieldscope_check ) : ?>
+							<tr class="is-<?php echo esc_attr( $shieldscope_check['status'] ); ?>">
+								<td><?php echo esc_html( $shieldscope_check['label'] ); ?></td>
+								<td><?php echo esc_html( ShieldScope_Coverage::status_label( $shieldscope_check['status'] ) ); ?></td>
+								<td><?php echo esc_html( implode( '; ', (array) $shieldscope_check['notes'] ) ); ?></td>
+							</tr>
+						<?php endforeach; ?>
+						</tbody>
+					</table>
+				</details>
+			</div>
+		<?php endif; ?>
+
 		<!-- Severity tabs -->
 		<div class="shieldscope-tabs">
 			<nav class="shieldscope-tab-nav" role="tablist" aria-label="<?php esc_attr_e( 'Findings by severity', 'shieldscope-site-security-scanner' ); ?>">

@@ -48,12 +48,15 @@ const scan = fs.existsSync( path.join( out, 'scan.json' ) ) ? load( 'scan' ) : n
 if ( scan && scan.status !== 'completed' ) {
 	problems.push( 'scan: status "' + scan.status + '" (not completed within the time cap)' );
 }
+if ( scan && scan.coverage_checks !== 16 ) {
+	problems.push( 'coverage: expected 16 checks, got ' + scan.coverage_checks );
+}
 if ( scan && scan.pdf_ok !== true ) {
 	problems.push( 'pdf: not produced' + ( scan.pdf_unavailable ? ' (' + scan.pdf_unavailable + ')' : '' ) );
 }
 
 const facts = scan
-	? `php=${ scan.php } wp=${ scan.wp } status=${ scan.status } elapsed=${ scan.elapsed }s ticks=${ scan.ticks } steps=${ scan.steps } findings=${ JSON.stringify( scan.summary ) } pdf=${ scan.pdf_bytes || 0 }B/${ scan.pdf_secs || 0 }s`
+	? `php=${ scan.php } wp=${ scan.wp } status=${ scan.status } elapsed=${ scan.elapsed }s ticks=${ scan.ticks } steps=${ scan.steps } findings=${ JSON.stringify( scan.summary ) } pdf=${ scan.pdf_bytes || 0 }B/${ scan.pdf_secs || 0 }s coverage="${ scan.coverage }"`
 	: 'no scan result';
 
 if ( problems.length ) {

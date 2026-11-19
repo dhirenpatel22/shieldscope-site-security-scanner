@@ -129,6 +129,7 @@ class ShieldScope_PDF_Report {
 			'save_failed'  => '' !== $scan_id && ShieldScope_Logger::save_failed( $scan_id ),
 			'findings'     => $findings,
 			'check_labels' => self::check_labels(),
+			'coverage'     => '' !== $scan_id ? ShieldScope_Coverage::get( $scan_id ) : null,
 			'root'         => ABSPATH,
 		);
 	}
@@ -266,6 +267,10 @@ class ShieldScope_PDF_Report {
 		// Summary.
 		$html .= '<h2>' . $e( __( 'Summary', 'shieldscope-site-security-scanner' ) ) . '</h2>';
 		$html .= '<p class="verdict">' . $e( self::verdict( $counts ) ) . '</p>';
+		$coverage = isset( $report['coverage'] ) && is_array( $report['coverage'] ) ? $report['coverage'] : null;
+		if ( $coverage ) {
+			$html .= '<p class="cov">' . $e( __( 'Coverage:', 'shieldscope-site-security-scanner' ) . ' ' . ShieldScope_Coverage::summary( $coverage ) ) . '</p>';
+		}
 		$html .= '<table class="counts"><tr>';
 		foreach ( self::$severities as $sev ) {
 			$html .= '<td class="sev-' . $sev . '"><span class="n">' . (int) $counts[ $sev ] . '</span><br>' . $e( $labels[ $sev ] ) . '</td>';
@@ -338,6 +343,13 @@ class ShieldScope_PDF_Report {
 		$html .= '<p>' . $e( __( 'ShieldScope checks WordPress configuration, versions, users, file permissions, server settings and plugin and theme code from inside the site. Findings whose title starts with "Review:" or "Matches pattern" are pattern matches that a person must confirm by reading the code; they are not confirmed vulnerabilities. Known-vulnerability results depend on the data source used (a limited built-in list, or WPScan with an API key). A report with no findings does not mean the site is secure.', 'shieldscope-site-security-scanner' ) ) . '</p>';
 		$html .= '<p>' . $e( ShieldScope_Admin::footprint_statement() ) . '</p>';
 		$html .= '<p>' . $e( ShieldScope_Admin::privacy_statement() ) . '</p>';
+		if ( $coverage ) {
+			$html .= '<h3>' . $e( __( 'Checks run', 'shieldscope-site-security-scanner' ) ) . '</h3><table class="checks">';
+			foreach ( $coverage as $c ) {
+				$html .= '<tr><td>' . $e( $c['label'] ) . '</td><td class="st-' . $e( $c['status'] ) . '">' . $e( ShieldScope_Coverage::status_label( $c['status'] ) ) . '</td><td>' . $e( implode( '; ', (array) $c['notes'] ) ) . '</td></tr>';
+			}
+			$html .= '</table>';
+		}
 		$html .= '<p class="small">' . $e( __( 'File paths are shown relative to the WordPress root folder.', 'shieldscope-site-security-scanner' ) ) . '</p>';
 
 		$html .= '</body></html>';
@@ -378,6 +390,10 @@ class ShieldScope_PDF_Report {
 			. 'ul.targets{margin:1px 0 0 14px;padding:0;font-family:"DejaVu Sans Mono",monospace;font-size:8px}'
 			. '.more{font-family:"DejaVu Sans",sans-serif;color:#50575e}'
 			. '.small{font-size:8.5px;color:#50575e}'
+			. '.cov{margin:2px 0 8px}'
+			. 'table.checks{width:100%;border-collapse:collapse;font-size:8.5px}'
+			. 'table.checks td{border-bottom:1px solid #f0f0f1;padding:2px 4px;vertical-align:top}'
+			. '.st-partial{color:#6b4d00}.st-error,.st-not_run{color:#8a1a1a}'
 			. '.conf{font-size:7.5px;font-weight:bold;border:1px solid #c3c4c7;padding:0 3px;color:#50575e}'
 			. '.conf.review{color:#6b4d00;border-color:#dba617}'
 			. '.snip{color:#50575e;border-left:2px solid #dcdcde;padding-left:4px;margin:1px 0 2px}'

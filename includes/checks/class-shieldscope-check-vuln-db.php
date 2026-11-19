@@ -273,6 +273,10 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 			)
 		);
 
+		if ( ! $this->get_api_key() ) {
+			$this->note_partial( __( 'only the limited built-in list was checked (no WPScan API key)', 'shieldscope-site-security-scanner' ) );
+		}
+
 		if ( (int) $cursor['checked'] >= (int) $cursor['eligible'] ) {
 			return;
 		}
@@ -280,6 +284,15 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 		$reasons = empty( $cursor['reasons'] )
 			? array( __( 'unknown error', 'shieldscope-site-security-scanner' ) )
 			: array_keys( $cursor['reasons'] );
+
+		$this->note_partial(
+			sprintf(
+				/* translators: 1: components checked, 2: components eligible */
+				__( 'WPScan lookups: %1$d of %2$d checked', 'shieldscope-site-security-scanner' ),
+				(int) $cursor['checked'],
+				(int) $cursor['eligible']
+			)
+		);
 
 		$this->finding(
 			ShieldScope_Logger::SEVERITY_LOW,

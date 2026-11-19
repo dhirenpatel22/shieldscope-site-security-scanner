@@ -798,3 +798,10 @@ details.shieldscope-faq-item[open] > summary .shieldscope-faq-chevron {
 	max-width: 100%;
 	overflow-x: auto;
 }
+
+/* Coverage (S-04) */
+.shieldscope-coverage details { margin-top: 6px; }
+.shieldscope-coverage table { margin-top: 8px; }
+.shieldscope-coverage tr.is-partial td:nth-child(2) { color: #6b4d00; font-weight: 600; }
+.shieldscope-coverage tr.is-error td:nth-child(2),
+.shieldscope-coverage tr.is-not_run td:nth-child(2) { color: #b32d2e; font-weight: 600; }
