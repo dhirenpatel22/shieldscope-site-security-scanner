@@ -3,7 +3,7 @@
  * AJAX endpoints for the scan UI.
  *
  * All endpoints:
- *   - Require manage_options
+ *   - Require ShieldScope_Admin::required_capability()
  *   - Verify a nonce
  *   - Sanitize every input
  *   - Return JSON via wp_send_json_*
@@ -38,7 +38,7 @@ class ShieldScope_Ajax {
 	 * @return void Exits on failure.
 	 */
 	private function authorize() {
-		if ( ! current_user_can( SHIELDSCOPE_MIN_CAP ) ) {
+		if ( ! current_user_can( ShieldScope_Admin::required_capability() ) ) {
 			wp_send_json_error(
 				array( 'message' => __( 'You do not have permission to do this.', 'shieldscope-site-security-scanner' ) ),
 				403

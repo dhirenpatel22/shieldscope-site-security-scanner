@@ -134,6 +134,173 @@ abstract class ShieldScope_Check_Base {
 		);
 	}
 
+	// -----------------------------------------------------------------------
+	// Source analysis helpers (used by the code-scanning checks)
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Set when a regular expression run through the rx_* helpers fails
+	 * (backtrack or recursion limit, bad UTF-8). Reset per file by the caller.
+	 *
+	 * @var bool
+	 */
+	protected $rx_failed = false;
+
+	/**
+	 * Functions whose result no longer carries raw user input for the
+	 * purposes of the taint heuristics (casts, keys, escaping, guards).
+	 *
+	 * @var string
+	 */
+	const NEUTRAL_CALLS = 'absint|intval|floatval|boolval|sanitize_key|sanitize_title|sanitize_email|sanitize_file_name|is_numeric|esc_html|esc_attr|esc_url|esc_url_raw|esc_js|esc_textarea|esc_sql|wp_kses|wp_kses_post|wp_kses_data|wp_validate_redirect|wp_verify_nonce|isset|empty|count|in_array|array_key_exists';
+
+	/**
+	 * PHP source with comments, string-literal text and inline HTML removed.
+	 *
+	 * Variables interpolated into double-quoted strings and heredocs are kept,
+	 * so "... $_GET[id]" still shows the variable while '... $_GET ...' does not.
+	 * Falls back to the raw source when the tokenizer is unavailable.
+	 *
+	 * @param string $contents     PHP source.
+	 * @param bool   $keep_strings Keep string-literal text (remove comments only).
+	 * @return string
+	 */
+	public static function code_view( $contents, $keep_strings = false ) {
+		if ( ! function_exists( 'token_get_all' ) ) {
+			return $contents;
+		}
+		$code = '';
+		foreach ( @token_get_all( $contents ) as $token ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- scanned files may be malformed.
+			if ( ! is_array( $token ) ) {
+				$code .= $token;
+				continue;
+			}
+			if ( $keep_strings && T_COMMENT !== $token[0] && T_DOC_COMMENT !== $token[0] ) {
+				$code .= $token[1];
+				continue;
+			}
+			switch ( $token[0] ) {
+				case T_COMMENT:
+				case T_DOC_COMMENT:
+					$code .= ' ';
+					break;
+				case T_CONSTANT_ENCAPSED_STRING:
+					$code .= "''";
+					break;
+				case T_ENCAPSED_AND_WHITESPACE:
+					$code .= ' ';
+					break;
+				case T_INLINE_HTML:
+					$code .= "\n";
+					break;
+				default:
+					$code .= $token[1];
+			}
+		}
+		return $code;
+	}
+
+	/**
+	 * Replace calls that neutralise user input (casts, escaping, isset guards)
+	 * with 0, so what remains shows only raw use of request data.
+	 *
+	 * @param string $code Output of code_view().
+	 * @return string
+	 */
+	protected function neutralise_safe_calls( $code ) {
+		$code = $this->rx_replace( '/\b(?:' . self::NEUTRAL_CALLS . ')\s*(\((?:[^()]++|(?1))*\))/i', '0', $code );
+		return $this->rx_replace( '/\(\s*(?:int|integer|float|double|bool|boolean)\s*\)\s*\$_(?:GET|POST|REQUEST|COOKIE)(?:\s*\[[^\]]*\])*/i', '0', $code );
+	}
+
+	/**
+	 * preg_match() that records a failure instead of reading it as "no match".
+	 *
+	 * @param string $pattern Regex.
+	 * @param string $subject Subject.
+	 * @param array  $matches Matches (by reference).
+	 * @return bool
+	 */
+	protected function rx_match( $pattern, $subject, &$matches = null ) {
+		$result = preg_match( $pattern, $subject, $matches );
+		if ( false === $result || PREG_NO_ERROR !== preg_last_error() ) {
+			$this->rx_failed = true;
+			return false;
+		}
+		return 1 === $result;
+	}
+
+	/**
+	 * preg_match_all() that records a failure.
+	 *
+	 * @param string $pattern Regex.
+	 * @param string $subject Subject.
+	 * @return array Capture group 1 of every match.
+	 */
+	protected function rx_all( $pattern, $subject ) {
+		$result = preg_match_all( $pattern, $subject, $matches );
+		if ( false === $result || PREG_NO_ERROR !== preg_last_error() ) {
+			$this->rx_failed = true;
+			return array();
+		}
+		return isset( $matches[1] ) ? $matches[1] : array();
+	}
+
+	/**
+	 * preg_replace() / preg_replace_callback() that records a failure and
+	 * returns the subject unchanged.
+	 *
+	 * @param string          $pattern     Regex.
+	 * @param string|callable $replacement Replacement string or callback.
+	 * @param string          $subject     Subject.
+	 * @return string
+	 */
+	protected function rx_replace( $pattern, $replacement, $subject ) {
+		$result = is_callable( $replacement )
+			? preg_replace_callback( $pattern, $replacement, $subject )
+			: preg_replace( $pattern, $replacement, $subject );
+		if ( null === $result || PREG_NO_ERROR !== preg_last_error() ) {
+			$this->rx_failed = true;
+			return $subject;
+		}
+		return $result;
+	}
+
+	/**
+	 * Record that a file could not be fully analysed.
+	 *
+	 * @param string $path File path.
+	 * @return void
+	 */
+	protected function could_not_analyse( $path ) {
+		$this->finding(
+			ShieldScope_Logger::SEVERITY_LOW,
+			/* translators: %s: file path */
+			sprintf( __( 'Could not analyse: %s', 'shieldscope-site-security-scanner' ), $path ),
+			__( 'A pattern check failed on this file (the regular expression engine hit a limit), so the file was not fully checked. Very large or unusual files can cause this, and so can files written to avoid pattern checks.', 'shieldscope-site-security-scanner' ),
+			__( 'Open the file and review it by hand, or compare it with the original plugin or theme source.', 'shieldscope-site-security-scanner' ),
+			$path
+		);
+	}
+
+	/**
+	 * Read a PHP file for pattern scanning.
+	 *
+	 * @param string $path          File path.
+	 * @param int    $max_file_size Size limit in bytes.
+	 * @return string|false Contents; '' for an empty file; false if skipped (too large or unreadable).
+	 */
+	protected function read_scannable_file( $path, $max_file_size ) {
+		$size = @filesize( $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		if ( false === $size || $size > $max_file_size ) {
+			return false;
+		}
+		if ( 0 === $size ) {
+			return '';
+		}
+		$contents = @file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents,WordPress.PHP.NoSilencedErrors.Discouraged
+		return false === $contents ? false : $contents;
+	}
+
 	/**
 	 * Shared resumable directory walker (two-queue design).
 	 *
