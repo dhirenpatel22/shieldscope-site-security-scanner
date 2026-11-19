@@ -772,3 +772,29 @@ details.shieldscope-faq-item[open] > summary .shieldscope-faq-chevron {
 	vertical-align: middle;
 	margin-top: -2px;
 }
+
+/* Evidence and confidence (S-03) */
+.shieldscope-confidence {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 0 6px;
+	border: 1px solid #c3c4c7;
+	border-radius: 3px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 18px;
+}
+.shieldscope-confidence.is-confirmed { color: #1d2327; background: #f0f0f1; }
+.shieldscope-confidence.is-review { color: #6b4d00; background: #fff8e5; border-color: #dba617; }
+.shieldscope-review-note { font-style: italic; color: #50575e; }
+.shieldscope-snippet {
+	margin: 4px 0 8px;
+	padding: 4px 8px;
+	background: #f6f7f7;
+	border-left: 3px solid #c3c4c7;
+	font-size: 12px;
+	white-space: pre-wrap;
+	word-break: break-all;
+	max-width: 100%;
+	overflow-x: auto;
+}

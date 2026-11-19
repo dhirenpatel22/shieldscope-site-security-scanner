@@ -111,6 +111,22 @@ abstract class ShieldScope_Check_Base {
 	}
 
 	/**
+	 * Confidence labels stored in a finding's context.
+	 */
+	const CONFIDENCE_CONFIRMED = 'confirmed';
+	const CONFIDENCE_REVIEW    = 'review';
+
+	/**
+	 * Is this a pattern/heuristic title that needs a person to confirm it?
+	 *
+	 * @param string $title Finding title.
+	 * @return bool
+	 */
+	public static function is_review_title( $title ) {
+		return 0 === strpos( (string) $title, 'Review:' ) || 0 === strpos( (string) $title, 'Matches pattern' );
+	}
+
+	/**
 	 * Helper — record a finding with this check's id.
 	 *
 	 * @param string $severity       Severity.
@@ -122,6 +138,14 @@ abstract class ShieldScope_Check_Base {
 	 * @return void
 	 */
 	protected function finding( $severity, $title, $description = '', $recommendation = '', $target = '', $context = array() ) {
+		$context = (array) $context;
+		if ( ! isset( $context['confidence'] ) ) {
+			$context['confidence'] = self::is_review_title( $title ) ? self::CONFIDENCE_REVIEW : self::CONFIDENCE_CONFIRMED;
+		}
+		// Critical is reserved for confirmed facts (docs/severity-rubric.md).
+		if ( self::CONFIDENCE_REVIEW === $context['confidence'] && ShieldScope_Logger::SEVERITY_CRITICAL === $severity ) {
+			$severity = ShieldScope_Logger::SEVERITY_HIGH;
+		}
 		$this->logger->record(
 			$this->scan_id,
 			$this->get_id(),
@@ -179,19 +203,17 @@ abstract class ShieldScope_Check_Base {
 				$code .= $token[1];
 				continue;
 			}
+			// Blanked tokens keep their line breaks so offsets map to the same line.
+			$breaks = str_repeat( "\n", substr_count( $token[1], "\n" ) );
 			switch ( $token[0] ) {
 				case T_COMMENT:
 				case T_DOC_COMMENT:
-					$code .= ' ';
+				case T_ENCAPSED_AND_WHITESPACE:
+				case T_INLINE_HTML:
+					$code .= ' ' . $breaks;
 					break;
 				case T_CONSTANT_ENCAPSED_STRING:
-					$code .= "''";
-					break;
-				case T_ENCAPSED_AND_WHITESPACE:
-					$code .= ' ';
-					break;
-				case T_INLINE_HTML:
-					$code .= "\n";
+					$code .= "''" . $breaks;
 					break;
 				default:
 					$code .= $token[1];
@@ -208,7 +230,13 @@ abstract class ShieldScope_Check_Base {
 	 * @return string
 	 */
 	protected function neutralise_safe_calls( $code ) {
-		$code = $this->rx_replace( '/\b(?:' . self::NEUTRAL_CALLS . ')\s*(\((?:[^()]++|(?1))*\))/i', '0', $code );
+		$code = $this->rx_replace(
+			'/\b(?:' . self::NEUTRAL_CALLS . ')\s*(\((?:[^()]++|(?1))*\))/i',
+			static function ( $m ) {
+				return '0' . str_repeat( "\n", substr_count( $m[0], "\n" ) );
+			},
+			$code
+		);
 		return $this->rx_replace( '/\(\s*(?:int|integer|float|double|bool|boolean)\s*\)\s*\$_(?:GET|POST|REQUEST|COOKIE)(?:\s*\[[^\]]*\])*/i', '0', $code );
 	}
 
@@ -227,6 +255,53 @@ abstract class ShieldScope_Check_Base {
 			return false;
 		}
 		return 1 === $result;
+	}
+
+	/**
+	 * Offset of the first match, or -1 (a regex failure is recorded).
+	 *
+	 * @param string $pattern Regex.
+	 * @param string $subject Subject.
+	 * @return int
+	 */
+	protected function rx_offset( $pattern, $subject ) {
+		$result = preg_match( $pattern, $subject, $m, PREG_OFFSET_CAPTURE );
+		if ( false === $result || PREG_NO_ERROR !== preg_last_error() ) {
+			$this->rx_failed = true;
+			return -1;
+		}
+		return 1 === $result ? (int) $m[0][1] : -1;
+	}
+
+	/**
+	 * Line number and a short snippet for a match.
+	 *
+	 * @param string $original Original file contents.
+	 * @param string $view     The text the match was found in (same line breaks as $original).
+	 * @param int    $offset   Byte offset of the match in $view.
+	 * @return array { evidence: { line: int, snippet: string } } or empty array.
+	 */
+	public static function evidence( $original, $view, $offset ) {
+		if ( $offset < 0 ) {
+			return array();
+		}
+		$line  = substr_count( substr( (string) $view, 0, $offset ), "\n" ) + 1;
+		$lines = explode( "\n", (string) $original );
+		$text  = isset( $lines[ $line - 1 ] ) ? trim( $lines[ $line - 1 ] ) : '';
+		if ( function_exists( 'wp_check_invalid_utf8' ) ) {
+			$text = wp_check_invalid_utf8( $text, true );
+		}
+		if ( function_exists( 'mb_strimwidth' ) ) {
+			$text = mb_strimwidth( $text, 0, 160, '…', 'UTF-8' );
+		} elseif ( strlen( $text ) > 160 ) {
+			$text = substr( $text, 0, 159 ) . '…';
+		}
+		return array(
+			'evidence' => array(
+				'line'    => $line,
+				'snippet' => $text,
+			),
+		);
 	}
 
 	/**

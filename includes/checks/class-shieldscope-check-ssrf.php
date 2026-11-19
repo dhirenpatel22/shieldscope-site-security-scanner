@@ -160,8 +160,10 @@ class ShieldScope_Check_SSRF extends ShieldScope_Check_Base {
 		$with_strings = self::code_view( $contents, true );
 		foreach ( $rules as $key => $rule ) {
 			// The Location rule needs the header text, which the code view blanks.
-			if ( $this->rx_match( $rule[0], 'location' === $key ? $with_strings : $raw ) ) {
-				$this->finding( ShieldScope_Logger::SEVERITY_LOW, $rule[1], $rule[2] . ' ' . $note, $rule[3], $path );
+			$view = 'location' === $key ? $with_strings : $raw;
+			$at   = $this->rx_offset( $rule[0], $view );
+			if ( $at >= 0 ) {
+				$this->finding( ShieldScope_Logger::SEVERITY_LOW, $rule[1], $rule[2] . ' ' . $note, $rule[3], $path, self::evidence( $contents, $view, $at ) );
 			}
 		}
 

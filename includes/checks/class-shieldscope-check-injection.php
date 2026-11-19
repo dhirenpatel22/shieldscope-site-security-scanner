@@ -122,7 +122,7 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 		$raw             = $this->neutralise_safe_calls( $code );
 
 		$this->phase1_direct_patterns( $path, $contents, $raw );
-		$this->phase2_taint_tracking( $path, $raw );
+		$this->phase2_taint_tracking( $path, $raw, $contents );
 		$this->phase3_cooccurrence( $path, $contents, $code );
 
 		if ( $this->rx_failed ) {
@@ -219,35 +219,41 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 		);
 
 		foreach ( $rules as $rule ) {
-			if ( $this->rx_match( $rule[0], $raw ) ) {
+			$at = $this->rx_offset( $rule[0], $raw );
+			if ( $at >= 0 ) {
 				$this->finding(
 					ShieldScope_Logger::SEVERITY_HIGH,
 					$rule[1],
 					$rule[2] . ' ' . $this->review_note(),
 					$rule[3],
-					$path
+					$path,
+					array( 'confidence' => self::CONFIDENCE_REVIEW ) + self::evidence( $contents, $raw, $at )
 				);
 			}
 		}
 
 		// Patterns that are risky whatever the input (removed from current PHP).
-		if ( $this->rx_match( '/\bcreate_function\s*\(/i', $raw ) ) {
+		$at = $this->rx_offset( '/\bcreate_function\s*\(/i', $raw );
+		if ( $at >= 0 ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_MEDIUM,
 				__( 'Deprecated create_function() — potential code injection', 'shieldscope-site-security-scanner' ),
 				__( 'create_function() works like eval() and was removed in PHP 8. If request data reaches its arguments it allows code execution; on PHP 8 the call is a fatal error.', 'shieldscope-site-security-scanner' ),
 				__( 'Replace it with an anonymous function (closure).', 'shieldscope-site-security-scanner' ),
-				$path
+				$path,
+				self::evidence( $contents, $raw, $at )
 			);
 		}
 		$no_comments = self::code_view( $contents, true );
-		if ( $this->rx_match( '/preg_replace\s*\(\s*["\'][^"\']*\/e[imsuUxAJD]*["\'][^,]*,/i', $no_comments ) ) {
+		$at = $this->rx_offset( '/preg_replace\s*\(\s*["\'][^"\']*\/e[imsuUxAJD]*["\'][^,]*,/i', $no_comments );
+		if ( $at >= 0 ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_MEDIUM,
 				__( 'preg_replace() /e modifier — code injection', 'shieldscope-site-security-scanner' ),
 				__( 'The /e modifier runs the replacement as PHP code. It was removed in PHP 7.0, so on current PHP the call fails; on old PHP it is a code-execution risk.', 'shieldscope-site-security-scanner' ),
 				__( 'Replace with preg_replace_callback().', 'shieldscope-site-security-scanner' ),
-				$path
+				$path,
+				self::evidence( $contents, $no_comments, $at )
 			);
 		}
 	}
@@ -259,11 +265,12 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 	/**
 	 * Follow variables assigned from raw request data to dangerous calls.
 	 *
-	 * @param string $path File path.
-	 * @param string $raw  Code view with neutralising calls removed.
+	 * @param string $path     File path.
+	 * @param string $raw      Code view with neutralising calls removed.
+	 * @param string $contents Original source (for evidence).
 	 * @return void
 	 */
-	private function phase2_taint_tracking( $path, $raw ) {
+	private function phase2_taint_tracking( $path, $raw, $contents ) {
 		$tainted = $this->extract_tainted_vars( $raw );
 		if ( empty( $tainted ) ) {
 			return;
@@ -274,7 +281,8 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 		$sql_view = $this->rx_replace(
 			'/\$wpdb\s*->\s*prepare\s*(\((?:[^()]++|(?1))*\))/i',
 			function ( $m ) {
-				return '$wpdb->prepare(' . self::first_argument( substr( $m[1], 1, -1 ) ) . ')';
+				$first = self::first_argument( substr( $m[1], 1, -1 ) );
+				return '$wpdb->prepare(' . $first . ')' . str_repeat( "\n", substr_count( $m[0], "\n" ) - substr_count( $first, "\n" ) );
 			},
 			$raw
 		);
@@ -293,7 +301,8 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 			$quoted = preg_quote( $var, '/' );
 			foreach ( $sinks as $key => $sink ) {
 				$subject = 'sql' === $key ? $sql_view : $raw;
-				if ( ! $this->rx_match( sprintf( $sink[0], $quoted ), $subject ) ) {
+				$at      = $this->rx_offset( sprintf( $sink[0], $quoted ), $subject );
+				if ( $at < 0 ) {
 					continue;
 				}
 				$this->finding(
@@ -310,7 +319,10 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 					),
 					$sink[3],
 					$path,
-					array( 'tainted_var' => '$' . $var )
+					array(
+						'tainted_var' => '$' . $var,
+						'confidence'  => self::CONFIDENCE_REVIEW,
+					) + self::evidence( $contents, $subject, $at )
 				);
 			}
 		}
@@ -409,6 +421,9 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 			$code
 		);
 
+		$unser_at = $this->rx_offset( '/\b(?:maybe_)?unserialize\s*\(/i', $code );
+		$unser_ev = self::evidence( $contents, $code, $unser_at );
+
 		$advice = __( 'Trace each maybe_unserialize() call in this file. Confirm its argument comes from stored data (database, options, meta) and never from request data, and that AJAX handlers check a nonce and a capability.', 'shieldscope-site-security-scanner' );
 
 		if ( $has_nopriv_ajax && ( $has_maybe_unserialize || $has_unserialize ) ) {
@@ -417,7 +432,8 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 				__( 'Review: user input near maybe_unserialize() in a file with an unauthenticated AJAX action', 'shieldscope-site-security-scanner' ),
 				__( 'This file registers a wp_ajax_nopriv_ action (reachable by logged-out visitors) and also deserializes data. If request data reaches the deserialization call, that would be PHP object injection.', 'shieldscope-site-security-scanner' ) . ' ' . $this->review_note(),
 				$advice,
-				$path
+				$path,
+				$unser_ev
 			);
 		} elseif ( $has_user_input && $has_maybe_unserialize && ! $safe_deserialize_context ) {
 			$this->finding(
@@ -425,7 +441,8 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 				__( 'Review: user input near maybe_unserialize()', 'shieldscope-site-security-scanner' ),
 				__( 'This file reads request data and also calls maybe_unserialize() on a value that is not obviously stored data. If request data reaches that call, it would be PHP object injection.', 'shieldscope-site-security-scanner' ) . ' ' . $this->review_note(),
 				$advice,
-				$path
+				$path,
+				$unser_ev
 			);
 		} elseif ( $has_any_ajax && $has_maybe_unserialize && ! $safe_deserialize_context ) {
 			$this->finding(
@@ -433,17 +450,20 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 				__( 'Review: user input near maybe_unserialize() in a file with an AJAX action', 'shieldscope-site-security-scanner' ),
 				__( 'This file registers an AJAX action and calls maybe_unserialize(). If a logged-in user with few permissions can send data that reaches the call, it would be PHP object injection.', 'shieldscope-site-security-scanner' ) . ' ' . $this->review_note(),
 				$advice,
-				$path
+				$path,
+				$unser_ev
 			);
 		}
 
-		if ( $this->rx_match( '/\bwp_parse_str\s*\([^,;]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $code ) ) {
+		$parse_at = $this->rx_offset( '/\bwp_parse_str\s*\([^,;]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $code );
+		if ( $parse_at >= 0 ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_LOW,
 				__( 'Review: user input near wp_parse_str()', 'shieldscope-site-security-scanner' ),
 				__( 'wp_parse_str() turns a query string into an array of visitor-chosen keys. Code that uses those keys without checking them can be steered by the request.', 'shieldscope-site-security-scanner' ) . ' ' . $this->review_note(),
 				__( 'Read only the keys you expect from the resulting array and sanitise each one.', 'shieldscope-site-security-scanner' ),
-				$path
+				$path,
+				self::evidence( $contents, $code, $parse_at )
 			);
 		}
 	}

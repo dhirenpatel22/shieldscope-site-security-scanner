@@ -493,3 +493,4 @@ function rest_get_server() {
 	list( $hit, $result ) = ss_tests_maybe_override( 'rest_get_server', array() );
 	return $hit ? $result : null;
 }
+function wp_strip_all_tags( $text ) { return trim( strip_tags( (string) $text ) ); }

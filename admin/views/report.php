@@ -171,10 +171,16 @@ foreach ( $severity_order as $sev ) {
 								$check_id    = isset( $first['check_id'] ) ? (string) $first['check_id'] : '';
 								$ctx         = ( ! empty( $first['context'] ) ) ? json_decode( $first['context'], true ) : array();
 								$plugin_name = ( is_array( $ctx ) && ! empty( $ctx['plugin_name'] ) ) ? (string) $ctx['plugin_name'] : '';
+								$is_review   = ( is_array( $ctx ) && isset( $ctx['confidence'] ) )
+									? ShieldScope_Check_Base::CONFIDENCE_REVIEW === $ctx['confidence']
+									: ShieldScope_Check_Base::is_review_title( $issue_title );
 							?>
 								<details class="shieldscope-finding sev-<?php echo esc_attr( $sev ); ?>">
 									<summary>
 										<span class="shieldscope-finding-title"><?php echo esc_html( $issue_title ); ?></span>
+										<span class="shieldscope-confidence <?php echo esc_attr( $is_review ? 'is-review' : 'is-confirmed' ); ?>">
+											<?php echo $is_review ? esc_html__( 'Needs review', 'shieldscope-site-security-scanner' ) : esc_html__( 'Confirmed', 'shieldscope-site-security-scanner' ); ?>
+										</span>
 										<?php if ( '' !== $check_id ) : ?>
 											<span class="shieldscope-finding-check"><?php echo esc_html( $check_id ); ?></span>
 										<?php endif; ?>
@@ -195,25 +201,40 @@ foreach ( $severity_order as $sev ) {
 									</summary>
 									<div class="shieldscope-finding-body">
 										<?php if ( ! empty( $first['description'] ) ) : ?>
-											<p><?php echo wp_kses_post( $first['description'] ); ?></p>
+											<p><?php echo esc_html( wp_strip_all_tags( $first['description'] ) ); ?></p>
 										<?php endif; ?>
 										<?php if ( ! empty( $first['recommendation'] ) ) : ?>
 											<p><strong><?php esc_html_e( 'Recommendation:', 'shieldscope-site-security-scanner' ); ?></strong>
-											<?php echo wp_kses_post( $first['recommendation'] ); ?></p>
+											<?php echo esc_html( wp_strip_all_tags( $first['recommendation'] ) ); ?></p>
 										<?php endif; ?>
-										<?php if ( 1 === $count ) : ?>
-											<?php if ( ! empty( $first['target'] ) ) : ?>
-												<p><strong><?php esc_html_e( 'Target:', 'shieldscope-site-security-scanner' ); ?></strong>
-												<code><?php echo esc_html( $first['target'] ); ?></code></p>
-											<?php endif; ?>
-										<?php else : ?>
+										<?php if ( $is_review ) : ?>
+											<p class="shieldscope-review-note"><?php esc_html_e( 'This is a pattern match. Open the file at the line shown and check whether the flagged code really does what the finding describes before changing anything.', 'shieldscope-site-security-scanner' ); ?></p>
+										<?php endif; ?>
+										<?php
+										$shieldscope_items = array();
+										foreach ( $instances as $inst ) {
+											if ( empty( $inst['target'] ) ) {
+												continue;
+											}
+											$inst_ctx            = ! empty( $inst['context'] ) ? json_decode( $inst['context'], true ) : array();
+											$shieldscope_items[] = array(
+												'target'  => (string) $inst['target'],
+												'line'    => isset( $inst_ctx['evidence']['line'] ) ? (int) $inst_ctx['evidence']['line'] : 0,
+												'snippet' => isset( $inst_ctx['evidence']['snippet'] ) ? (string) $inst_ctx['evidence']['snippet'] : '',
+											);
+										}
+										?>
+										<?php if ( $shieldscope_items ) : ?>
 											<div class="shieldscope-instances">
-												<p class="shieldscope-instances-label"><?php esc_html_e( 'Affected items:', 'shieldscope-site-security-scanner' ); ?></p>
+												<p class="shieldscope-instances-label"><?php echo 1 === count( $shieldscope_items ) ? esc_html__( 'Target:', 'shieldscope-site-security-scanner' ) : esc_html__( 'Affected items:', 'shieldscope-site-security-scanner' ); ?></p>
 												<ul class="shieldscope-target-list">
-													<?php foreach ( $instances as $inst ) : ?>
-														<?php if ( ! empty( $inst['target'] ) ) : ?>
-															<li><code><?php echo esc_html( $inst['target'] ); ?></code></li>
-														<?php endif; ?>
+													<?php foreach ( $shieldscope_items as $item ) : ?>
+														<li>
+															<code><?php echo esc_html( $item['target'] . ( $item['line'] > 0 ? ':' . $item['line'] : '' ) ); ?></code>
+															<?php if ( '' !== $item['snippet'] ) : ?>
+																<pre class="shieldscope-snippet"><?php echo esc_html( $item['snippet'] ); ?></pre>
+															<?php endif; ?>
+														</li>
 													<?php endforeach; ?>
 												</ul>
 											</div>

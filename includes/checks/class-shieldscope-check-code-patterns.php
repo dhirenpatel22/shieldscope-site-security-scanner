@@ -120,6 +120,13 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 	}
 
 	/**
+	 * Subject and offset of the last successful match().
+	 *
+	 * @var array
+	 */
+	private $last_match = array( '', -1 );
+
+	/**
 	 * preg_match() that records a regex failure instead of treating it as "no match".
 	 *
 	 * @param string $pattern Regex.
@@ -127,12 +134,26 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 	 * @return bool
 	 */
 	private function matches( $pattern, $subject ) {
-		$result = preg_match( $pattern, $subject );
+		$this->last_match = array( '', -1 );
+		$result = preg_match( $pattern, $subject, $m, PREG_OFFSET_CAPTURE );
 		if ( false === $result || PREG_NO_ERROR !== preg_last_error() ) {
 			$this->regex_failed = true;
 			return false;
 		}
+		if ( 1 === $result ) {
+			$this->last_match = array( $subject, (int) $m[0][1] );
+		}
 		return 1 === $result;
+	}
+
+	/**
+	 * Evidence (line and snippet) for the last successful match().
+	 *
+	 * @param string $contents Original file contents.
+	 * @return array
+	 */
+	private function last_evidence( $contents ) {
+		return self::evidence( $contents, $this->last_match[0], $this->last_match[1] );
 	}
 
 	/**
@@ -142,18 +163,7 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 	 * @return string
 	 */
 	private function strip_comments( $contents ) {
-		if ( ! function_exists( 'token_get_all' ) ) {
-			return $contents;
-		}
-		$code = '';
-		foreach ( @token_get_all( $contents ) as $token ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- scanned files may be malformed.
-			if ( is_array( $token ) ) {
-				$code .= ( T_COMMENT === $token[0] || T_DOC_COMMENT === $token[0] ) ? ' ' : $token[1];
-			} else {
-				$code .= $token;
-			}
-		}
-		return $code;
+		return self::code_view( $contents, true );
 	}
 
 	/**
@@ -191,7 +201,8 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 				__( 'Matches pattern: eval() on encoded data', 'shieldscope-site-security-scanner' ),
 				__( 'This file applies eval() to the output of a decode or decompress function (base64_decode, gzinflate, str_rot13 or gzuncompress). Malware often uses this shape, but some legitimate libraries and installers do too. This match has not been confirmed as harmful.', 'shieldscope-site-security-scanner' ),
 				__( 'Compare the file with the original plugin or theme source. If it does not belong there, remove it and check the site for other changes.', 'shieldscope-site-security-scanner' ),
-				$path
+				$path,
+				$this->last_evidence( $contents )
 			);
 		}
 
@@ -229,7 +240,8 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 				__( 'Matches pattern: shell command function', 'shieldscope-site-security-scanner' ),
 				__( 'This file calls shell_exec, passthru, proc_open, popen or system. Some plugins use these legitimately, for example backup or image tools. This match has not been confirmed as harmful.', 'shieldscope-site-security-scanner' ),
 				__( 'Check that the plugin needs the call and that no request data reaches the command without escapeshellarg().', 'shieldscope-site-security-scanner' ),
-				$path
+				$path,
+				$this->last_evidence( $contents )
 			);
 		}
 
@@ -240,7 +252,8 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 				__( 'Matches pattern: include/require of request data', 'shieldscope-site-security-scanner' ),
 				__( 'An include or require statement appears to use $_GET, $_POST, $_REQUEST or $_COOKIE directly. If the value is not checked first, this can allow file inclusion. This match has not been confirmed.', 'shieldscope-site-security-scanner' ),
 				__( 'Open the file and check that the value is limited to a fixed list of allowed paths before it is included.', 'shieldscope-site-security-scanner' ),
-				$path
+				$path,
+				$this->last_evidence( $contents )
 			);
 		}
 
@@ -272,7 +285,8 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 				__( 'A $wpdb query string appears to contain $_GET, $_POST, $_REQUEST or $_COOKIE data without $wpdb->prepare(). If the value is not sanitised earlier, this can allow SQL injection. This match has not been confirmed.', 'shieldscope-site-security-scanner' ),
 				// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment,WordPress.WP.I18n.UnorderedPlaceholdersText -- %s/%d/%f are code examples in the advice text, not sprintf() arguments.
 				__( 'Use $wpdb->prepare() with placeholders (%s, %d, %f). Never concatenate user input into SQL.', 'shieldscope-site-security-scanner' ),
-				$path
+				$path,
+				$this->last_evidence( $contents )
 			);
 		}
 
@@ -283,7 +297,8 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 				__( 'Matches pattern: echo of request data', 'shieldscope-site-security-scanner' ),
 				__( 'This file appears to echo $_GET, $_POST, $_REQUEST or $_COOKIE data without escaping. If the value reaches the page as-is, this can allow cross-site scripting (XSS). This match has not been confirmed.', 'shieldscope-site-security-scanner' ),
 				__( 'Wrap the value in esc_html(), esc_attr() or wp_kses() depending on the context.', 'shieldscope-site-security-scanner' ),
-				$path
+				$path,
+				$this->last_evidence( $contents )
 			);
 		}
 
@@ -294,7 +309,8 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 				__( 'Matches pattern: file_put_contents() with request data', 'shieldscope-site-security-scanner' ),
 				__( 'A file_put_contents() call appears to receive $_GET, $_POST, $_REQUEST or $_FILES data. If the path or content is not checked, this can allow arbitrary file writes. This match has not been confirmed.', 'shieldscope-site-security-scanner' ),
 				__( 'Use wp_handle_upload() and validate destination paths with realpath against an allowed base.', 'shieldscope-site-security-scanner' ),
-				$path
+				$path,
+				$this->last_evidence( $contents )
 			);
 		}
 
@@ -305,7 +321,8 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 				__( 'Matches pattern: long encoded string', 'shieldscope-site-security-scanner' ),
 				__( 'The file contains a base64-shaped string of 400 or more characters. Such strings are often legitimate (images, fonts, SVG), but can also hide a payload. This match has not been confirmed as harmful.', 'shieldscope-site-security-scanner' ),
 				__( 'Open the file and inspect the string context.', 'shieldscope-site-security-scanner' ),
-				$path
+				$path,
+				$this->last_evidence( $contents )
 			);
 		}
 	}

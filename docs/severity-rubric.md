@@ -53,3 +53,7 @@ Other checks are brought in line with this rubric by their own tickets.
 | Pingbacks | Medium, read the outbound `default_pingback_flag` | Low, reads `default_ping_status` (inbound pingbacks on new posts) |
 
 Matches in comments, string literals and inline HTML are ignored. `absint()`, `intval()`, `sanitize_key()`, `esc_*()`, `isset()` guards and casts clear taint; values passed as `$wpdb->prepare()` arguments are not treated as SQL. A regex failure on a file is reported as "Could not analyse".
+
+## Confidence labels (S-03)
+
+Every finding carries `confidence` in its context: **Confirmed** (a fact read from the site) or **Needs review** (a pattern match or heuristic; titles start with "Review:" or "Matches pattern"). A finding that needs review is never Critical: `ShieldScope_Check_Base::finding()` caps it at High. Code findings also carry `evidence` (line number and a snippet of up to 160 characters from that line), shown in the report and the PDF.
