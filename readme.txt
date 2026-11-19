@@ -27,7 +27,7 @@ ShieldScope is an audit, not a firewall: it does not block attacks, clean infect
 WordPress version and support status, debug settings, HTTPS for the admin, and other common setup mistakes.
 
 = Core File Integrity =
-Compares WordPress core files with the official WordPress.org checksums for your version and language, and lists modified or unexpected files in the core folders.
+Compares WordPress core files with the official WordPress.org checksums for your version and language, and lists modified or unexpected files in the core folders. Also lists PHP files in the WordPress root that are not part of WordPress, drop-ins and other PHP files directly in wp-content, and must-use plugins, which are common places for injected code.
 
 = User Accounts =
 Administrator accounts: a user named "admin", the number of administrators, empty passwords and old password hash formats.

@@ -494,3 +494,15 @@ function rest_get_server() {
 	return $hit ? $result : null;
 }
 function wp_strip_all_tags( $text ) { return trim( strip_tags( (string) $text ) ); }
+
+// ---------------------------------------------------------------------------
+// Drop-ins (S-21)
+// ---------------------------------------------------------------------------
+
+function _get_dropins() {
+	return array(
+		'advanced-cache.php' => array( 'Advanced caching plugin.', 'WP_CACHE' ),
+		'object-cache.php'   => array( 'External object cache.', true ),
+		'db.php'             => array( 'Custom database class.', true ),
+	);
+}

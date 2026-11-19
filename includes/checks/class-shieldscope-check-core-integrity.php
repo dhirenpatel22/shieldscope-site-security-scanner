@@ -90,7 +90,7 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 	 * @return array
 	 */
 	public function get_steps() {
-		return array( 'fetch', 'verify', 'extras' );
+		return array( 'fetch', 'verify', 'extras', 'persistence' );
 	}
 
 	/**
@@ -111,6 +111,10 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 
 			case 'extras':
 				return $this->step_extras( $cursor );
+
+			case 'persistence':
+				$this->step_persistence();
+				return array( 'continue' => false, 'cursor' => array() );
 		}
 		return array( 'continue' => false, 'cursor' => array() );
 	}
@@ -591,5 +595,145 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 		}
 
 		return array( 'continue' => false, 'cursor' => array() );
+	}
+
+	/**
+	 * Most files read per location in the persistence step.
+	 */
+	const PERSISTENCE_MAX_FILES = 200;
+
+	/**
+	 * Places where injected code often hides and that no other check reads
+	 * (S-21): PHP files in the WordPress root that are not core, PHP files
+	 * in the wp-content root (drop-ins and others) and must-use plugins.
+	 * Every file found is also checked for eval() on decoded data.
+	 *
+	 * @return void
+	 */
+	private function step_persistence() {
+		$settings = (array) get_option( 'shieldscope_settings', array() );
+		$max_size = isset( $settings['max_scan_file_size'] ) ? (int) $settings['max_scan_file_size'] : 2 * MB_IN_BYTES;
+
+		// 1. WordPress root.
+		$cached = get_transient( self::CHECKSUMS_TRANSIENT );
+		$known  = is_array( $cached ) && ! empty( $cached['checksums'] ) ? $cached['checksums'] : null;
+		if ( null === $known ) {
+			$this->note_partial( __( 'WordPress root not checked for unknown PHP files: core checksums unavailable', 'shieldscope-site-security-scanner' ) );
+		}
+		foreach ( self::php_files_in( ABSPATH ) as $file ) {
+			$name = basename( $file );
+			if ( in_array( $name, array( 'wp-config.php', 'wp-config-sample.php' ), true ) ) {
+				continue;
+			}
+			if ( null !== $known && ! isset( $known[ $name ] ) ) {
+				$this->finding(
+					ShieldScope_Logger::SEVERITY_MEDIUM,
+					/* translators: %s: file name */
+					sprintf( __( 'Review: unknown PHP file in the WordPress root: %s', 'shieldscope-site-security-scanner' ), $name ),
+					__( 'This PHP file sits next to wp-config.php but is not part of WordPress. Some are legitimate (for example wordfence-waf.php from Wordfence, or a host\'s health-check file); a file nobody recognises is a common sign of a compromise, because it can be requested directly from the web.', 'shieldscope-site-security-scanner' ),
+					__( 'Find out what added the file. If nobody recognises it, take a backup, remove it, and check the site for other changes.', 'shieldscope-site-security-scanner' ),
+					$name
+				);
+			}
+			$this->scan_for_decoded_eval( $file, $max_size );
+		}
+
+		// 2. wp-content root: drop-ins and other PHP files.
+		$content = defined( 'SHIELDSCOPE_WP_CONTENT_DIR' ) ? SHIELDSCOPE_WP_CONTENT_DIR : WP_CONTENT_DIR;
+		if ( ! function_exists( '_get_dropins' ) && file_exists( ABSPATH . 'wp-admin/includes/plugin.php' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		$dropins = function_exists( '_get_dropins' ) ? _get_dropins() : array();
+		foreach ( self::php_files_in( $content ) as $file ) {
+			$name = basename( $file );
+			if ( 'index.php' === $name ) {
+				continue;
+			}
+			if ( isset( $dropins[ $name ] ) ) {
+				$this->finding(
+					ShieldScope_Logger::SEVERITY_INFO,
+					__( 'Drop-in in use', 'shieldscope-site-security-scanner' ),
+					__( 'Drop-ins are files in wp-content that replace parts of WordPress (caching, database, maintenance and error pages). They are usually added by a caching or hosting plugin and do not appear in the Plugins screen.', 'shieldscope-site-security-scanner' ),
+					__( 'Confirm each drop-in belongs to a plugin or host you use. Remove drop-ins left behind by plugins you deleted.', 'shieldscope-site-security-scanner' ),
+					'wp-content/' . $name,
+					array( 'description' => isset( $dropins[ $name ][0] ) ? (string) $dropins[ $name ][0] : '' )
+				);
+			} else {
+				$this->finding(
+					ShieldScope_Logger::SEVERITY_LOW,
+					/* translators: %s: file name */
+					sprintf( __( 'Review: unknown PHP file in wp-content: %s', 'shieldscope-site-security-scanner' ), $name ),
+					__( 'WordPress only expects index.php and known drop-ins directly inside wp-content. Other PHP files there are sometimes left by plugins, and sometimes planted.', 'shieldscope-site-security-scanner' ),
+					__( 'Find out what added the file and remove it if it is not needed.', 'shieldscope-site-security-scanner' ),
+					'wp-content/' . $name
+				);
+			}
+			$this->scan_for_decoded_eval( $file, $max_size );
+		}
+
+		// 3. Must-use plugins (WordPress loads only the top-level PHP files).
+		$mu = defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : $content . '/mu-plugins';
+		foreach ( self::php_files_in( $mu ) as $file ) {
+			$name = basename( $file );
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_INFO,
+				__( 'Must-use plugin present', 'shieldscope-site-security-scanner' ),
+				__( 'Must-use plugins load on every request and cannot be turned off from the Plugins screen. Hosts and some plugins add them legitimately; attackers use them because they are easy to miss.', 'shieldscope-site-security-scanner' ),
+				__( 'Confirm each must-use plugin comes from your host or a plugin you use.', 'shieldscope-site-security-scanner' ),
+				'wp-content/mu-plugins/' . $name
+			);
+			$this->scan_for_decoded_eval( $file, $max_size );
+		}
+	}
+
+	/**
+	 * Top-level PHP files in a directory (sorted, capped).
+	 *
+	 * @param string $dir Directory.
+	 * @return string[] Full paths.
+	 */
+	private static function php_files_in( $dir ) {
+		if ( ! is_dir( $dir ) ) {
+			return array();
+		}
+		$entries = @scandir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		$files   = array();
+		foreach ( (array) $entries as $entry ) {
+			$full = rtrim( $dir, '/\\' ) . DIRECTORY_SEPARATOR . $entry;
+			if ( preg_match( '/\.(php|phtml|php5|php7|phar|inc)$/i', $entry ) && is_file( $full ) ) {
+				$files[] = $full;
+			}
+			if ( count( $files ) >= self::PERSISTENCE_MAX_FILES ) {
+				break;
+			}
+		}
+		return $files;
+	}
+
+	/**
+	 * Report eval() applied to decoded data in one file, with evidence.
+	 *
+	 * @param string $file     Full path.
+	 * @param int    $max_size Size limit in bytes.
+	 * @return void
+	 */
+	private function scan_for_decoded_eval( $file, $max_size ) {
+		$contents = $this->read_scannable_file( $file, $max_size );
+		if ( ! is_string( $contents ) || '' === $contents ) {
+			return;
+		}
+		$view = self::code_view( $contents, true );
+		$at   = $this->rx_offset( '/\beval\s*\(\s*(?:base64_decode|gzinflate|str_rot13|gzuncompress)/i', $view );
+		if ( $at < 0 ) {
+			return;
+		}
+		$this->finding(
+			ShieldScope_Logger::SEVERITY_HIGH,
+			__( 'Matches pattern: eval() on encoded data', 'shieldscope-site-security-scanner' ),
+			__( 'This file applies eval() to the output of a decode or decompress function (base64_decode, gzinflate, str_rot13 or gzuncompress). Malware often uses this shape, but some legitimate libraries and installers do too. This match has not been confirmed as harmful.', 'shieldscope-site-security-scanner' ),
+			__( 'Compare the file with the original plugin or theme source. If it does not belong there, remove it and check the site for other changes.', 'shieldscope-site-security-scanner' ),
+			$file,
+			self::evidence( $contents, $view, $at )
+		);
 	}
 }
