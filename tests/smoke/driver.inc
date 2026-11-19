@@ -165,4 +165,17 @@ function shieldscope_smoke_scan( array &$result ) {
 	$result['wp']      = get_bloginfo( 'version' );
 	$result['steps']   = $state['done_steps'] . '/' . $state['total_steps'];
 	$result['summary'] = $logger->get_summary( $state['scan_id'] );
+
+	// PDF export of the finished scan (S-06), on the real WordPress and PHP.
+	$result['pdf_unavailable'] = ShieldScope_PDF_Report::unavailable_reason();
+	if ( '' === $result['pdf_unavailable'] && ShieldScope_Scanner::STATUS_COMPLETED === $state['status'] ) {
+		$pdf_started          = microtime( true );
+		$report               = ShieldScope_PDF_Report::collect_report();
+		$pdf                  = ShieldScope_PDF_Report::render_pdf( ShieldScope_PDF_Report::build_html( $report ), $report );
+		$result['pdf_bytes']  = strlen( $pdf );
+		$result['pdf_ok']     = 0 === strpos( $pdf, '%PDF-' );
+		$result['pdf_secs']   = round( microtime( true ) - $pdf_started, 1 );
+		$result['pdf_groups'] = count( $report['findings'] );
+		file_put_contents( SHIELDSCOPE_SMOKE_OUT . '/report.pdf', $pdf );
+	}
 }
