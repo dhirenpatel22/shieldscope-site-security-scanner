@@ -36,7 +36,7 @@ Administrator accounts: a user named "admin", the number of administrators, empt
 File permissions, configuration and backup files that can be downloaded from the web, PHP files in the uploads folder, and directory listings.
 
 = Plugins and Themes =
-Pending updates, inactive plugins and themes, and plugins that have not been updated for a long time.
+Pending updates, inactive plugins and themes, plugins that WordPress.org has closed (WordPress itself still shows them as up to date), and plugins with no release on WordPress.org for over two years.
 
 = Code Patterns =
 Looks in plugin and theme PHP files for code shapes that need a manual review, such as eval() on decoded data. A match is a pointer for review, not a confirmed infection.
@@ -79,6 +79,13 @@ While a scan runs, ShieldScope sends requests to your own site (to check headers
 During the Core Integrity check, the plugin fetches the official file checksums for your exact WordPress version and locale from the WordPress.org API. The only data sent is your WordPress version number and site locale (for example, en_US). No personal data, usernames, or site URLs are transmitted.
 
 * Service: https://api.wordpress.org/core/checksums/1.0/
+* Privacy policy: https://automattic.com/privacy/
+
+= WordPress.org Plugin Directory API =
+
+During the Plugins check, the plugin asks the WordPress.org plugin directory whether each installed plugin is listed, closed, or long unmaintained. The only data sent is each plugin's folder name (its slug), the same information WordPress sends when it checks for updates. Answers are cached for 12 hours.
+
+* Service: https://api.wordpress.org/plugins/info/1.2/
 * Privacy policy: https://automattic.com/privacy/
 
 = WPScan Vulnerability Database (optional) =
@@ -135,7 +142,7 @@ It lets the Vulnerability Database check look up each plugin listed on WordPress
 
 = Is any of my site data sent to external servers? =
 
-During a scan ShieldScope contacts api.wordpress.org (it sends your WordPress version and locale) and, only if you add a WPScan API key, wpscan.com (it sends plugin and theme slugs). It also sends requests to your own site. File contents, passwords, user data and scan results are not sent anywhere. Details are in the Third-Party Services section.
+During a scan ShieldScope contacts api.wordpress.org (it sends your WordPress version and locale, and the folder names of installed plugins) and, only if you add a WPScan API key, wpscan.com (it sends plugin and theme slugs). It also sends requests to your own site. File contents, passwords, user data and scan results are not sent anywhere. Details are in the Third-Party Services section.
 
 = How long does a scan take? =
 

@@ -52,7 +52,7 @@ class ShieldScope_Admin {
 	 * @return string
 	 */
 	public static function privacy_statement() {
-		return __( 'Scan results stay in your WordPress database. During a scan ShieldScope sends requests to your own site (to check headers, HTTPS and files that should not be public) and contacts api.wordpress.org (it sends your WordPress version and locale). If you add a WPScan API key it also sends plugin and theme slugs to wpscan.com.', 'shieldscope-site-security-scanner' );
+		return __( 'Scan results stay in your WordPress database. During a scan ShieldScope sends requests to your own site (to check headers, HTTPS and files that should not be public) and contacts api.wordpress.org (it sends your WordPress version and locale, and the folder names of installed plugins to check whether they are closed or unmaintained). If you add a WPScan API key it also sends plugin and theme slugs to wpscan.com.', 'shieldscope-site-security-scanner' );
 	}
 
 	/**
