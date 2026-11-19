@@ -211,7 +211,8 @@ class ShieldScope_Check_Security_Config extends ShieldScope_Check_Base {
 	 * @return void
 	 */
 	private function check_sensitive_files() {
-		$base = trailingslashit( home_url() );
+		$base  = trailingslashit( home_url() );
+		$probe = new ShieldScope_Probe();
 
 		$files = array(
 			'wp-config-sample.php'   => array(
@@ -219,51 +220,48 @@ class ShieldScope_Check_Security_Config extends ShieldScope_Check_Base {
 				'title'    => __( 'wp-config-sample.php is publicly accessible', 'shieldscope-site-security-scanner' ),
 				'desc'     => __( 'The sample config file is readable via HTTP. While it contains no real credentials it confirms WordPress is installed and reveals config structure to attackers.', 'shieldscope-site-security-scanner' ),
 				'rec'      => __( 'Delete wp-config-sample.php from the server.', 'shieldscope-site-security-scanner' ),
+				// Served as source, not run by PHP (running it prints nothing).
+				'match'    => '/DB_(?:NAME|USER|PASSWORD|HOST)/',
 			),
 			'.env'                   => array(
 				'severity' => ShieldScope_Logger::SEVERITY_CRITICAL,
 				'title'    => __( '.env file is publicly accessible', 'shieldscope-site-security-scanner' ),
 				'desc'     => __( 'A .env file responded with HTTP 200. These files typically contain database credentials, API keys, and other secrets.', 'shieldscope-site-security-scanner' ),
 				'rec'      => __( 'Move .env above the webroot or add a deny rule in your webserver config to block access to .env files.', 'shieldscope-site-security-scanner' ),
+				'match'    => '/^\s*(?:export\s+)?[A-Z][A-Z0-9_]*\s*=/m',
 			),
 			'.git/config'            => array(
 				'severity' => ShieldScope_Logger::SEVERITY_HIGH,
 				'title'    => __( '.git/config is publicly accessible', 'shieldscope-site-security-scanner' ),
 				'desc'     => __( 'The git repository configuration is publicly readable. This exposes repository metadata and may allow full source code download.', 'shieldscope-site-security-scanner' ),
 				'rec'      => __( 'Block access to the .git directory at the webserver level (deny all .git paths).', 'shieldscope-site-security-scanner' ),
+				'match'    => '/^\s*\[core\]/m',
 			),
 			'wp-content/debug.log'   => array(
 				'severity' => ShieldScope_Logger::SEVERITY_MEDIUM,
 				'title'    => __( 'WordPress debug.log is publicly accessible', 'shieldscope-site-security-scanner' ),
 				'desc'     => __( 'The debug.log file is readable via HTTP and may contain stack traces, file paths, database errors, and user data.', 'shieldscope-site-security-scanner' ),
 				'rec'      => __( 'Block access to debug.log via the webserver or move WP_DEBUG_LOG path outside the webroot.', 'shieldscope-site-security-scanner' ),
+				'match'    => '/^\[[^\]]+\] PHP /m',
 			),
 			'phpinfo.php'            => array(
 				'severity' => ShieldScope_Logger::SEVERITY_HIGH,
 				'title'    => __( 'phpinfo.php is publicly accessible', 'shieldscope-site-security-scanner' ),
 				'desc'     => __( 'A phpinfo() file was found. It discloses PHP configuration, loaded extensions, environment variables, and server internals to any visitor.', 'shieldscope-site-security-scanner' ),
 				'rec'      => __( 'Delete phpinfo.php immediately.', 'shieldscope-site-security-scanner' ),
+				'match'    => '/phpinfo\(\)|PHP Version [0-9]/',
 			),
 			'info.php'               => array(
 				'severity' => ShieldScope_Logger::SEVERITY_HIGH,
 				'title'    => __( 'info.php is publicly accessible (possible phpinfo)', 'shieldscope-site-security-scanner' ),
 				'desc'     => __( 'A PHP file at info.php was found. If it calls phpinfo(), it discloses sensitive server configuration to any visitor.', 'shieldscope-site-security-scanner' ),
 				'rec'      => __( 'Delete or restrict info.php.', 'shieldscope-site-security-scanner' ),
+				'match'    => '/phpinfo\(\)|PHP Version [0-9]/',
 			),
 		);
 
 		foreach ( $files as $file => $meta ) {
-			$response = wp_remote_get(
-				$base . ltrim( $file, '/' ),
-				array(
-					'timeout'   => 5,
-					'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
-				)
-			);
-			if ( is_wp_error( $response ) ) {
-				continue;
-			}
-			if ( 200 === wp_remote_retrieve_response_code( $response ) ) {
+			if ( $probe->serves( $base . ltrim( $file, '/' ), $meta['match'] ) ) {
 				$this->finding(
 					$meta['severity'],
 					$meta['title'],
@@ -351,14 +349,14 @@ class ShieldScope_Check_Security_Config extends ShieldScope_Check_Base {
 
 		if ( ! empty( $not_disabled ) ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_MEDIUM,
+				ShieldScope_Logger::SEVERITY_INFO,
 				__( 'Dangerous PHP functions are not disabled', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: comma-separated list of PHP function names */
 					__( 'The following PHP functions are callable: %s. If a plugin or theme has a code injection bug, these can be used for OS command execution.', 'shieldscope-site-security-scanner' ),
 					implode( ', ', $not_disabled )
 				),
-					__( 'Add to php.ini: disable_functions = exec,passthru,shell_exec,system,proc_open,popen,pcntl_exec. If you cannot edit php.ini directly, create a .user.ini file in your WordPress root with the same line, or ask your host to apply it at the server level.', 'shieldscope-site-security-scanner' ),
+				__( 'If no plugin on the site needs them, add to php.ini: disable_functions = exec,passthru,shell_exec,system,proc_open,popen,pcntl_exec. This setting only works in the server\'s main php.ini, so on shared hosting ask your host to apply it. Test the site afterwards: some backup, image and update tools use these functions.', 'shieldscope-site-security-scanner' ),
 				'php.ini',
 				array( 'available_functions' => $not_disabled )
 			);

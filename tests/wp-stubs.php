@@ -409,6 +409,36 @@ class SS_Test_WPDB {
 }
 
 // ---------------------------------------------------------------------------
+// Site, content, plugin and theme URLs (A-06). Built on get_site_url().
+// ---------------------------------------------------------------------------
+
+function site_url( $path = '' ) {
+	$url = rtrim( get_site_url(), '/' );
+	if ( is_string( $path ) && '' !== $path ) {
+		$url .= '/' . ltrim( $path, '/' );
+	}
+	return $url;
+}
+function content_url( $path = '' ) {
+	$url = rtrim( get_site_url(), '/' ) . '/wp-content';
+	if ( is_string( $path ) && '' !== $path ) {
+		$url .= '/' . ltrim( $path, '/' );
+	}
+	return $url;
+}
+function plugins_url( $path = '', $plugin = '' ) {
+	$url = content_url( '/plugins' );
+	if ( is_string( $plugin ) && '' !== $plugin ) {
+		$url .= '/' . basename( dirname( $plugin ) );
+	}
+	if ( is_string( $path ) && '' !== $path ) {
+		$url .= '/' . ltrim( $path, '/' );
+	}
+	return $url;
+}
+function get_theme_root_uri() { return content_url( '/themes' ); }
+
+// ---------------------------------------------------------------------------
 // Admin menus and request exits (A-14)
 // ---------------------------------------------------------------------------
 
