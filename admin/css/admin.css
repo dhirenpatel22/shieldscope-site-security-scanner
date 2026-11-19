@@ -299,99 +299,6 @@ details.shieldscope-finding[open] > summary::before {
 	border-radius: 4px;
 }
 
-/* ── Report: severity tabs ───────────────────────────────────────────────── */
-.shieldscope-tabs {
-	margin-top: 16px;
-}
-
-.shieldscope-tab-nav {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-end;
-	gap: 2px;
-	border-bottom: 1px solid #c3c4c7;
-	padding: 0;
-	margin: 0;
-}
-
-.shieldscope-tab-btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 8px 16px;
-	background: #f6f7f7;
-	border: 1px solid #c3c4c7;
-	border-bottom: none;
-	border-radius: 4px 4px 0 0;
-	cursor: pointer;
-	font-size: 13px;
-	font-weight: 500;
-	color: #50575e;
-	position: relative;
-	bottom: -1px;
-	line-height: 1.4;
-	transition: background 150ms, color 150ms;
-}
-
-.shieldscope-tab-btn:hover:not( :disabled ) {
-	background: #fff;
-	color: #1d2327;
-}
-
-.shieldscope-tab-btn.is-active {
-	background: #fff;
-	border-color: #c3c4c7;
-	border-bottom: 1px solid #fff;
-	color: #1d2327;
-	font-weight: 600;
-	z-index: 1;
-}
-
-.shieldscope-tab-btn:disabled {
-	opacity: 0.45;
-	cursor: default;
-}
-
-/* Severity-colour accent on the top border of the active tab */
-.shieldscope-tab-btn.sev-critical.is-active { border-top: 3px solid #b32d2e; color: #b32d2e; }
-.shieldscope-tab-btn.sev-high.is-active     { border-top: 3px solid #c9460e; color: #c9460e; }
-.shieldscope-tab-btn.sev-medium.is-active   { border-top: 3px solid #dba617; color: #8a6800; }
-.shieldscope-tab-btn.sev-low.is-active      { border-top: 3px solid #2271b1; color: #2271b1; }
-.shieldscope-tab-btn.sev-info.is-active     { border-top: 3px solid #00a32a; color: #1e6823; }
-
-.shieldscope-tab-count {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-width: 20px;
-	height: 18px;
-	padding: 0 5px;
-	border-radius: 9px;
-	font-size: 11px;
-	font-weight: 700;
-	background: #dcdcde;
-	color: #1d2327;
-}
-
-.shieldscope-tab-btn.sev-critical .shieldscope-tab-count { background: #fde2e2; color: #8a1a1a; }
-.shieldscope-tab-btn.sev-high .shieldscope-tab-count     { background: #ffe8d6; color: #7d3800; }
-.shieldscope-tab-btn.sev-medium .shieldscope-tab-count   { background: #fff3cd; color: #6b4d00; }
-.shieldscope-tab-btn.sev-low .shieldscope-tab-count      { background: #e2f0fb; color: #164f81; }
-.shieldscope-tab-btn.sev-info .shieldscope-tab-count     { background: #e8f5e9; color: #1e6823; }
-.shieldscope-tab-btn:disabled .shieldscope-tab-count     { background: #e0e0e0; color: #9e9e9e; }
-
-/* Tab content container */
-.shieldscope-tab-panels {
-	background: #fff;
-	border: 1px solid #c3c4c7;
-	border-top: none;
-	border-radius: 0 0 4px 4px;
-	padding: 20px;
-}
-
-.shieldscope-tab-panel            { display: none; }
-.shieldscope-tab-panel.is-active  { display: block; }
-
 /* ── Report: instance count badge inside finding summary ─────────────────── */
 .shieldscope-issue-badge {
 	font-size: 11px;
@@ -439,18 +346,33 @@ details.shieldscope-finding[open] > summary::before {
 	word-break: break-all;
 }
 
-/* ── Summary grid: clickable tiles jump to their severity tab ─────────────── */
-.shieldscope-summary-grid li.is-clickable {
-	cursor: pointer;
-	transition: transform 100ms, box-shadow 100ms;
+/* ── Summary grid: tiles with findings link to their severity section ──── */
+.shieldscope-summary-grid li a {
+	display: block;
+	color: inherit;
+	text-decoration: none;
 }
-
-.shieldscope-summary-grid li.is-clickable:hover,
-.shieldscope-summary-grid li.is-clickable:focus {
-	transform: translateY( -2px );
-	box-shadow: 0 4px 10px rgba( 0, 0, 0, 0.12 );
+.shieldscope-summary-grid li a:hover .label,
+.shieldscope-summary-grid li a:focus .label {
+	text-decoration: underline;
+}
+.shieldscope-summary-grid li a:focus-visible {
 	outline: 2px solid #2271b1;
 	outline-offset: 2px;
+}
+
+/* ── Report: verdict, fix-first list, severity sections (S-05) ─────────── */
+.shieldscope-verdict { margin-top: 0; font-size: 1.3em; }
+.shieldscope-top-actions { margin-left: 1.5em; }
+.shieldscope-sev-section { margin: 24px 0; }
+.shieldscope-sev-section > h2 { border-left: 4px solid #8c8f94; padding-left: 8px; }
+.shieldscope-sev-section.sev-critical > h2 { border-left-color: #b32d2e; }
+.shieldscope-sev-section.sev-high > h2 { border-left-color: #d63638; }
+.shieldscope-sev-section.sev-medium > h2 { border-left-color: #dba617; }
+.shieldscope-sev-section.sev-low > h2 { border-left-color: #2271b1; }
+.shieldscope-sev-section.sev-info > h2 { border-left-color: #00a32a; }
+@media ( prefers-reduced-motion: reduce ) {
+	.shieldscope-wrap * { transition: none !important; animation: none !important; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
