@@ -39,3 +39,17 @@ Every finding gets one severity from this table. Rate what the scan actually obs
 | siteurl and home on different hosts | High | Medium |
 
 Other checks are brought in line with this rubric by their own tickets.
+
+## Applied in the injection and SSRF checks (A-12b)
+
+| Finding | Before | Now |
+|---|---|---|
+| Request data and a dangerous call in one expression (for example `unserialize( $_POST[...] )`) | Critical or High | High at most; description says it is a pattern match to confirm |
+| Variable assigned from request data reaching a sink in the same file (taint) | Critical or High, worded as a confirmed bug | Low, titled "Review: user input near ..." |
+| Request data in the same file as `maybe_unserialize()`, or `wp_parse_str()` on request data | Medium or High | Low, "Review" wording |
+| `wp_remote_*()`, `file_get_contents()`, cURL, sockets or redirects with request data | Critical, High or Medium | Low, "Review" wording |
+| `create_function()`, `preg_replace()` with `/e` | High or Critical | Medium (both are removed from current PHP) |
+| oEmbed proxy answered a logged-out request | Medium, described as public by default | Medium; core restricts the proxy to `edit_posts`, so this means something opened it |
+| Pingbacks | Medium, read the outbound `default_pingback_flag` | Low, reads `default_ping_status` (inbound pingbacks on new posts) |
+
+Matches in comments, string literals and inline HTML are ignored. `absint()`, `intval()`, `sanitize_key()`, `esc_*()`, `isset()` guards and casts clear taint; values passed as `$wpdb->prepare()` arguments are not treated as SQL. A regex failure on a file is reported as "Could not analyse".
