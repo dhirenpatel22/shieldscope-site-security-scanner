@@ -759,3 +759,16 @@ details.shieldscope-faq-item[open] > summary .shieldscope-faq-chevron {
 	color: #2271b1;
 	text-decoration: underline;
 }
+
+/* PDF export */
+.shieldscope-export {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	margin: 12px 0;
+}
+.shieldscope-export .dashicons {
+	vertical-align: middle;
+	margin-top: -2px;
+}
