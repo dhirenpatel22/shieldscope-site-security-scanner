@@ -32,6 +32,39 @@ class ShieldScope_Admin {
 	}
 
 	/**
+	 * Support forum URL.
+	 */
+	const SUPPORT_URL = 'https://wordpress.org/support/plugin/shieldscope-site-security-scanner/';
+
+	/**
+	 * The one scan-time estimate used in every screen. Change it here only
+	 * after measuring real scans.
+	 *
+	 * @return string
+	 */
+	public static function scan_time_estimate() {
+		return __( 'about 5 to 20 minutes', 'shieldscope-site-security-scanner' );
+	}
+
+	/**
+	 * The one statement of what leaves the server, used in every screen.
+	 *
+	 * @return string
+	 */
+	public static function privacy_statement() {
+		return __( 'Scan results stay in your WordPress database. During a scan ShieldScope sends requests to your own site (to check headers, HTTPS and files that should not be public) and contacts api.wordpress.org (it sends your WordPress version and locale). If you add a WPScan API key it also sends plugin and theme slugs to wpscan.com.', 'shieldscope-site-security-scanner' );
+	}
+
+	/**
+	 * The one statement of what ShieldScope writes, used in every screen.
+	 *
+	 * @return string
+	 */
+	public static function footprint_statement() {
+		return __( 'ShieldScope does not change your files, settings, users or content. It stores only its own data: its settings and scan progress (options), cached lookups (transients), a findings table, and scheduled tasks (one daily clean-up, plus short-lived ones while a scan runs). Deleting the plugin removes all of it.', 'shieldscope-site-security-scanner' );
+	}
+
+	/**
 	 * Register hooks.
 	 *
 	 * @return void
@@ -69,8 +102,8 @@ class ShieldScope_Admin {
 
 		add_submenu_page(
 			SHIELDSCOPE_SLUG,
-			__( 'Last Report', 'shieldscope-site-security-scanner' ),
-			__( 'Last Report', 'shieldscope-site-security-scanner' ),
+			__( 'Report', 'shieldscope-site-security-scanner' ),
+			__( 'Report', 'shieldscope-site-security-scanner' ),
 			self::required_capability(),
 			SHIELDSCOPE_SLUG . '-report',
 			array( $this, 'render_report_page' )
@@ -132,11 +165,11 @@ class ShieldScope_Admin {
 					'leaveWarn'    => __( "Hey, the scan is still running! If you close this tab it'll pause — but don't worry, it'll pick up right where it left off when you come back.", 'shieldscope-site-security-scanner' ),
 					'error'        => __( 'Network error. Retrying…', 'shieldscope-site-security-scanner' ),
 					// Funny / friendly banner copy for tab blur.
-					'blurTitle'    => __( '👋 Pssst — scan paused!', 'shieldscope-site-security-scanner' ),
-					'blurBody'     => __( "We noticed you wandered off to another tab, so we politely paused the scan. Your server says thank you. Come back whenever — we'll pick up right where we left off.", 'shieldscope-site-security-scanner' ),
-					'titleActive'  => __( '🛡️ Scanning… — Security Scan', 'shieldscope-site-security-scanner' ),
-					'titlePaused'  => __( '⏸ Scan paused — come back!', 'shieldscope-site-security-scanner' ),
-					'titleDone'    => __( '✅ Scan complete — Security Scan', 'shieldscope-site-security-scanner' ),
+					'blurTitle'    => __( 'Scan paused', 'shieldscope-site-security-scanner' ),
+					'blurBody'     => __( 'The scan pauses while this tab is hidden and continues from the same point when you return. You can turn this off in Settings.', 'shieldscope-site-security-scanner' ),
+					'titleActive'  => __( 'Scanning… – ShieldScope', 'shieldscope-site-security-scanner' ),
+					'titlePaused'  => __( 'Scan paused – ShieldScope', 'shieldscope-site-security-scanner' ),
+					'titleDone'    => __( 'Scan complete – ShieldScope', 'shieldscope-site-security-scanner' ),
 				),
 			)
 		);
@@ -287,15 +320,15 @@ class ShieldScope_Admin {
 					<?php esc_html_e( 'Results produced by this plugin are based on automated pattern analysis and heuristic checks. Each scan module runs independently — findings related to third-party plugins or themes are indicative only. Please verify with the respective plugin or theme developer before making any changes, and contact them directly if a fix is required.', 'shieldscope-site-security-scanner' ); ?>
 				</p>
 				<p>
-					<?php esc_html_e( 'This plugin is intended to help developers and website owners identify potential security issues. It does not guarantee complete coverage of all vulnerabilities.', 'shieldscope-site-security-scanner' ); ?>
+					<?php esc_html_e( 'This plugin is intended to help developers and website owners identify potential security issues. It does not find every vulnerability, and a report with no findings does not mean the site is secure.', 'shieldscope-site-security-scanner' ); ?>
 				</p>
 				<p>
-					<?php esc_html_e( 'No scan data, site information, or personal data is stored on external servers or shared with any third party or individual. All analysis is performed locally on your own server.', 'shieldscope-site-security-scanner' ); ?>
+					<?php echo esc_html( self::privacy_statement() ); ?>
 					<?php
 					printf(
 						/* translators: %s: support link */
 						esc_html__( 'For any concerns or questions, please %s.', 'shieldscope-site-security-scanner' ),
-						'<a href="https://wordpress.org/support/plugin/shieldscope-site-security-scanner/" target="_blank" rel="noopener noreferrer">' . esc_html__( 'reach out via the support forum', 'shieldscope-site-security-scanner' ) . '</a>'
+						'<a href="' . esc_url( self::SUPPORT_URL ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'reach out via the support forum', 'shieldscope-site-security-scanner' ) . '</a>'
 					);
 					?>
 				</p>

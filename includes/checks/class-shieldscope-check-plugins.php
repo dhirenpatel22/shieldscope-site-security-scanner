@@ -147,7 +147,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 						__( 'Plugin "%s" declares neither a PluginURI nor an UpdateURI. If this is not a custom plugin, verify it came from a trusted source.', 'shieldscope-site-security-scanner' ),
 						$data['Name']
 					),
-					__( 'Search wordpress.org/plugins to verify this plugin is legitimate. If it\'s a custom-built plugin, this warning can be ignored. If it came from a "free premium plugin" site, treat it as potentially nulled (pirated software with malware injected) and delete it — replace with the official version from the original developer.', 'shieldscope-site-security-scanner' ),
+					__( 'Search wordpress.org/plugins to verify this plugin is legitimate. If it\'s a custom-built plugin, this warning can be ignored. If it came from a "free premium plugin" site, treat it as a possibly nulled (pirated) copy, which often carries injected code, and delete it — replace with the official version from the original developer.', 'shieldscope-site-security-scanner' ),
 					'plugin:' . $file,
 					array( 'plugin_name' => $data['Name'] )
 				);

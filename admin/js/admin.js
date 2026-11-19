@@ -1,5 +1,5 @@
 /**
- * Site Security Audit — admin controller.
+ * ShieldScope — admin controller.
  *
  * Implements:
  *  - Start / pause / resume / abort buttons

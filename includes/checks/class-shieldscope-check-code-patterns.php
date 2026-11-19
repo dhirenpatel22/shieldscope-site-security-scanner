@@ -3,7 +3,7 @@
  * Source code pattern analysis.
  *
  * Walks plugin and theme PHP files looking for:
- *  - Malware / backdoor signatures (eval + base64_decode, shell_exec, …)
+ *  - Code patterns that need a manual review (eval on decoded data, shell functions, …)
  *  - Direct file access without ABSPATH guard
  *  - Dangerous dynamic code execution
  *  - Missing output escaping / prepared SQL (heuristic)

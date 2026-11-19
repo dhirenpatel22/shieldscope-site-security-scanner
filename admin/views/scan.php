@@ -10,10 +10,16 @@
 defined( 'ABSPATH' ) || exit;
 ?>
 <div class="wrap shieldscope-wrap">
-	<h1><?php esc_html_e( 'ShieldScope – Site Security Scanner', 'shieldscope-site-security-scanner' ); ?></h1>
+	<h1><?php esc_html_e( 'ShieldScope: Scan', 'shieldscope-site-security-scanner' ); ?></h1>
 
 	<p class="description">
-		<?php esc_html_e( 'Run a comprehensive background scan of your WordPress installation, themes, plugins, users and filesystem. The scan is CPU-throttled and will automatically pause if you leave this tab.', 'shieldscope-site-security-scanner' ); ?>
+		<?php
+		printf(
+			/* translators: %s: scan time estimate, for example "about 5 to 20 minutes" */
+			esc_html__( 'Audit WordPress core, plugins, themes, users, files and server settings. A scan takes %s and runs from this tab in short steps with pauses between them.', 'shieldscope-site-security-scanner' ),
+			esc_html( ShieldScope_Admin::scan_time_estimate() )
+		);
+		?>
 	</p>
 
 	<div id="shieldscope-scan-panel"
@@ -92,8 +98,8 @@ defined( 'ABSPATH' ) || exit;
 
 		<div class="shieldscope-card shieldscope-notice-card">
 			<p>
-				<strong><?php esc_html_e( 'About the focus-lock:', 'shieldscope-site-security-scanner' ); ?></strong>
-				<?php esc_html_e( 'To avoid stealing CPU from the rest of your site, the scanner only runs chunks of work while this browser tab is focused. If you switch tabs, minimize the window, or navigate away, the scan pauses automatically and resumes when you return.', 'shieldscope-site-security-scanner' ); ?>
+				<strong><?php esc_html_e( 'Keep this tab open:', 'shieldscope-site-security-scanner' ); ?></strong>
+				<?php esc_html_e( 'the scan runs from this browser tab. By default it also pauses while the tab is hidden and continues from the same point when you return; you can turn that off in Settings. If you close the tab, start the page again and press Resume.', 'shieldscope-site-security-scanner' ); ?>
 			</p>
 		</div>
 	</div>
@@ -119,7 +125,15 @@ defined( 'ABSPATH' ) || exit;
 				<span class="shieldscope-faq-chevron">&#9654;</span>
 			</summary>
 			<div class="shieldscope-faq-answer">
-				<p><?php esc_html_e( 'A typical scan finishes in 2–10 minutes depending on the number of plugins, themes, and PHP files on your site. Sites with many plugins or large codebases take longer. Keep this browser tab open and focused throughout — the scanner pauses automatically if you switch away.', 'shieldscope-site-security-scanner' ); ?></p>
+				<p>
+				<?php
+				printf(
+					/* translators: %s: scan time estimate, for example "about 5 to 20 minutes" */
+					esc_html__( 'A scan usually takes %s, depending on the number of plugins, themes and PHP files. Keep this tab open until it finishes.', 'shieldscope-site-security-scanner' ),
+					esc_html( ShieldScope_Admin::scan_time_estimate() )
+				);
+				?>
+				</p>
 			</div>
 		</details>
 
@@ -130,7 +144,7 @@ defined( 'ABSPATH' ) || exit;
 				<span class="shieldscope-faq-chevron">&#9654;</span>
 			</summary>
 			<div class="shieldscope-faq-answer">
-				<p><?php esc_html_e( 'No. The scanner is CPU-throttled and only runs while this admin tab is focused. It sleeps between work chunks to stay well under the CPU limit configured in Settings. Front-end visitor traffic is completely unaffected.', 'shieldscope-site-security-scanner' ); ?></p>
+				<p><?php esc_html_e( 'Visitors should not notice on most hosts. The scan works in short steps with pauses between them (set by the scan pace in Settings), and each step uses one PHP process while it runs. On small shared hosting, run it at a quiet time.', 'shieldscope-site-security-scanner' ); ?></p>
 			</div>
 		</details>
 
@@ -141,8 +155,8 @@ defined( 'ABSPATH' ) || exit;
 				<span class="shieldscope-faq-chevron">&#9654;</span>
 			</summary>
 			<div class="shieldscope-faq-answer">
-				<p><?php esc_html_e( 'The scan pauses automatically when you switch away from this browser tab. Return to this tab and it resumes from where it left off — no data is lost.', 'shieldscope-site-security-scanner' ); ?></p>
-				<p><?php esc_html_e( 'If the scan stops without completing, it may have been interrupted by a PHP server timeout. Try increasing the Chunk time budget in Settings, or run the scan during a quiet period on your server.', 'shieldscope-site-security-scanner' ); ?></p>
+				<p><?php esc_html_e( 'By default the scan pauses while this tab is hidden. Return to the tab and it continues from where it stopped; findings so far are kept.', 'shieldscope-site-security-scanner' ); ?></p>
+				<p><?php esc_html_e( 'If the scan stops without finishing, a PHP timeout on the server may have interrupted it. Lower Time per step in Settings, or run the scan at a quiet time.', 'shieldscope-site-security-scanner' ); ?></p>
 			</div>
 		</details>
 
@@ -158,7 +172,7 @@ defined( 'ABSPATH' ) || exit;
 					<li><?php esc_html_e( 'After installing or updating plugins and themes', 'shieldscope-site-security-scanner' ); ?></li>
 					<li><?php esc_html_e( 'After a WordPress core update', 'shieldscope-site-security-scanner' ); ?></li>
 					<li><?php esc_html_e( 'Any time you notice unusual activity on your site', 'shieldscope-site-security-scanner' ); ?></li>
-					<li><?php esc_html_e( 'As a weekly routine — most scans take only a few minutes', 'shieldscope-site-security-scanner' ); ?></li>
+					<li><?php esc_html_e( 'As a regular check, for example once a month', 'shieldscope-site-security-scanner' ); ?></li>
 				</ul>
 			</div>
 		</details>
@@ -186,8 +200,8 @@ defined( 'ABSPATH' ) || exit;
 					<li><?php esc_html_e( 'SSL/TLS certificate health and mixed content', 'shieldscope-site-security-scanner' ); ?></li>
 					<li><?php esc_html_e( 'Exposed sensitive files and directory listings', 'shieldscope-site-security-scanner' ); ?></li>
 					<li><?php esc_html_e( 'PHP version and dangerous function availability', 'shieldscope-site-security-scanner' ); ?></li>
-					<li><?php esc_html_e( 'Known CVEs via built-in list and WPScan API (if configured)', 'shieldscope-site-security-scanner' ); ?></li>
-					<li><?php esc_html_e( 'Code injection patterns and SSRF vectors', 'shieldscope-site-security-scanner' ); ?></li>
+					<li><?php esc_html_e( 'Known vulnerabilities: a limited built-in list, or WPScan if you add a key', 'shieldscope-site-security-scanner' ); ?></li>
+					<li><?php esc_html_e( 'Code patterns that need a manual review (injection, server-side requests, eval on decoded data)', 'shieldscope-site-security-scanner' ); ?></li>
 				</ul>
 			</div>
 		</details>
@@ -199,7 +213,7 @@ defined( 'ABSPATH' ) || exit;
 				<span class="shieldscope-faq-chevron">&#9654;</span>
 			</summary>
 			<div class="shieldscope-faq-answer">
-				<p><?php esc_html_e( 'No — this plugin is a read-only auditor. It never modifies files, settings, or the database. Every finding in the report includes a clear, actionable recommendation describing exactly what to do to fix it.', 'shieldscope-site-security-scanner' ); ?></p>
+				<p><?php esc_html_e( 'No. Every finding includes a recommendation; you decide what to change.', 'shieldscope-site-security-scanner' ); ?> <?php echo esc_html( ShieldScope_Admin::footprint_statement() ); ?></p>
 				<div class="shieldscope-faq-tip">
 					<span class="shieldscope-faq-tip-icon">💡</span>
 					<span><?php esc_html_e( 'After fixing an issue, re-run the scan to confirm the finding no longer appears in your report.', 'shieldscope-site-security-scanner' ); ?></span>
@@ -216,10 +230,11 @@ defined( 'ABSPATH' ) || exit;
 			<div class="shieldscope-faq-answer">
 				<p><?php esc_html_e( 'Critical findings represent the highest risk and should be addressed immediately. Common critical issues and first steps:', 'shieldscope-site-security-scanner' ); ?></p>
 				<ul>
-					<li><?php esc_html_e( 'Exposed wp-config.php or backup files — delete or move them outside the webroot right away', 'shieldscope-site-security-scanner' ); ?></li>
-					<li><?php esc_html_e( 'PHP file in uploads directory — delete it, it\'s almost certainly a backdoor', 'shieldscope-site-security-scanner' ); ?></li>
-					<li><?php esc_html_e( 'Expired SSL certificate — renew it immediately to prevent browser warnings for all visitors', 'shieldscope-site-security-scanner' ); ?></li>
-					<li><?php esc_html_e( 'Weak or missing auth salts — regenerate them via https://api.wordpress.org/secret-key/1.1/salt/', 'shieldscope-site-security-scanner' ); ?></li>
+					<li><?php esc_html_e( 'wp-config.php or a .env file readable from the web — block access to it, then change the database password and any keys it contains', 'shieldscope-site-security-scanner' ); ?></li>
+					<li><?php esc_html_e( 'Backup file in the web root — move it out of the web root or delete it', 'shieldscope-site-security-scanner' ); ?></li>
+					<li><?php esc_html_e( 'PHP file in the uploads folder — find out what added it; uploads should not contain PHP code, and an unknown file there is a common sign of a compromise', 'shieldscope-site-security-scanner' ); ?></li>
+					<li><?php esc_html_e( 'User with an empty password — set a strong password or remove the account', 'shieldscope-site-security-scanner' ); ?></li>
+					<li><?php esc_html_e( 'Expired SSL certificate — renew it', 'shieldscope-site-security-scanner' ); ?></li>
 				</ul>
 				<p><?php esc_html_e( 'Open the full report and click each Critical finding for step-by-step fix instructions.', 'shieldscope-site-security-scanner' ); ?></p>
 			</div>
@@ -254,13 +269,13 @@ defined( 'ABSPATH' ) || exit;
 				<span class="shieldscope-faq-chevron">&#9654;</span>
 			</summary>
 			<div class="shieldscope-faq-answer">
-				<p><?php esc_html_e( 'Most checks work on multisite. The plugin scans the shared core files, network-activated plugins, and site-wide configuration. Some checks (like per-site plugin status) operate on the context of the site where you run the scan. Install and run the scan from the network admin for the most complete results.', 'shieldscope-site-security-scanner' ); ?></p>
+				<p><?php esc_html_e( 'Yes. On multisite only super admins can run a scan. It checks the shared core files, every installed plugin and theme, and all network users; site settings are read from the site whose dashboard you run it from. There is no separate network admin screen.', 'shieldscope-site-security-scanner' ); ?></p>
 			</div>
 		</details>
 
 		<div class="shieldscope-faq-footer">
 			<span>🔒</span>
-			<span><?php esc_html_e( 'No scan data is ever sent to external servers. All analysis runs on your own hosting environment.', 'shieldscope-site-security-scanner' ); ?></span>
+			<span><?php echo esc_html( ShieldScope_Admin::privacy_statement() ); ?></span>
 		</div>
 	</div>
 </div>
