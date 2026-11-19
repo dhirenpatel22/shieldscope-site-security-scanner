@@ -53,6 +53,8 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 			'app_passwords',
 			'author_enum',
 			'login_page',
+			'login_errors',
+			'rest_routes',
 			'scan_plugins',
 		);
 	}
@@ -75,10 +77,137 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 			case 'login_page':
 				$this->check_login_page();
 				break;
+			case 'login_errors':
+				$this->check_login_errors();
+				break;
+			case 'rest_routes':
+				$this->check_rest_write_routes();
+				break;
 			case 'scan_plugins':
 				return $this->scan_plugins_for_auth( $cursor );
 		}
 		return array( 'continue' => false, 'cursor' => array() );
+	}
+
+	/**
+	 * REST namespaces that belong to WordPress core.
+	 */
+	const CORE_REST_PREFIXES = array( '/wp/', '/oembed/', '/wp-site-health/', '/wp-block-editor/', '/batch/', '/wp-abilities/' );
+
+	/**
+	 * Do failed-login messages reveal whether a username exists?
+	 *
+	 * Passive: runs the site's login_errors filter on WordPress's own
+	 * "wrong password for this username" message, in this request. No login
+	 * is attempted.
+	 *
+	 * @return void
+	 */
+	private function check_login_errors() {
+		$probe   = 'shieldscope-probe-user';
+		$message = sprintf(
+			/* translators: %s: user name (mirrors the WordPress core login error) */
+			__( '<strong>Error:</strong> The password you entered for the username %s is incorrect.', 'shieldscope-site-security-scanner' ),
+			'<strong>' . $probe . '</strong>'
+		);
+		$filtered = (string) apply_filters( 'login_errors', $message ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- reading a core filter.
+
+		if ( false === strpos( $filtered, $probe ) ) {
+			return;
+		}
+		$this->finding(
+			ShieldScope_Logger::SEVERITY_LOW,
+			__( 'Login error messages reveal whether a username exists', 'shieldscope-site-security-scanner' ),
+			__( 'After a failed login, WordPress says whether the username exists ("The password you entered for the username ... is incorrect"). Nothing on this site changes that message, so an attacker can confirm usernames before guessing passwords. Checked by running the site\'s login_errors filter on WordPress\'s own message; no login was attempted.', 'shieldscope-site-security-scanner' ),
+			__( 'Use a security or login-protection plugin that shows one generic message for every failed login, or add a login_errors filter that returns a generic message. Limiting login attempts matters more than hiding usernames.', 'shieldscope-site-security-scanner' ),
+			'wp-login.php'
+		);
+	}
+
+	/**
+	 * REST routes added by plugins that accept writes from anyone.
+	 *
+	 * Passive: reads the registered routes and their permission callbacks in
+	 * this request. Reported as Low "Review" findings, one per namespace,
+	 * because public write routes are sometimes intended (forms, webhooks).
+	 *
+	 * @return void
+	 */
+	private function check_rest_write_routes() {
+		if ( ! function_exists( 'rest_get_server' ) ) {
+			return;
+		}
+		$server = rest_get_server();
+		if ( ! is_object( $server ) || ! method_exists( $server, 'get_routes' ) ) {
+			return;
+		}
+
+		$by_namespace = array();
+		foreach ( (array) $server->get_routes() as $route => $endpoints ) {
+			if ( self::is_core_route( $route ) ) {
+				continue;
+			}
+			foreach ( (array) $endpoints as $endpoint ) {
+				if ( ! is_array( $endpoint ) ) {
+					continue;
+				}
+				$methods = isset( $endpoint['methods'] ) ? array_keys( array_filter( (array) $endpoint['methods'] ) ) : array();
+				$writes  = array_intersect( array_map( 'strtoupper', $methods ), array( 'POST', 'PUT', 'PATCH', 'DELETE' ) );
+				if ( ! $writes ) {
+					continue;
+				}
+				$cb = array_key_exists( 'permission_callback', $endpoint ) ? $endpoint['permission_callback'] : null;
+				if ( null !== $cb && '__return_true' !== $cb ) {
+					continue;
+				}
+				$namespace                    = self::route_namespace( $route );
+				$by_namespace[ $namespace ][] = implode( '/', $writes ) . ' ' . $route . ( null === $cb ? ' ' . __( '(no permission check)', 'shieldscope-site-security-scanner' ) : ' (__return_true)' );
+			}
+		}
+
+		foreach ( $by_namespace as $namespace => $routes ) {
+			$routes = array_values( array_unique( $routes ) );
+			$shown  = array_slice( $routes, 0, 10 );
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_LOW,
+				/* translators: %s: REST namespace, for example "myplugin/v1" */
+				sprintf( __( 'Review: REST routes in %s accept writes without a login', 'shieldscope-site-security-scanner' ), $namespace ),
+				sprintf(
+					/* translators: 1: number of routes, 2: list of routes */
+					__( '%1$d route(s) accept POST, PUT, PATCH or DELETE requests from anyone: %2$s. This is normal for contact forms or webhooks that check their own input, but a route that changes data without a permission check is a vulnerability. Checked by reading the registered routes; no request was sent.', 'shieldscope-site-security-scanner' ),
+					count( $routes ),
+					implode( '; ', $shown ) . ( count( $routes ) > 10 ? ' …' : '' )
+				),
+				__( 'Check what each route does. If it should not be public, ask the plugin developer to add a permission_callback that checks current_user_can(); if it is meant to be public, confirm it validates input and uses a nonce or signature where it can.', 'shieldscope-site-security-scanner' ),
+				'/wp-json/' . $namespace
+			);
+		}
+	}
+
+	/**
+	 * Is this route in a WordPress core namespace?
+	 *
+	 * @param string $route Route.
+	 * @return bool
+	 */
+	private static function is_core_route( $route ) {
+		foreach ( self::CORE_REST_PREFIXES as $prefix ) {
+			if ( 0 === strpos( $route, $prefix ) ) {
+				return true;
+			}
+		}
+		return '/' === $route;
+	}
+
+	/**
+	 * Namespace part of a route ("/myplugin/v1/items" => "myplugin/v1").
+	 *
+	 * @param string $route Route.
+	 * @return string
+	 */
+	private static function route_namespace( $route ) {
+		$parts = array_values( array_filter( explode( '/', (string) $route ), 'strlen' ) );
+		return implode( '/', array_slice( $parts, 0, 2 ) );
 	}
 
 	/**

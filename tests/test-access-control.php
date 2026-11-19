@@ -161,7 +161,8 @@ class Test_Access_Control extends TestCase {
 
 	public function test_removed_probe_steps_are_gone() {
 		$check = new ShieldScope_Check_Access_Control( 'scan_t', $this->logger );
-		$this->assertSame( array( 'app_passwords', 'author_enum', 'login_page', 'scan_plugins' ), $check->get_steps() );
+		// S-01 restored the login-error and REST checks as passive steps.
+		$this->assertSame( array( 'app_passwords', 'author_enum', 'login_page', 'login_errors', 'rest_routes', 'scan_plugins' ), $check->get_steps() );
 	}
 
 	public function test_full_run_with_login_limit_plugin_sends_no_post_and_deletes_nothing() {
@@ -179,7 +180,9 @@ class Test_Access_Control extends TestCase {
 		$this->assertSame( array( 'GET', 'HEAD' ), $methods, 'Only read-only requests are allowed.' );
 		$this->assertSame( array(), $GLOBALS['ss_a03_deleted'], 'No post may be deleted.' );
 		$this->assertSame( array(), $this->findings_titled( 'REST API allows' ) );
-		$this->assertSame( array(), $this->findings_titled( 'Login error messages' ) );
+		foreach ( $this->findings_titled( 'Login error messages' ) as $f ) {
+			$this->assertStringContainsString( 'no login was attempted', $f['description'], 'Only the passive S-01 check may report this.' );
+		}
 	}
 
 	// -----------------------------------------------------------------------

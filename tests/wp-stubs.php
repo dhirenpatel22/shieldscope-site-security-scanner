@@ -484,3 +484,12 @@ function check_admin_referer( $action = -1 ) {
 	return 1;
 }
 function nocache_headers() {}
+
+// ---------------------------------------------------------------------------
+// REST server (S-01)
+// ---------------------------------------------------------------------------
+
+function rest_get_server() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'rest_get_server', array() );
+	return $hit ? $result : null;
+}
