@@ -43,14 +43,6 @@ foreach ( (array) $findings as $f ) {
 	$tabs[ $sev ]['groups'][ $title ][] = $f;
 }
 
-// Default active tab: first severity that has findings.
-$active_tab = 'info';
-foreach ( $severity_order as $sev ) {
-	if ( $tabs[ $sev ]['count'] > 0 ) {
-		$active_tab = $sev;
-		break;
-	}
-}
 ?>
 <div class="wrap shieldscope-wrap">
 	<h1><?php esc_html_e( 'ShieldScope: Report', 'shieldscope-site-security-scanner' ); ?></h1>
@@ -116,23 +108,38 @@ foreach ( $severity_order as $sev ) {
 			<?php endif; ?>
 		</div>
 
-		<!-- Summary counts — tiles with findings are clickable to jump to that tab -->
-		<div class="shieldscope-card">
+		<div class="shieldscope-card shieldscope-summary-card">
+			<h2 class="shieldscope-verdict"><?php echo esc_html( ShieldScope_PDF_Report::verdict( array_combine( array_keys( $tabs ), array_column( $tabs, 'count' ) ) ) ); ?></h2>
 			<ul class="shieldscope-summary-grid">
 				<?php foreach ( $severity_order as $sev ) : ?>
-					<li
-						class="sev-<?php echo esc_attr( $sev ); ?><?php echo esc_attr( $tabs[ $sev ]['count'] > 0 ? ' is-clickable' : '' ); ?>"
+					<li class="sev-<?php echo esc_attr( $sev ); ?>">
 						<?php if ( $tabs[ $sev ]['count'] > 0 ) : ?>
-							data-tab="<?php echo esc_attr( $sev ); ?>"
-							role="button"
-							tabindex="0"
+							<a href="#shieldscope-sev-<?php echo esc_attr( $sev ); ?>">
 						<?php endif; ?>
-					>
-						<span class="count"><?php echo (int) ( isset( $summary[ $sev ] ) ? $summary[ $sev ] : 0 ); ?></span>
+						<span class="count"><?php echo (int) $tabs[ $sev ]['count']; ?></span>
 						<span class="label"><?php echo esc_html( $severity_label[ $sev ] ); ?></span>
+						<?php if ( $tabs[ $sev ]['count'] > 0 ) : ?>
+							</a>
+						<?php endif; ?>
 					</li>
 				<?php endforeach; ?>
 			</ul>
+			<?php
+			$shieldscope_top = array();
+			foreach ( array( 'critical', 'high' ) as $sev ) {
+				foreach ( array_keys( $tabs[ $sev ]['groups'] ) as $shieldscope_title ) {
+					$shieldscope_top[] = array( $sev, $shieldscope_title );
+				}
+			}
+			?>
+			<?php if ( $shieldscope_top ) : ?>
+				<h3><?php esc_html_e( 'Fix first', 'shieldscope-site-security-scanner' ); ?></h3>
+				<ol class="shieldscope-top-actions">
+					<?php foreach ( array_slice( $shieldscope_top, 0, 5 ) as $shieldscope_item ) : ?>
+						<li><span class="shieldscope-sev-chip <?php echo esc_attr( $shieldscope_item[0] ); ?>"><?php echo esc_html( $severity_label[ $shieldscope_item[0] ] ); ?></span> <?php echo esc_html( $shieldscope_item[1] ); ?></li>
+					<?php endforeach; ?>
+				</ol>
+			<?php endif; ?>
 		</div>
 
 		<?php $shieldscope_coverage = ShieldScope_Coverage::get( $last_scan ); ?>
@@ -162,118 +169,124 @@ foreach ( $severity_order as $sev ) {
 			</div>
 		<?php endif; ?>
 
-		<!-- Severity tabs -->
-		<div class="shieldscope-tabs">
-			<nav class="shieldscope-tab-nav" role="tablist" aria-label="<?php esc_attr_e( 'Findings by severity', 'shieldscope-site-security-scanner' ); ?>">
-				<?php foreach ( $severity_order as $sev ) : ?>
-					<button
-						id="shieldscope-tab-btn-<?php echo esc_attr( $sev ); ?>"
-						class="shieldscope-tab-btn sev-<?php echo esc_attr( $sev ); ?><?php echo esc_attr( $sev === $active_tab ? ' is-active' : '' ); ?>"
-						data-tab="<?php echo esc_attr( $sev ); ?>"
-						role="tab"
-						aria-selected="<?php echo esc_attr( $sev === $active_tab ? 'true' : 'false' ); ?>"
-						aria-controls="shieldscope-tab-<?php echo esc_attr( $sev ); ?>"
-						<?php disabled( 0, $tabs[ $sev ]['count'] ); ?>
-					>
-						<?php echo esc_html( $severity_label[ $sev ] ); ?>
-						<span class="shieldscope-tab-count"><?php echo (int) $tabs[ $sev ]['count']; ?></span>
-					</button>
-				<?php endforeach; ?>
-			</nav>
+		<?php foreach ( $severity_order as $sev ) : ?>
+			<?php
+			if ( empty( $tabs[ $sev ]['groups'] ) ) {
+				continue;
+			}
+			?>
+			<section class="shieldscope-sev-section sev-<?php echo esc_attr( $sev ); ?>" id="shieldscope-sev-<?php echo esc_attr( $sev ); ?>" aria-labelledby="shieldscope-sev-h-<?php echo esc_attr( $sev ); ?>">
+				<h2 id="shieldscope-sev-h-<?php echo esc_attr( $sev ); ?>">
+					<?php
+					/* translators: 1: severity name, 2: number of findings */
+					echo esc_html( sprintf( __( '%1$s (%2$d)', 'shieldscope-site-security-scanner' ), $severity_label[ $sev ], $tabs[ $sev ]['count'] ) );
+					?>
+				</h2>
 
-			<div class="shieldscope-tab-panels">
-				<?php foreach ( $severity_order as $sev ) : ?>
-					<div
-						id="shieldscope-tab-<?php echo esc_attr( $sev ); ?>"
-						class="shieldscope-tab-panel<?php echo esc_attr( $sev === $active_tab ? ' is-active' : '' ); ?>"
-						role="tabpanel"
-						aria-labelledby="shieldscope-tab-btn-<?php echo esc_attr( $sev ); ?>"
-					>
-						<?php if ( empty( $tabs[ $sev ]['groups'] ) ) : ?>
-							<p class="description"><?php esc_html_e( 'No issues at this severity level.', 'shieldscope-site-security-scanner' ); ?></p>
-						<?php else : ?>
-							<?php foreach ( $tabs[ $sev ]['groups'] as $issue_title => $instances ) :
-								$count       = count( $instances );
-								$first       = $instances[0];
-								$check_id    = isset( $first['check_id'] ) ? (string) $first['check_id'] : '';
-								$ctx         = ( ! empty( $first['context'] ) ) ? json_decode( $first['context'], true ) : array();
-								$plugin_name = ( is_array( $ctx ) && ! empty( $ctx['plugin_name'] ) ) ? (string) $ctx['plugin_name'] : '';
-								$is_review   = ( is_array( $ctx ) && isset( $ctx['confidence'] ) )
-									? ShieldScope_Check_Base::CONFIDENCE_REVIEW === $ctx['confidence']
-									: ShieldScope_Check_Base::is_review_title( $issue_title );
+				<?php foreach ( $tabs[ $sev ]['groups'] as $issue_title => $instances ) :
+					$count       = count( $instances );
+					$first       = $instances[0];
+					$check_id    = isset( $first['check_id'] ) ? (string) $first['check_id'] : '';
+					$ctx         = ( ! empty( $first['context'] ) ) ? json_decode( $first['context'], true ) : array();
+					$plugin_name = ( is_array( $ctx ) && ! empty( $ctx['plugin_name'] ) ) ? (string) $ctx['plugin_name'] : '';
+					$is_review   = ( is_array( $ctx ) && isset( $ctx['confidence'] ) )
+						? ShieldScope_Check_Base::CONFIDENCE_REVIEW === $ctx['confidence']
+						: ShieldScope_Check_Base::is_review_title( $issue_title );
+				?>
+					<details class="shieldscope-finding sev-<?php echo esc_attr( $sev ); ?>">
+						<summary>
+							<span class="shieldscope-finding-title"><?php echo esc_html( $issue_title ); ?></span>
+							<span class="shieldscope-confidence <?php echo esc_attr( $is_review ? 'is-review' : 'is-confirmed' ); ?>">
+								<?php echo $is_review ? esc_html__( 'Needs review', 'shieldscope-site-security-scanner' ) : esc_html__( 'Confirmed', 'shieldscope-site-security-scanner' ); ?>
+							</span>
+							<?php if ( '' !== $check_id ) : ?>
+								<span class="shieldscope-finding-check"><?php echo esc_html( $check_id ); ?></span>
+							<?php endif; ?>
+							<?php if ( 1 === $count && '' !== $plugin_name ) : ?>
+								<span class="shieldscope-issue-badge"><?php echo esc_html( $plugin_name ); ?></span>
+							<?php endif; ?>
+							<?php if ( $count > 1 ) : ?>
+								<span class="shieldscope-issue-badge">
+									<?php echo esc_html(
+										sprintf(
+											/* translators: %d: number of affected items */
+											_n( '%d instance', '%d instances', $count, 'shieldscope-site-security-scanner' ),
+											$count
+										)
+									); ?>
+								</span>
+							<?php endif; ?>
+						</summary>
+						<div class="shieldscope-finding-body">
+							<?php if ( ! empty( $first['description'] ) ) : ?>
+								<p><?php echo esc_html( wp_strip_all_tags( $first['description'] ) ); ?></p>
+							<?php endif; ?>
+							<?php if ( ! empty( $first['recommendation'] ) ) : ?>
+								<p><strong><?php esc_html_e( 'Recommendation:', 'shieldscope-site-security-scanner' ); ?></strong>
+								<?php echo esc_html( wp_strip_all_tags( $first['recommendation'] ) ); ?></p>
+							<?php endif; ?>
+							<?php if ( $is_review ) : ?>
+								<p class="shieldscope-review-note"><?php esc_html_e( 'This is a pattern match. Open the file at the line shown and check whether the flagged code really does what the finding describes before changing anything.', 'shieldscope-site-security-scanner' ); ?></p>
+							<?php endif; ?>
+							<?php
+							$shieldscope_items = array();
+							foreach ( $instances as $inst ) {
+								if ( empty( $inst['target'] ) ) {
+									continue;
+								}
+								$inst_ctx            = ! empty( $inst['context'] ) ? json_decode( $inst['context'], true ) : array();
+								$shieldscope_items[] = array(
+									'target'  => (string) $inst['target'],
+									'line'    => isset( $inst_ctx['evidence']['line'] ) ? (int) $inst_ctx['evidence']['line'] : 0,
+									'snippet' => isset( $inst_ctx['evidence']['snippet'] ) ? (string) $inst_ctx['evidence']['snippet'] : '',
+								);
+							}
 							?>
-								<details class="shieldscope-finding sev-<?php echo esc_attr( $sev ); ?>">
-									<summary>
-										<span class="shieldscope-finding-title"><?php echo esc_html( $issue_title ); ?></span>
-										<span class="shieldscope-confidence <?php echo esc_attr( $is_review ? 'is-review' : 'is-confirmed' ); ?>">
-											<?php echo $is_review ? esc_html__( 'Needs review', 'shieldscope-site-security-scanner' ) : esc_html__( 'Confirmed', 'shieldscope-site-security-scanner' ); ?>
-										</span>
-										<?php if ( '' !== $check_id ) : ?>
-											<span class="shieldscope-finding-check"><?php echo esc_html( $check_id ); ?></span>
-										<?php endif; ?>
-										<?php if ( 1 === $count && '' !== $plugin_name ) : ?>
-											<span class="shieldscope-issue-badge"><?php echo esc_html( $plugin_name ); ?></span>
-										<?php endif; ?>
-										<?php if ( $count > 1 ) : ?>
-											<span class="shieldscope-issue-badge">
-												<?php echo esc_html(
-													sprintf(
-														/* translators: %d: number of affected items */
-														_n( '%d instance', '%d instances', $count, 'shieldscope-site-security-scanner' ),
-														$count
-													)
-												); ?>
-											</span>
-										<?php endif; ?>
-									</summary>
-									<div class="shieldscope-finding-body">
-										<?php if ( ! empty( $first['description'] ) ) : ?>
-											<p><?php echo esc_html( wp_strip_all_tags( $first['description'] ) ); ?></p>
-										<?php endif; ?>
-										<?php if ( ! empty( $first['recommendation'] ) ) : ?>
-											<p><strong><?php esc_html_e( 'Recommendation:', 'shieldscope-site-security-scanner' ); ?></strong>
-											<?php echo esc_html( wp_strip_all_tags( $first['recommendation'] ) ); ?></p>
-										<?php endif; ?>
-										<?php if ( $is_review ) : ?>
-											<p class="shieldscope-review-note"><?php esc_html_e( 'This is a pattern match. Open the file at the line shown and check whether the flagged code really does what the finding describes before changing anything.', 'shieldscope-site-security-scanner' ); ?></p>
-										<?php endif; ?>
-										<?php
-										$shieldscope_items = array();
-										foreach ( $instances as $inst ) {
-											if ( empty( $inst['target'] ) ) {
-												continue;
-											}
-											$inst_ctx            = ! empty( $inst['context'] ) ? json_decode( $inst['context'], true ) : array();
-											$shieldscope_items[] = array(
-												'target'  => (string) $inst['target'],
-												'line'    => isset( $inst_ctx['evidence']['line'] ) ? (int) $inst_ctx['evidence']['line'] : 0,
-												'snippet' => isset( $inst_ctx['evidence']['snippet'] ) ? (string) $inst_ctx['evidence']['snippet'] : '',
-											);
-										}
-										?>
-										<?php if ( $shieldscope_items ) : ?>
-											<div class="shieldscope-instances">
-												<p class="shieldscope-instances-label"><?php echo 1 === count( $shieldscope_items ) ? esc_html__( 'Target:', 'shieldscope-site-security-scanner' ) : esc_html__( 'Affected items:', 'shieldscope-site-security-scanner' ); ?></p>
-												<ul class="shieldscope-target-list">
-													<?php foreach ( $shieldscope_items as $item ) : ?>
-														<li>
-															<code><?php echo esc_html( $item['target'] . ( $item['line'] > 0 ? ':' . $item['line'] : '' ) ); ?></code>
-															<?php if ( '' !== $item['snippet'] ) : ?>
-																<pre class="shieldscope-snippet"><?php echo esc_html( $item['snippet'] ); ?></pre>
-															<?php endif; ?>
-														</li>
-													<?php endforeach; ?>
-												</ul>
-											</div>
-										<?php endif; ?>
-									</div>
-								</details>
-							<?php endforeach; ?>
-						<?php endif; ?>
-					</div>
+							<?php if ( $shieldscope_items ) : ?>
+								<div class="shieldscope-instances">
+									<p class="shieldscope-instances-label"><?php echo 1 === count( $shieldscope_items ) ? esc_html__( 'Target:', 'shieldscope-site-security-scanner' ) : esc_html__( 'Affected items:', 'shieldscope-site-security-scanner' ); ?></p>
+									<ul class="shieldscope-target-list">
+										<?php foreach ( $shieldscope_items as $item ) : ?>
+											<li>
+												<code><?php echo esc_html( $item['target'] . ( $item['line'] > 0 ? ':' . $item['line'] : '' ) ); ?></code>
+												<?php if ( '' !== $item['snippet'] ) : ?>
+													<pre class="shieldscope-snippet"><?php echo esc_html( $item['snippet'] ); ?></pre>
+												<?php endif; ?>
+											</li>
+										<?php endforeach; ?>
+									</ul>
+								</div>
+							<?php endif; ?>
+						</div>
+					</details>
 				<?php endforeach; ?>
+			</section>
+		<?php endforeach; ?>
+
+		<?php
+		$shieldscope_clean = array();
+		if ( null !== $shieldscope_coverage ) {
+			$shieldscope_with_findings = array_unique( array_column( (array) $findings, 'check_id' ) );
+			foreach ( $shieldscope_coverage as $shieldscope_id => $shieldscope_check ) {
+				if ( ShieldScope_Coverage::DONE === $shieldscope_check['status'] && ! in_array( $shieldscope_id, $shieldscope_with_findings, true ) ) {
+					$shieldscope_clean[] = $shieldscope_check['label'];
+				}
+			}
+		}
+		?>
+		<?php if ( $shieldscope_clean ) : ?>
+			<div class="shieldscope-card">
+				<h2><?php esc_html_e( 'Checks with no findings', 'shieldscope-site-security-scanner' ); ?></h2>
+				<p><?php echo esc_html( implode( ', ', $shieldscope_clean ) ); ?></p>
 			</div>
+		<?php endif; ?>
+
+		<div class="shieldscope-card shieldscope-method">
+			<h2><?php esc_html_e( 'Method and limits', 'shieldscope-site-security-scanner' ); ?></h2>
+			<p><?php echo esc_html( ShieldScope_Admin::method_statement() ); ?></p>
+			<p><?php echo esc_html( ShieldScope_Admin::footprint_statement() ); ?></p>
 		</div>
+
 	<?php endif; ?>
 
 	<div class="shieldscope-card shieldscope-faq">

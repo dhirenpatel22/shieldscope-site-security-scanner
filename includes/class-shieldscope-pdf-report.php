@@ -340,7 +340,7 @@ class ShieldScope_PDF_Report {
 
 		// Method and limits.
 		$html .= '<h2>' . $e( __( 'Method and limits', 'shieldscope-site-security-scanner' ) ) . '</h2>';
-		$html .= '<p>' . $e( __( 'ShieldScope checks WordPress configuration, versions, users, file permissions, server settings and plugin and theme code from inside the site. Findings whose title starts with "Review:" or "Matches pattern" are pattern matches that a person must confirm by reading the code; they are not confirmed vulnerabilities. Known-vulnerability results depend on the data source used (a limited built-in list, or WPScan with an API key). A report with no findings does not mean the site is secure.', 'shieldscope-site-security-scanner' ) ) . '</p>';
+		$html .= '<p>' . $e( ShieldScope_Admin::method_statement() ) . '</p>';
 		$html .= '<p>' . $e( ShieldScope_Admin::footprint_statement() ) . '</p>';
 		$html .= '<p>' . $e( ShieldScope_Admin::privacy_statement() ) . '</p>';
 		if ( $coverage ) {

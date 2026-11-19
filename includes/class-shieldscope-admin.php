@@ -56,6 +56,15 @@ class ShieldScope_Admin {
 	}
 
 	/**
+	 * What the scan tests and its limits, used in the report and the PDF.
+	 *
+	 * @return string
+	 */
+	public static function method_statement() {
+		return __( 'ShieldScope checks WordPress configuration, versions, users, file permissions, server settings and plugin and theme code from inside the site. Findings labelled "Needs review" are pattern matches or heuristics that a person must confirm by reading the code; they are not confirmed vulnerabilities. Known-vulnerability results depend on the data source used (a limited built-in list, or WPScan with an API key). It does not test the site from outside like an attacker, does not compare files with a database of known malicious code, and does not monitor the site between scans. A report with no findings does not mean the site is secure.', 'shieldscope-site-security-scanner' );
+	}
+
+	/**
 	 * The one statement of what ShieldScope writes, used in every screen.
 	 *
 	 * @return string
