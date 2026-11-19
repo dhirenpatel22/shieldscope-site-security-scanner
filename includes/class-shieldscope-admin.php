@@ -82,6 +82,7 @@ class ShieldScope_Admin {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_post_' . ShieldScope_PDF_Report::ACTION, array( 'ShieldScope_PDF_Report', 'handle' ) );
+		add_action( 'admin_post_' . ShieldScope_Export::ACTION, array( 'ShieldScope_Export', 'handle' ) );
 		add_filter( 'plugin_action_links_' . SHIELDSCOPE_PLUGIN_BASENAME, array( $this, 'action_links' ) );
 	}
 
