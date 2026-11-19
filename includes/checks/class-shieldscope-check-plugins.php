@@ -62,8 +62,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 				$this->check_unknown_source();
 				break;
 			case 'abandoned':
-				$this->check_abandoned();
-				break;
+				return $this->check_abandoned( $cursor );
 		}
 		return array( 'continue' => false, 'cursor' => array() );
 	}
@@ -156,33 +155,181 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Plugins that have not been updated in a long time (abandoned heuristic).
-	 *
-	 * @return void
+	 * WordPress.org plugin information endpoint.
 	 */
-	private function check_abandoned() {
-		$plugins = get_plugins();
-		foreach ( $plugins as $file => $data ) {
-			$full_path = SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $file;
-			if ( ! file_exists( $full_path ) ) {
-				continue;
-			}
-			$mtime = filemtime( $full_path );
-			if ( $mtime && ( time() - $mtime ) > ( 2 * YEAR_IN_SECONDS ) ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_MEDIUM,
-					__( 'Plugin appears abandoned', 'shieldscope-site-security-scanner' ),
-					sprintf(
-						/* translators: 1: name, 2: date */
-						__( 'Plugin "%1$s" has not been updated on disk since %2$s. Unmaintained plugins accumulate unfixed vulnerabilities.', 'shieldscope-site-security-scanner' ),
-						$data['Name'],
-						gmdate( 'Y-m-d', $mtime )
-					),
-					__( 'Check wordpress.org/plugins for this plugin — if it shows "not tested with the latest 3 major releases" it is likely abandoned. Consider replacing it with a maintained alternative. If you need to keep it, contact the plugin developer via the wordpress.org support forum to ask about continued maintenance.', 'shieldscope-site-security-scanner' ),
-					'plugin:' . $file,
-					array( 'plugin_name' => $data['Name'] )
-				);
+	const WPORG_API = 'https://api.wordpress.org/plugins/info/1.2/';
+
+	/**
+	 * How long a WordPress.org lookup is cached.
+	 */
+	const WPORG_CACHE_TTL = 12 * HOUR_IN_SECONDS;
+
+	/**
+	 * Closed and long-unmaintained plugins, from WordPress.org (B-10, S-20).
+	 *
+	 * For each installed plugin in a folder, asks the WordPress.org plugin
+	 * directory (sending only the folder name) whether it is listed, closed,
+	 * and when it was last updated. WordPress itself shows a closed plugin as
+	 * up to date, so this is the only place the closure is visible. Plugins
+	 * that are not listed (custom or commercial) are skipped. Resumable:
+	 * the cursor holds the position and counts.
+	 *
+	 * @param array $cursor Cursor.
+	 * @return array
+	 */
+	private function check_abandoned( array $cursor = array() ) {
+		$plugins = array();
+		foreach ( (array) get_plugins() as $file => $data ) {
+			$slug = dirname( $file );
+			if ( '.' !== $slug && '' !== $slug ) {
+				$plugins[] = array( $file, $slug, $data );
 			}
 		}
+		$cursor += array(
+			'i'      => 0,
+			'failed' => 0,
+		);
+
+		$done = 0;
+		while ( $cursor['i'] < count( $plugins ) ) {
+			if ( $done > 0 && $this->out_of_time() ) {
+				return array( 'continue' => true, 'cursor' => $cursor );
+			}
+			list( $file, $slug, $data ) = $plugins[ $cursor['i'] ];
+			++$cursor['i'];
+			++$done;
+
+			$info = $this->wporg_info( $slug );
+			if ( null === $info ) {
+				++$cursor['failed'];
+				continue;
+			}
+			$this->report_wporg_status( $file, $data, $info );
+		}
+
+		if ( $cursor['failed'] > 0 ) {
+			$this->note_partial(
+				sprintf(
+					/* translators: %d: number of plugins */
+					__( '%d plugin(s) could not be looked up on WordPress.org', 'shieldscope-site-security-scanner' ),
+					$cursor['failed']
+				)
+			);
+		}
+		return array( 'continue' => false, 'cursor' => array() );
+	}
+
+	/**
+	 * Findings for one plugin from its WordPress.org information.
+	 *
+	 * @param string $file Plugin file.
+	 * @param array  $data Plugin header data.
+	 * @param array  $info Decoded API response.
+	 * @return void
+	 */
+	private function report_wporg_status( $file, array $data, array $info ) {
+		$name = isset( $data['Name'] ) ? $data['Name'] : $file;
+		$ctx  = array( 'plugin_name' => $name );
+
+		if ( ! empty( $info['closed'] ) || ( isset( $info['error'] ) && 'closed' === $info['error'] ) ) {
+			$security = isset( $info['reason'] ) && 'security-issue' === $info['reason'];
+			$reason   = isset( $info['reason_text'] ) ? (string) $info['reason_text'] : __( 'not given', 'shieldscope-site-security-scanner' );
+			$date     = isset( $info['closed_date'] ) ? (string) $info['closed_date'] : __( 'unknown date', 'shieldscope-site-security-scanner' );
+			$this->finding(
+				$security ? ShieldScope_Logger::SEVERITY_HIGH : ShieldScope_Logger::SEVERITY_MEDIUM,
+				/* translators: %s: plugin name */
+				sprintf( __( 'Plugin closed on WordPress.org: %s', 'shieldscope-site-security-scanner' ), $name ),
+				sprintf(
+					/* translators: 1: plugin name, 2: date, 3: reason */
+					__( 'WordPress.org closed "%1$s" on %2$s (reason: %3$s). A closed plugin gets no updates, and WordPress still shows it as up to date. A closure for a security issue usually means a known, unfixed vulnerability.', 'shieldscope-site-security-scanner' ),
+					$name,
+					$date,
+					$reason
+				),
+				__( 'Replace the plugin with a maintained alternative and delete it. If you must keep it for now, check the plugin\'s page and support forum on WordPress.org for the reason and any fix.', 'shieldscope-site-security-scanner' ),
+				'plugin:' . $file,
+				$ctx + array(
+					'closed_date' => $date,
+					'reason'      => isset( $info['reason'] ) ? (string) $info['reason'] : '',
+				)
+			);
+			return;
+		}
+
+		if ( empty( $info['last_updated'] ) ) {
+			return; // Not listed on WordPress.org (custom or commercial plugin).
+		}
+		$updated = strtotime( (string) $info['last_updated'] );
+		if ( $updated && ( time() - $updated ) > 2 * YEAR_IN_SECONDS ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				/* translators: %s: plugin name */
+				sprintf( __( 'Plugin not updated on WordPress.org for over 2 years: %s', 'shieldscope-site-security-scanner' ), $name ),
+				sprintf(
+					/* translators: 1: plugin name, 2: date */
+					__( 'The last release of "%1$s" on WordPress.org was on %2$s. Plugins without updates do not get fixes for newly found vulnerabilities and may break with new WordPress or PHP versions.', 'shieldscope-site-security-scanner' ),
+					$name,
+					gmdate( 'Y-m-d', $updated )
+				),
+				__( 'Check the plugin\'s support forum for signs of maintenance and look for a maintained alternative. If you keep it, review it whenever WordPress or PHP is updated.', 'shieldscope-site-security-scanner' ),
+				'plugin:' . $file,
+				$ctx + array( 'last_updated' => gmdate( 'Y-m-d', $updated ) )
+			);
+		}
+	}
+
+	/**
+	 * WordPress.org plugin information for a slug, cached. Null when the
+	 * lookup failed (the result is not cached then).
+	 *
+	 * @param string $slug Plugin folder name.
+	 * @return array|null
+	 */
+	private function wporg_info( $slug ) {
+		$key    = 'shieldscope_wporg_' . md5( $slug );
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$url      = add_query_arg(
+			array(
+				'action'  => 'plugin_information',
+				'request' => array(
+					'slug'   => $slug,
+					'fields' => array(
+						'sections'     => 0,
+						'description'  => 0,
+						'screenshots'  => 0,
+						'banners'      => 0,
+						'icons'        => 0,
+						'contributors' => 0,
+						'ratings'      => 0,
+						'versions'     => 0,
+						'tags'         => 0,
+					),
+				),
+			),
+			self::WPORG_API
+		);
+		$response = wp_remote_get( $url, array( 'timeout' => 10 ) );
+		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			// 404 is "not listed": the API answers {"error":"Plugin not found."}.
+			if ( ! is_wp_error( $response ) && 404 === (int) wp_remote_retrieve_response_code( $response ) ) {
+				$info = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+				if ( is_array( $info ) && isset( $info['error'] ) ) {
+					set_transient( $key, $info, self::WPORG_CACHE_TTL );
+					return $info;
+				}
+			}
+			return null;
+		}
+		$info = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $info ) ) {
+			return null;
+		}
+		$keep = array_intersect_key( $info, array_flip( array( 'slug', 'version', 'last_updated', 'error', 'closed', 'closed_date', 'reason', 'reason_text' ) ) );
+		set_transient( $key, $keep, self::WPORG_CACHE_TTL );
+		return $keep;
 	}
 }
