@@ -241,6 +241,7 @@ class ShieldScope_Admin {
 				'chunk_time_limit'   => 2,
 				'max_scan_file_size' => 2 * MB_IN_BYTES,
 				'pause_on_blur'      => 1,
+				'developer_review'   => 0,
 			)
 		);
 		include SHIELDSCOPE_PLUGIN_DIR . 'admin/views/settings.php';
@@ -294,6 +295,7 @@ class ShieldScope_Admin {
 			'chunk_time_limit'   => isset( $raw['chunk_time_limit'] ) ? max( 1, min( 10, (int) $raw['chunk_time_limit'] ) ) : 2,
 			'max_scan_file_size' => $mb * MB_IN_BYTES,
 			'pause_on_blur'      => ! empty( $raw['pause_on_blur'] ) ? 1 : 0,
+			'developer_review'   => ! empty( $raw['developer_review'] ) ? 1 : 0,
 			'wpscan_api_key'     => $wpscan_key,
 		);
 		update_option( 'shieldscope_settings', $clean );
