@@ -346,7 +346,8 @@ class ShieldScope_Scanner {
 
 		// If we were called from cron and the scan is still running, re-schedule.
 		if ( $from_cron && self::STATUS_RUNNING === $state['status'] && ! wp_next_scheduled( 'shieldscope_run_scan_chunk' ) ) {
-			wp_schedule_single_event( time() + 10, 'shieldscope_run_scan_chunk' );
+			$rest = isset( $state['rest_ms'] ) ? (int) ceil( $state['rest_ms'] / 1000 ) : 0;
+			wp_schedule_single_event( time() + max( 10, $rest ), 'shieldscope_run_scan_chunk' );
 		}
 
 		return $state;
@@ -485,6 +486,9 @@ class ShieldScope_Scanner {
 			// Throttle proportional to work just done.
 			$this->throttle->throttle( $elapsed );
 		}
+
+		// Rest before the next chunk is taken by the caller, not slept here (S-14).
+		$state['rest_ms'] = (int) round( $this->throttle->rest_seconds() * 1000 );
 
 		list( $state, ) = $this->save_progress( $state, $total );
 
