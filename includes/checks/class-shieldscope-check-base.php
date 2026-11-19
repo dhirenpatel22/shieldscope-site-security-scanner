@@ -121,6 +121,27 @@ abstract class ShieldScope_Check_Base {
 	}
 
 	/**
+	 * Is the optional "Developer review" mode on? It enables the injection
+	 * and SSRF code-pattern scans, which only produce findings to review.
+	 *
+	 * @return bool
+	 */
+	public static function developer_review_enabled() {
+		$settings = (array) get_option( 'shieldscope_settings', array() );
+		return ! empty( $settings['developer_review'] );
+	}
+
+	/**
+	 * Result for a code-scan step skipped because Developer review is off.
+	 *
+	 * @return array
+	 */
+	protected function skip_code_scan() {
+		$this->note_partial( __( 'plugin and theme code not scanned: Developer review is off in Settings', 'shieldscope-site-security-scanner' ) );
+		return array( 'continue' => false, 'cursor' => array() );
+	}
+
+	/**
 	 * Set the time budget for the next step.
 	 *
 	 * @param float $deadline microtime() at which work should stop; 0 for none.

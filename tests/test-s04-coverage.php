@@ -15,6 +15,7 @@ class Test_S04_Coverage extends TestCase {
 	protected function setUp(): void {
 		ss_tests_reset_state();
 		ss_tests_reset_wp_root();
+		update_option( 'shieldscope_settings', array( 'developer_review' => 1 ) );
 	}
 
 	public function test_save_marks_missing_checks_as_not_run_and_summarises() {
@@ -58,7 +59,7 @@ class Test_S04_Coverage extends TestCase {
 	}
 
 	public function test_walker_skips_raise_a_partial_note() {
-		update_option( 'shieldscope_settings', array( 'max_scan_file_size' => 50 ) );
+		update_option( 'shieldscope_settings', array( 'max_scan_file_size' => 50, 'developer_review' => 1 ) );
 		mkdir( SHIELDSCOPE_WP_PLUGINS_DIR . '/p', 0777, true );
 		file_put_contents( SHIELDSCOPE_WP_PLUGINS_DIR . '/p/big.php', "<?php\n// " . str_repeat( 'x', 200 ) );
 		$check  = new ShieldScope_Check_Injection( 's', new SS_Fake_Logger() );

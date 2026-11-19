@@ -51,7 +51,7 @@ Browser security headers (for example Content-Security-Policy and X-Frame-Option
 Open registration with a risky default role, site address mismatches and recently created administrators.
 
 = Injection Patterns =
-Looks in plugin and theme code for request data reaching risky calls (SQL queries, echo, unserialize and others). Every match is a Low "Review" finding to confirm by reading the code.
+Optional (Settings → Developer review, off by default). Looks in plugin and theme code for request data reaching risky calls (SQL queries, echo, unserialize and others). Matches are findings to review, mostly Low, to confirm by reading the code.
 
 = Access Control =
 Usernames exposed through author pages or login error messages, application passwords, login protection and two-factor authentication, plugin REST routes that accept writes without a login, and AJAX handlers that lack capability checks. These checks read settings, code and registered routes inside WordPress; they do not try to log in or send write requests.
@@ -60,7 +60,7 @@ Usernames exposed through author pages or login error messages, application pass
 PHP version support status, sensitive files reachable from the web (such as .env or debug logs) and server settings that reveal technical details.
 
 = Server-Side Requests (SSRF) =
-Code patterns where request data may choose a URL the server fetches, plus WordPress features such as pingbacks and the oEmbed proxy.
+WordPress features that make the server send requests, such as pingbacks and the oEmbed proxy. With Developer review on, also code patterns where request data may choose a URL the server fetches.
 
 = Vulnerable & Outdated Components =
 Database and WordPress versions against end-of-support dates.

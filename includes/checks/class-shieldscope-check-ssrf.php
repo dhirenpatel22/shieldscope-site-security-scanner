@@ -61,6 +61,10 @@ class ShieldScope_Check_SSRF extends ShieldScope_Check_Base {
 	 * @return array
 	 */
 	public function run_step( $step, array $cursor = array() ) {
+		if ( ( 'scan_plugins' === $step || 'scan_themes' === $step ) && ! self::developer_review_enabled() ) {
+			// Off by default (S-16): pattern-only findings; the note is raised once.
+			return 'scan_plugins' === $step ? $this->skip_code_scan() : array( 'continue' => false, 'cursor' => array() );
+		}
 		if ( 'scan_plugins' === $step ) {
 			return $this->scan_tree( SHIELDSCOPE_WP_PLUGINS_DIR, $cursor );
 		}

@@ -67,6 +67,18 @@ defined( 'ABSPATH' ) || exit;
 				</tr>
 				<tr>
 					<th scope="row">
+						<?php esc_html_e( 'Developer review', 'shieldscope-site-security-scanner' ); ?>
+					</th>
+					<td>
+						<label>
+							<input name="shieldscope_settings[developer_review]" type="checkbox" value="1" <?php checked( ! empty( $settings['developer_review'] ) ); ?> />
+							<?php esc_html_e( 'Also scan plugin and theme code for injection and server-side request patterns.', 'shieldscope-site-security-scanner' ); ?>
+						</label>
+						<p class="description"><?php esc_html_e( 'For developers reviewing code. These checks only find patterns to review (Low findings), and well-written plugins can match them, so they are off by default. Scans take longer when this is on.', 'shieldscope-site-security-scanner' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
 						<label for="shieldscope_wpscan_api_key"><?php esc_html_e( 'WPScan API Key', 'shieldscope-site-security-scanner' ); ?></label>
 					</th>
 					<td>

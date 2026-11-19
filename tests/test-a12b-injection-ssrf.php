@@ -35,6 +35,7 @@ class Test_A12b_Injection_SSRF extends TestCase {
 	protected function setUp(): void {
 		ss_tests_reset_state();
 		ss_tests_reset_wp_root();
+		update_option( 'shieldscope_settings', array( 'developer_review' => 1 ) );
 		mkdir( SHIELDSCOPE_WP_PLUGINS_DIR, 0777, true );
 		$this->logger = new SS_Fake_Logger();
 	}
@@ -378,7 +379,7 @@ class Test_A12b_Injection_SSRF extends TestCase {
 	}
 
 	public function test_oversized_files_are_counted_as_skipped_by_both_checks() {
-		update_option( 'shieldscope_settings', array( 'max_scan_file_size' => 100 ) );
+		update_option( 'shieldscope_settings', array( 'max_scan_file_size' => 100, 'developer_review' => 1 ) );
 		$this->plugin_file( 'big', "<?php\n// " . str_repeat( 'x', 500 ) . "\n" );
 		foreach ( array( 'ShieldScope_Check_Injection', 'ShieldScope_Check_SSRF' ) as $class ) {
 			$this->logger = new SS_Fake_Logger();

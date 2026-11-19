@@ -39,6 +39,7 @@ class Test_S03_Finding_Evidence extends TestCase {
 	protected function setUp(): void {
 		ss_tests_reset_state();
 		ss_tests_reset_wp_root();
+		update_option( 'shieldscope_settings', array( 'developer_review' => 1 ) );
 		mkdir( SHIELDSCOPE_WP_PLUGINS_DIR, 0777, true );
 		$this->logger = new SS_Fake_Logger();
 	}
