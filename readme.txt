@@ -54,7 +54,7 @@ Open registration with a risky default role, site address mismatches and recentl
 Looks in plugin and theme code for request data reaching risky calls (SQL queries, echo, unserialize and others). Every match is a Low "Review" finding to confirm by reading the code.
 
 = Access Control =
-Usernames exposed through author pages, application passwords, login protection and two-factor authentication, and AJAX handlers that lack capability checks. These checks read settings and code; they do not try to log in or send write requests.
+Usernames exposed through author pages or login error messages, application passwords, login protection and two-factor authentication, plugin REST routes that accept writes without a login, and AJAX handlers that lack capability checks. These checks read settings, code and registered routes inside WordPress; they do not try to log in or send write requests.
 
 = Server Configuration =
 PHP version support status, sensitive files reachable from the web (such as .env or debug logs) and server settings that reveal technical details.
