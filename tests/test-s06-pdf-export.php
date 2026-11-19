@@ -93,7 +93,7 @@ class Test_S06_PDF_Export extends TestCase {
 			$findings[] = $this->finding( 'medium', 'Repeated issue', "/srv/www/site/f$i.php" );
 		}
 		$html = ShieldScope_PDF_Report::build_html( $this->report( $findings ) );
-		$this->assertSame( 1, substr_count( $html, '<div class="ftitle">Repeated issue</div>' ) );
+		$this->assertSame( 1, substr_count( $html, '<div class="ftitle">Repeated issue <span' ) );
 		$this->assertStringContainsString( 'and 5 more', $html );
 		$this->assertStringContainsString( 'Code Patterns', $html, 'Check id is shown as its label.' );
 	}

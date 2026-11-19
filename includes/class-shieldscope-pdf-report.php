@@ -219,8 +219,11 @@ class ShieldScope_PDF_Report {
 			$sev   = isset( $f['severity'], $groups[ $f['severity'] ] ) ? $f['severity'] : 'info';
 			$title = isset( $f['title'] ) && '' !== trim( (string) $f['title'] ) ? trim( (string) $f['title'] ) : __( 'Unknown issue', 'shieldscope-site-security-scanner' );
 			++$counts[ $sev ];
+			$ctx = isset( $f['context'] ) && is_string( $f['context'] ) ? json_decode( $f['context'], true ) : array();
+			$ctx = is_array( $ctx ) ? $ctx : array();
 			if ( ! isset( $groups[ $sev ][ $title ] ) ) {
 				$groups[ $sev ][ $title ] = array(
+					'review'         => isset( $ctx['confidence'] ) ? ShieldScope_Check_Base::CONFIDENCE_REVIEW === $ctx['confidence'] : ShieldScope_Check_Base::is_review_title( $title ),
 					'check'          => isset( $f['check_id'] ) ? (string) $f['check_id'] : '',
 					'description'    => isset( $f['description'] ) ? (string) $f['description'] : '',
 					'recommendation' => isset( $f['recommendation'] ) ? (string) $f['recommendation'] : '',
@@ -228,7 +231,10 @@ class ShieldScope_PDF_Report {
 				);
 			}
 			if ( ! empty( $f['target'] ) ) {
-				$groups[ $sev ][ $title ]['targets'][] = self::relative_target( $f['target'], $report['root'] );
+				$line = isset( $ctx['evidence']['line'] ) ? (int) $ctx['evidence']['line'] : 0;
+				$key  = self::relative_target( $f['target'], $report['root'] ) . ( $line > 0 ? ':' . $line : '' );
+
+				$groups[ $sev ][ $title ]['targets'][ $key ] = isset( $ctx['evidence']['snippet'] ) ? (string) $ctx['evidence']['snippet'] : '';
 			}
 		}
 
@@ -296,7 +302,7 @@ class ShieldScope_PDF_Report {
 			) . '</h2>';
 			foreach ( $groups[ $sev ] as $title => $g ) {
 				$check  = isset( $report['check_labels'][ $g['check'] ] ) ? $report['check_labels'][ $g['check'] ] : $g['check'];
-				$html  .= '<div class="finding"><div class="ftitle">' . $e( $title ) . '</div>';
+				$html  .= '<div class="finding"><div class="ftitle">' . $e( $title ) . ' <span class="conf' . ( $g['review'] ? ' review' : '' ) . '">' . $e( $g['review'] ? __( 'Needs review', 'shieldscope-site-security-scanner' ) : __( 'Confirmed', 'shieldscope-site-security-scanner' ) ) . '</span></div>';
 				if ( '' !== $check ) {
 					$html .= '<div class="check">' . $e( $check ) . '</div>';
 				}
@@ -306,11 +312,11 @@ class ShieldScope_PDF_Report {
 				if ( '' !== $g['recommendation'] ) {
 					$html .= '<p class="rec"><strong>' . $e( __( 'What to do:', 'shieldscope-site-security-scanner' ) ) . '</strong> ' . $e( $g['recommendation'] ) . '</p>';
 				}
-				$targets = array_values( array_unique( $g['targets'] ) );
+				$targets = $g['targets'];
 				if ( $targets ) {
 					$html .= '<div class="tlabel">' . $e( __( 'Affected', 'shieldscope-site-security-scanner' ) ) . '</div><ul class="targets">';
-					foreach ( array_slice( $targets, 0, self::MAX_TARGETS ) as $t ) {
-						$html .= '<li>' . $e( $t ) . '</li>';
+					foreach ( array_slice( $targets, 0, self::MAX_TARGETS, true ) as $t => $snippet ) {
+						$html .= '<li>' . $e( $t ) . ( '' !== $snippet ? '<div class="snip">' . $e( $snippet ) . '</div>' : '' ) . '</li>';
 					}
 					if ( count( $targets ) > self::MAX_TARGETS ) {
 						$html .= '<li class="more">' . $e(
@@ -372,6 +378,9 @@ class ShieldScope_PDF_Report {
 			. 'ul.targets{margin:1px 0 0 14px;padding:0;font-family:"DejaVu Sans Mono",monospace;font-size:8px}'
 			. '.more{font-family:"DejaVu Sans",sans-serif;color:#50575e}'
 			. '.small{font-size:8.5px;color:#50575e}'
+			. '.conf{font-size:7.5px;font-weight:bold;border:1px solid #c3c4c7;padding:0 3px;color:#50575e}'
+			. '.conf.review{color:#6b4d00;border-color:#dba617}'
+			. '.snip{color:#50575e;border-left:2px solid #dcdcde;padding-left:4px;margin:1px 0 2px}'
 			. '.sev-critical{border-color:#b32d2e;color:#8a1a1a}.sevhead.sev-critical{border-left-color:#b32d2e}'
 			. '.sev-high{border-color:#d63638;color:#7d3800}.sevhead.sev-high{border-left-color:#d63638}'
 			. '.sev-medium{border-color:#dba617;color:#6b4d00}.sevhead.sev-medium{border-left-color:#dba617}'

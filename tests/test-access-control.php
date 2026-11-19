@@ -234,7 +234,7 @@ class Test_Access_Control extends TestCase {
 
 		$this->assertCount( 1, $this->logger->findings );
 		$this->assertSame( ShieldScope_Logger::SEVERITY_MEDIUM, $this->logger->findings[0]['severity'] );
-		$this->assertSame( array( 'users' => array( 'editor1' ) ), $this->logger->findings[0]['context'] );
+		$this->assertSame( array( 'users' => array( 'editor1' ), 'confidence' => 'confirmed' ), $this->logger->findings[0]['context'] );
 	}
 
 	public function test_app_password_on_admin_is_high() {
@@ -250,7 +250,7 @@ class Test_Access_Control extends TestCase {
 
 		$this->assertCount( 1, $this->logger->findings );
 		$this->assertSame( ShieldScope_Logger::SEVERITY_HIGH, $this->logger->findings[0]['severity'] );
-		$this->assertSame( array( 'admin_users' => array( 'siteadmin' ) ), $this->logger->findings[0]['context'] );
+		$this->assertSame( array( 'admin_users' => array( 'siteadmin' ), 'confidence' => 'confirmed' ), $this->logger->findings[0]['context'] );
 	}
 
 	// -----------------------------------------------------------------------
