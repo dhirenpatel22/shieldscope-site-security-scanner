@@ -66,8 +66,9 @@ class ShieldScope_Export {
 	 * @return array[]
 	 */
 	public static function rows( array $report ) {
-		$rows = array();
-		foreach ( (array) $report['findings'] as $f ) {
+		$rows                     = array();
+		list( $active, $ignored ) = ShieldScope_Ignore::split( (array) $report['findings'] );
+		foreach ( array_merge( $active, $ignored ) as $f ) {
 			$ctx    = isset( $f['context'] ) && is_string( $f['context'] ) ? json_decode( $f['context'], true ) : array();
 			$ctx    = is_array( $ctx ) ? $ctx : array();
 			$title  = isset( $f['title'] ) ? (string) $f['title'] : '';
@@ -82,6 +83,7 @@ class ShieldScope_Export {
 				'snippet'        => isset( $ctx['evidence']['snippet'] ) ? (string) $ctx['evidence']['snippet'] : '',
 				'description'    => wp_strip_all_tags( isset( $f['description'] ) ? (string) $f['description'] : '' ),
 				'recommendation' => wp_strip_all_tags( isset( $f['recommendation'] ) ? (string) $f['recommendation'] : '' ),
+				'ignored'        => isset( $f['ignored'] ) ? ShieldScope_Ignore::describe( $f['ignored'] ) : '',
 			);
 		}
 		return $rows;
@@ -110,7 +112,7 @@ class ShieldScope_Export {
 	public static function to_csv( array $report ) {
 		$rows = self::rows( $report );
 		$out  = fopen( 'php://temp', 'r+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- in-memory buffer.
-		fputcsv( $out, array( 'severity', 'confidence', 'check', 'title', 'target', 'line', 'snippet', 'description', 'recommendation' ), ',', '"', '\\' );
+		fputcsv( $out, array( 'severity', 'confidence', 'check', 'title', 'target', 'line', 'snippet', 'description', 'recommendation', 'ignored' ), ',', '"', '\\' );
 		foreach ( $rows as $row ) {
 			fputcsv( $out, array_map( array( __CLASS__, 'csv_cell' ), array_values( $row ) ), ',', '"', '\\' );
 		}

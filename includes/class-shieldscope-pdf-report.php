@@ -216,7 +216,8 @@ class ShieldScope_PDF_Report {
 		$groups = array_fill_keys( self::$severities, array() );
 		$counts = array_fill_keys( self::$severities, 0 );
 
-		foreach ( (array) $report['findings'] as $f ) {
+		list( $active, $ignored ) = ShieldScope_Ignore::split( (array) $report['findings'] );
+		foreach ( $active as $f ) {
 			$sev   = isset( $f['severity'], $groups[ $f['severity'] ] ) ? $f['severity'] : 'info';
 			$title = isset( $f['title'] ) && '' !== trim( (string) $f['title'] ) ? trim( (string) $f['title'] ) : __( 'Unknown issue', 'shieldscope-site-security-scanner' );
 			++$counts[ $sev ];
@@ -336,6 +337,17 @@ class ShieldScope_PDF_Report {
 				}
 				$html .= '</div>';
 			}
+		}
+
+		// Ignored findings (S-07): listed with their reason, not counted.
+		if ( $ignored ) {
+			$html .= '<h2>' . $e( __( 'Ignored findings', 'shieldscope-site-security-scanner' ) ) . '</h2>';
+			$html .= '<p class="small">' . $e( __( 'These items were reviewed and marked as ignored on the site; they are not counted above.', 'shieldscope-site-security-scanner' ) ) . '</p><table class="checks">';
+			foreach ( $ignored as $f ) {
+				$sev   = isset( $f['severity'], $labels[ $f['severity'] ] ) ? $f['severity'] : 'info';
+				$html .= '<tr><td>' . $e( $labels[ $sev ] ) . '</td><td>' . $e( $f['title'] ) . ( ! empty( $f['target'] ) ? '<br>' . $e( self::relative_target( $f['target'], $report['root'] ) ) : '' ) . '</td><td>' . $e( ShieldScope_Ignore::describe( $f['ignored'] ) ) . '</td></tr>';
+			}
+			$html .= '</table>';
 		}
 
 		// Method and limits.
