@@ -51,11 +51,11 @@ class Test_S06b_CSV_JSON_Export extends TestCase {
 
 	public function test_csv_content() {
 		$csv  = ShieldScope_Export::to_csv( $this->report() );
-		$this->assertStringStartsWith( "\xEF\xBB\xBF" . 'severity,confidence,check,title,target,line,snippet,description,recommendation', $csv );
+		$this->assertStringStartsWith( "\xEF\xBB\xBF" . 'severity,confidence,check,title,target,line,snippet,description,recommendation,ignored', $csv );
 		$rows = array_map( 'str_getcsv', explode( "\n", trim( substr( $csv, 3 ) ) ) );
 		$this->assertCount( 2, $rows );
 		$this->assertSame(
-			array( 'low', 'review', 'Injection Vulnerabilities', "'=HYPERLINK(\"http://evil.example\",\"x\")", 'wp-content/plugins/p/a.php', '7', "'@eval(\$x);", 'Desc x, with "quotes"', "'+cmd" ),
+			array( 'low', 'review', 'Injection Vulnerabilities', "'=HYPERLINK(\"http://evil.example\",\"x\")", 'wp-content/plugins/p/a.php', '7', "'@eval(\$x);", 'Desc x, with "quotes"', "'+cmd", '' ),
 			$rows[1]
 		);
 	}

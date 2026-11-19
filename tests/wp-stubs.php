@@ -506,3 +506,15 @@ function _get_dropins() {
 		'db.php'             => array( 'Custom database class.', true ),
 	);
 }
+
+// ---------------------------------------------------------------------------
+// Ignore forms (S-07)
+// ---------------------------------------------------------------------------
+
+function wp_nonce_field( $action = -1 ) { echo '<input type="hidden" name="_wpnonce" value="nonce-' . $action . '" />'; }
+function sanitize_textarea_field( $str ) { return trim( strip_tags( (string) $str ) ); }
+function wp_get_current_user() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_get_current_user', array() );
+	return $hit ? $result : (object) array( 'ID' => 1, 'user_login' => 'auditor' );
+}
+function wp_safe_redirect( $location ) { throw new SS_Test_Exit( 'redirect:' . $location ); }

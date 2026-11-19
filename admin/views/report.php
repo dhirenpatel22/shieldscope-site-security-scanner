@@ -25,6 +25,10 @@ $severity_label = array(
 // Findings with identical titles are the same issue type and are merged so
 // the user sees one collapsible row per type, with all affected targets listed
 // inside rather than one row per individual finding.
+// Ignored findings (S-07) are left out of the counts but listed below.
+list( $findings, $shieldscope_ignored ) = ShieldScope_Ignore::split( (array) $findings );
+$shieldscope_reasons                    = ShieldScope_Ignore::reasons();
+
 $tabs = array();
 foreach ( $severity_order as $sev ) {
 	$tabs[ $sev ] = array(
@@ -47,11 +51,25 @@ foreach ( (array) $findings as $f ) {
 <div class="wrap shieldscope-wrap">
 	<h1><?php esc_html_e( 'ShieldScope: Report', 'shieldscope-site-security-scanner' ); ?></h1>
 
+	<?php
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only status flag set by our own redirect.
+	$shieldscope_ignore_msg = isset( $_GET['shieldscope_ignore'] ) ? sanitize_key( wp_unslash( $_GET['shieldscope_ignore'] ) ) : '';
+	$shieldscope_notices    = array(
+		'ignored'  => array( 'success', __( 'Item ignored. It is listed under Ignored findings and can be restored.', 'shieldscope-site-security-scanner' ) ),
+		'restored' => array( 'success', __( 'Item restored.', 'shieldscope-site-security-scanner' ) ),
+		'invalid'  => array( 'error', __( 'Not ignored: choose a reason, and add a note for Critical findings or for "Other".', 'shieldscope-site-security-scanner' ) ),
+		'notfound' => array( 'error', __( 'Not ignored: that item is not in the latest scan.', 'shieldscope-site-security-scanner' ) ),
+	);
+	?>
+	<?php if ( isset( $shieldscope_notices[ $shieldscope_ignore_msg ] ) ) : ?>
+		<div class="notice notice-<?php echo esc_attr( $shieldscope_notices[ $shieldscope_ignore_msg ][0] ); ?> is-dismissible"><p><?php echo esc_html( $shieldscope_notices[ $shieldscope_ignore_msg ][1] ); ?></p></div>
+	<?php endif; ?>
+
 	<?php if ( empty( $last_scan ) ) : ?>
 		<div class="notice notice-info">
 			<p><?php esc_html_e( 'No completed scan yet. Run a scan first.', 'shieldscope-site-security-scanner' ); ?></p>
 		</div>
-	<?php elseif ( empty( $findings ) ) : ?>
+	<?php elseif ( empty( $findings ) && empty( $shieldscope_ignored ) ) : ?>
 		<div class="notice notice-<?php echo esc_attr( ShieldScope_Logger::save_failed( $last_scan ) ? 'error' : 'warning' ); ?>">
 			<p>
 				<?php
@@ -233,12 +251,10 @@ foreach ( (array) $findings as $f ) {
 							<?php
 							$shieldscope_items = array();
 							foreach ( $instances as $inst ) {
-								if ( empty( $inst['target'] ) ) {
-									continue;
-								}
 								$inst_ctx            = ! empty( $inst['context'] ) ? json_decode( $inst['context'], true ) : array();
 								$shieldscope_items[] = array(
-									'target'  => (string) $inst['target'],
+									'fp'      => ShieldScope_Ignore::fingerprint( $inst ),
+									'target'  => isset( $inst['target'] ) ? (string) $inst['target'] : '',
 									'line'    => isset( $inst_ctx['evidence']['line'] ) ? (int) $inst_ctx['evidence']['line'] : 0,
 									'snippet' => isset( $inst_ctx['evidence']['snippet'] ) ? (string) $inst_ctx['evidence']['snippet'] : '',
 								);
@@ -250,10 +266,32 @@ foreach ( (array) $findings as $f ) {
 									<ul class="shieldscope-target-list">
 										<?php foreach ( $shieldscope_items as $item ) : ?>
 											<li>
-												<code><?php echo esc_html( $item['target'] . ( $item['line'] > 0 ? ':' . $item['line'] : '' ) ); ?></code>
+												<?php if ( '' !== $item['target'] ) : ?>
+													<code><?php echo esc_html( $item['target'] . ( $item['line'] > 0 ? ':' . $item['line'] : '' ) ); ?></code>
+												<?php endif; ?>
 												<?php if ( '' !== $item['snippet'] ) : ?>
 													<pre class="shieldscope-snippet"><?php echo esc_html( $item['snippet'] ); ?></pre>
 												<?php endif; ?>
+												<details class="shieldscope-ignore">
+													<summary><?php esc_html_e( 'Ignore…', 'shieldscope-site-security-scanner' ); ?></summary>
+													<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+														<input type="hidden" name="action" value="<?php echo esc_attr( ShieldScope_Ignore::ACTION ); ?>" />
+														<input type="hidden" name="do" value="ignore" />
+														<input type="hidden" name="fp" value="<?php echo esc_attr( $item['fp'] ); ?>" />
+														<?php wp_nonce_field( ShieldScope_Ignore::ACTION ); ?>
+														<label><?php esc_html_e( 'Reason', 'shieldscope-site-security-scanner' ); ?>
+															<select name="reason" required>
+																<?php foreach ( $shieldscope_reasons as $shieldscope_key => $shieldscope_label ) : ?>
+																	<option value="<?php echo esc_attr( $shieldscope_key ); ?>"><?php echo esc_html( $shieldscope_label ); ?></option>
+																<?php endforeach; ?>
+															</select>
+														</label>
+														<label><?php echo 'critical' === $sev ? esc_html__( 'Note (required)', 'shieldscope-site-security-scanner' ) : esc_html__( 'Note', 'shieldscope-site-security-scanner' ); ?>
+															<input type="text" name="note" maxlength="500" class="regular-text" <?php echo 'critical' === $sev ? 'required' : ''; ?> />
+														</label>
+														<button type="submit" class="button button-small"><?php esc_html_e( 'Ignore this item', 'shieldscope-site-security-scanner' ); ?></button>
+													</form>
+												</details>
 											</li>
 										<?php endforeach; ?>
 									</ul>
@@ -264,6 +302,37 @@ foreach ( (array) $findings as $f ) {
 				<?php endforeach; ?>
 			</section>
 		<?php endforeach; ?>
+
+		<?php if ( $shieldscope_ignored ) : ?>
+			<div class="shieldscope-card shieldscope-ignored">
+				<h2>
+					<?php
+					/* translators: %d: number of ignored findings */
+					echo esc_html( sprintf( _n( 'Ignored finding (%d)', 'Ignored findings (%d)', count( $shieldscope_ignored ), 'shieldscope-site-security-scanner' ), count( $shieldscope_ignored ) ) );
+					?>
+				</h2>
+				<p class="description"><?php esc_html_e( 'Ignored items are left out of the counts above but still appear in the PDF, CSV and JSON downloads with their reason.', 'shieldscope-site-security-scanner' ); ?></p>
+				<ul>
+					<?php foreach ( $shieldscope_ignored as $shieldscope_row ) : ?>
+						<li>
+							<strong><?php echo esc_html( $severity_label[ isset( $severity_label[ $shieldscope_row['severity'] ] ) ? $shieldscope_row['severity'] : 'info' ] ); ?>:</strong>
+							<?php echo esc_html( $shieldscope_row['title'] ); ?>
+							<?php if ( ! empty( $shieldscope_row['target'] ) ) : ?>
+								<code><?php echo esc_html( $shieldscope_row['target'] ); ?></code>
+							<?php endif; ?>
+							<br /><span class="description"><?php echo esc_html( ShieldScope_Ignore::describe( $shieldscope_row['ignored'] ) ); ?></span>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="shieldscope-inline-form">
+								<input type="hidden" name="action" value="<?php echo esc_attr( ShieldScope_Ignore::ACTION ); ?>" />
+								<input type="hidden" name="do" value="restore" />
+								<input type="hidden" name="fp" value="<?php echo esc_attr( ShieldScope_Ignore::fingerprint( $shieldscope_row ) ); ?>" />
+								<?php wp_nonce_field( ShieldScope_Ignore::ACTION ); ?>
+								<button type="submit" class="button-link"><?php esc_html_e( 'Restore', 'shieldscope-site-security-scanner' ); ?></button>
+							</form>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			</div>
+		<?php endif; ?>
 
 		<?php
 		$shieldscope_clean = array();

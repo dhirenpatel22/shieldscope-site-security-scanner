@@ -727,3 +727,10 @@ details.shieldscope-faq-item[open] > summary .shieldscope-faq-chevron {
 .shieldscope-coverage tr.is-partial td:nth-child(2) { color: #6b4d00; font-weight: 600; }
 .shieldscope-coverage tr.is-error td:nth-child(2),
 .shieldscope-coverage tr.is-not_run td:nth-child(2) { color: #b32d2e; font-weight: 600; }
+
+/* Ignore (S-07) */
+.shieldscope-ignore { margin: 2px 0 8px; }
+.shieldscope-ignore summary { cursor: pointer; color: #2271b1; font-size: 12px; }
+.shieldscope-ignore form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-top: 6px; }
+.shieldscope-ignore label { display: flex; flex-direction: column; font-size: 12px; }
+.shieldscope-inline-form { display: inline; }
