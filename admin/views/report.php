@@ -53,7 +53,7 @@ foreach ( $severity_order as $sev ) {
 }
 ?>
 <div class="wrap shieldscope-wrap">
-	<h1><?php esc_html_e( 'Security Scan Report', 'shieldscope-site-security-scanner' ); ?></h1>
+	<h1><?php esc_html_e( 'ShieldScope: Report', 'shieldscope-site-security-scanner' ); ?></h1>
 
 	<?php if ( empty( $last_scan ) ) : ?>
 		<div class="notice notice-info">
@@ -353,7 +353,7 @@ foreach ( $severity_order as $sev ) {
 				<span class="shieldscope-faq-chevron">&#9654;</span>
 			</summary>
 			<div class="shieldscope-faq-answer">
-				<p><?php esc_html_e( 'The report displays results from the last completed scan — it does not update automatically. Go to Security Audit → Scan, run a new scan, and the updated report will reflect your fixes.', 'shieldscope-site-security-scanner' ); ?></p>
+				<p><?php esc_html_e( 'The report displays results from the last completed scan — it does not update automatically. Go to ShieldScope → Scan, run a new scan, and the updated report will reflect your fixes.', 'shieldscope-site-security-scanner' ); ?></p>
 			</div>
 		</details>
 
@@ -377,7 +377,7 @@ foreach ( $severity_order as $sev ) {
 
 		<div class="shieldscope-faq-footer">
 			<span>ℹ️</span>
-			<span><?php esc_html_e( 'The scanner is read-only — it never modifies your files, database, or settings.', 'shieldscope-site-security-scanner' ); ?></span>
+			<span><?php esc_html_e( 'ShieldScope does not change your files, settings, users or content. It stores only its own scan data.', 'shieldscope-site-security-scanner' ); ?></span>
 		</div>
 	</div>
 </div>

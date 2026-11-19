@@ -547,7 +547,7 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 								__( 'The file %s is inside a core WordPress directory but is not part of the official WordPress.org checksums for this version. This is frequently how backdoors hide.', 'shieldscope-site-security-scanner' ),
 								$rel
 							),
-							__( 'Open the file in a text editor (read-only) and look for eval(), base64_decode(), or obfuscated code — these are malware indicators. If you did not put it there, delete it immediately via FTP or File Manager, then go to Dashboard → Updates and click "Re-install now" to verify all core files.', 'shieldscope-site-security-scanner' ),
+							__( 'Open the file in a text editor (read-only) and look for eval(), base64_decode() or obfuscated code, which are common in injected code. If you did not put it there, delete it immediately via FTP or File Manager, then go to Dashboard → Updates and click "Re-install now" to verify all core files.', 'shieldscope-site-security-scanner' ),
 							$rel
 						);
 					}
