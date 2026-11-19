@@ -3,12 +3,12 @@
  *
  * Implements:
  *  - Start / pause / resume / abort buttons
- *  - A tick loop that sends AJAX "chunk" requests while the scan is running
- *    AND the tab is focused and visible
- *  - Auto-pause on blur / visibilitychange (matches server-side settings)
- *  - beforeunload warning while a scan is in progress
+ *  - A tick loop that sends AJAX "chunk" requests while the scan is running;
+ *    with background scanning on, WP-Cron also runs chunks when the tab is closed
+ *  - Optional pause on blur / visibilitychange (only when background scanning is off)
+ *  - Per-check progress list, stalled-scan and error messages
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 ( function ( $ ) {
@@ -30,6 +30,10 @@
 	var nextTickAt = 0; // Date.now() before which no tick is sent (server-requested rest).
 	var lastStatus = $panel.data( 'status' ) || 'idle';
 	var awaitingResume = false; // user-intent flag: scan should continue once tab refocused.
+	var failures   = 0; // consecutive failed tick requests.
+	var MAX_FAILURES = 5;
+	var $bar       = $( '#shieldscope-progress-bar' );
+	var $checks    = $( '#shieldscope-check-list' );
 
 	var $status    = $( '#shieldscope-status-text' );
 	var $msg       = $( '#shieldscope-message' );
@@ -104,7 +108,16 @@
 		var pct = parseInt( data.progress, 10 ) || 0;
 		$fill.css( 'width', pct + '%' );
 		$pct.text( pct + '%' );
-		$steps.text( ( data.done_steps || 0 ) + ' of ' + ( data.total_steps || 0 ) + ' checks' );
+		$bar.attr( 'aria-valuenow', pct );
+		$steps.text(
+			cfg.i18n.stepsOf
+				.replace( '%1$d', data.done_steps || 0 )
+				.replace( '%2$d', data.total_steps || 0 )
+		);
+		if ( data.stalled ) {
+			$msg.text( cfg.i18n.stalled );
+		}
+		renderChecks( data.checks );
 
 		if ( data.summary ) {
 			$summary.removeClass( 'shieldscope-hidden' );
@@ -130,6 +143,23 @@
 		}
 
 		setButtons( lastStatus );
+	}
+
+	function renderChecks( checks ) {
+		if ( ! $checks.length || ! checks || ! checks.length ) {
+			return;
+		}
+		$checks.empty();
+		checks.forEach( function ( c ) {
+			var $li = $( '<li>' ).addClass( 'is-' + c.status );
+			$( '<span class="shieldscope-check-name">' ).text( c.label ).appendTo( $li );
+			$( '<span class="shieldscope-check-status">' ).text( ( cfg.i18n.checkStatus && cfg.i18n.checkStatus[ c.status ] ) || c.status ).appendTo( $li );
+			if ( c.notes && c.notes.length ) {
+				$( '<span class="shieldscope-check-notes">' ).text( c.notes.join( '; ' ) ).appendTo( $li );
+			}
+			$checks.append( $li );
+		} );
+		$checks.closest( '.shieldscope-checks-card' ).removeClass( 'shieldscope-hidden' );
 	}
 
 	function ajax( action ) {
@@ -163,6 +193,7 @@
 		inFlight = true;
 		ajax( 'tick' )
 			.done( function ( resp ) {
+				failures = 0;
 				if ( resp && resp.success ) {
 					nextTickAt = Date.now() + Math.min( 30000, Math.max( 0, parseInt( resp.data.rest_ms, 10 ) || 0 ) );
 					updateUI( resp.data );
@@ -174,7 +205,20 @@
 					}
 				}
 			} )
-			.fail( function () {
+			.fail( function ( xhr ) {
+				failures++;
+				if ( xhr && 403 === xhr.status ) {
+					$msg.text( cfg.i18n.expired );
+					stopLoops();
+					return;
+				}
+				if ( failures >= MAX_FAILURES ) {
+					$msg.text( cfg.i18n.gaveUp );
+					stopTicks();
+					return;
+				}
+				// Back off a little more after each failure.
+				nextTickAt = Date.now() + failures * 3000;
 				$msg.text( cfg.i18n.error );
 			} )
 			.always( function () {
@@ -202,6 +246,13 @@
 		stopLoops();
 		tickTimer = window.setInterval( tick, cfg.tickInterval );
 		pollTimer = window.setInterval( poll, cfg.pollInterval );
+	}
+
+	function stopTicks() {
+		if ( tickTimer ) {
+			window.clearInterval( tickTimer );
+			tickTimer = null;
+		}
 	}
 
 	function stopLoops() {
@@ -232,13 +283,21 @@
 	$btnStart.on( 'click', function () {
 		$btnStart.prop( 'disabled', true );
 		$msg.text( cfg.i18n.starting );
-		ajax( 'start' ).done( function ( resp ) {
-			if ( resp && resp.success ) {
-				updateUI( resp.data );
-				awaitingResume = true;
-				startLoops();
-			}
-		} );
+		ajax( 'start' )
+			.done( function ( resp ) {
+				if ( resp && resp.success ) {
+					failures = 0;
+					updateUI( resp.data );
+					awaitingResume = true;
+					startLoops();
+				} else {
+					$btnStart.prop( 'disabled', false );
+				}
+			} )
+			.fail( function ( xhr ) {
+				$msg.text( xhr && 403 === xhr.status ? cfg.i18n.expired : cfg.i18n.error );
+				$btnStart.prop( 'disabled', false );
+			} );
 	} );
 
 	$btnPause.on( 'click', function () {
@@ -253,6 +312,8 @@
 	$btnResume.on( 'click', function () {
 		ajax( 'resume' ).done( function ( resp ) {
 			if ( resp && resp.success ) {
+				failures   = 0;
+				nextTickAt = 0;
 				updateUI( resp.data );
 				awaitingResume = true;
 				startLoops();
@@ -261,7 +322,7 @@
 	} );
 
 	$btnAbort.on( 'click', function () {
-		if ( ! window.confirm( 'Abort this scan? Partial findings will be discarded.' ) ) {
+		if ( ! window.confirm( cfg.i18n.confirmAbort ) ) {
 			return;
 		}
 		ajax( 'abort' ).done( function ( resp ) {
@@ -334,7 +395,8 @@
 
 	// Warn on leave while running.
 	window.addEventListener( 'beforeunload', function ( e ) {
-		if ( 'running' === lastStatus || 'paused' === lastStatus ) {
+		// With background scanning the scan carries on without this page.
+		if ( ! cfg.background && ( 'running' === lastStatus || 'paused' === lastStatus ) ) {
 			e.preventDefault();
 			e.returnValue = cfg.i18n.leaveWarn;
 			return cfg.i18n.leaveWarn;

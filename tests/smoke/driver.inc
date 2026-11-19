@@ -181,4 +181,26 @@ function shieldscope_smoke_scan( array &$result ) {
 		$result['pdf_groups'] = count( $report['findings'] );
 		file_put_contents( SHIELDSCOPE_SMOKE_OUT . '/report.pdf', $pdf );
 	}
+
+	// Background scan (S-10): start a second scan and run only the queued
+	// WP-Cron events, as WordPress would with the scan page closed.
+	$bg_started = microtime( true );
+	$bg_state   = $scanner->start();
+	$bg_runs    = 0;
+	$hook       = 'shieldscope_run_scan_chunk';
+	while ( ShieldScope_Scanner::STATUS_RUNNING === $bg_state['status'] && ( microtime( true ) - $bg_started ) < $cap ) {
+		$ts = wp_next_scheduled( $hook );
+		if ( false === $ts ) {
+			$result['bg_error'] = 'no cron event queued while the scan was running';
+			break;
+		}
+		wp_unschedule_event( $ts, $hook );
+		do_action( $hook );
+		++$bg_runs;
+		wp_cache_delete( 'shieldscope_scan_state', 'options' );
+		$bg_state = $scanner->get_state();
+	}
+	$result['bg_status']  = $bg_state['status'];
+	$result['bg_runs']    = $bg_runs;
+	$result['bg_elapsed'] = round( microtime( true ) - $bg_started, 1 );
 }

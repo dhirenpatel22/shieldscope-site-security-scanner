@@ -81,6 +81,7 @@ class ShieldScope_Admin {
 	public function register() {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'admin_notices', array( $this, 'completion_notice' ) );
 		add_action( 'admin_post_' . ShieldScope_PDF_Report::ACTION, array( 'ShieldScope_PDF_Report', 'handle' ) );
 		add_action( 'admin_post_' . ShieldScope_Export::ACTION, array( 'ShieldScope_Export', 'handle' ) );
 		add_action( 'admin_post_' . ShieldScope_Ignore::ACTION, array( 'ShieldScope_Ignore', 'handle' ) );
@@ -165,7 +166,9 @@ class ShieldScope_Admin {
 			array(
 				'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
 				'nonce'         => wp_create_nonce( 'shieldscope_scan' ),
-				'pauseOnBlur'   => ! empty( $settings['pause_on_blur'] ),
+				// Pausing on a hidden tab only applies when the scan depends on the tab.
+				'pauseOnBlur'   => ! empty( $settings['pause_on_blur'] ) && ! ShieldScope_Scanner::background_enabled(),
+				'background'    => ShieldScope_Scanner::background_enabled(),
 				'tickInterval'  => 1500, // ms between chunk requests when running.
 				'pollInterval'  => 5000, // ms while paused.
 				'i18n'          => array(
@@ -174,9 +177,22 @@ class ShieldScope_Admin {
 					'resumed'      => __( 'Resumed. Scanning again.', 'shieldscope-site-security-scanner' ),
 					'finished'     => __( 'Scan complete.', 'shieldscope-site-security-scanner' ),
 					'aborted'      => __( 'Scan aborted.', 'shieldscope-site-security-scanner' ),
-					'leaveWarn'    => __( "Hey, the scan is still running! If you close this tab it'll pause — but don't worry, it'll pick up right where it left off when you come back.", 'shieldscope-site-security-scanner' ),
-					'error'        => __( 'Network error. Retrying…', 'shieldscope-site-security-scanner' ),
-					// Funny / friendly banner copy for tab blur.
+					'leaveWarn'    => __( 'A scan is running. If you leave, it stops until you come back to this page.', 'shieldscope-site-security-scanner' ),
+					'error'        => __( 'Could not reach the server. Trying again…', 'shieldscope-site-security-scanner' ),
+					'confirmAbort' => __( 'Abort this scan? Its findings so far will be discarded.', 'shieldscope-site-security-scanner' ),
+					'gaveUp'       => __( 'Could not reach the server after several tries, so this page stopped sending scan steps. Reload the page to check the scan.', 'shieldscope-site-security-scanner' ),
+					'expired'      => __( 'Your session has expired. Reload the page (you may need to log in again); the scan keeps its place.', 'shieldscope-site-security-scanner' ),
+					'stalled'      => __( 'The scan has not made progress for over two minutes. WordPress runs background tasks when the site gets visits; press Resume to continue from this page.', 'shieldscope-site-security-scanner' ),
+					/* translators: 1: steps done, 2: total steps */
+					'stepsOf'      => __( '%1$d of %2$d steps', 'shieldscope-site-security-scanner' ),
+					'checkStatus'  => array(
+						'waiting' => __( 'Waiting', 'shieldscope-site-security-scanner' ),
+						'running' => __( 'Running', 'shieldscope-site-security-scanner' ),
+						'done'    => __( 'Done', 'shieldscope-site-security-scanner' ),
+						'partial' => __( 'Partly done', 'shieldscope-site-security-scanner' ),
+						'error'   => __( 'Error', 'shieldscope-site-security-scanner' ),
+						'not_run' => __( 'Did not run', 'shieldscope-site-security-scanner' ),
+					),
 					'blurTitle'    => __( 'Scan paused', 'shieldscope-site-security-scanner' ),
 					'blurBody'     => __( 'The scan pauses while this tab is hidden and continues from the same point when you return. You can turn this off in Settings.', 'shieldscope-site-security-scanner' ),
 					'titleActive'  => __( 'Scanning… – ShieldScope', 'shieldscope-site-security-scanner' ),
@@ -184,6 +200,34 @@ class ShieldScope_Admin {
 					'titleDone'    => __( 'Scan complete – ShieldScope', 'shieldscope-site-security-scanner' ),
 				),
 			)
+		);
+	}
+
+	/**
+	 * One-time notice that a scan finished (S-10): shown on admin screens
+	 * until the report is opened.
+	 *
+	 * @return void
+	 */
+	public function completion_notice() {
+		if ( ! current_user_can( self::required_capability() ) ) {
+			return;
+		}
+		$last = (string) get_option( 'shieldscope_last_scan', '' );
+		if ( '' === $last || get_option( 'shieldscope_last_seen', '' ) === $last ) {
+			return;
+		}
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( $screen && false !== strpos( (string) $screen->id, SHIELDSCOPE_SLUG ) ) {
+			return; // The scan and report pages show the result themselves.
+		}
+		$logger  = new ShieldScope_Logger();
+		$summary = $logger->get_summary( $last );
+		printf(
+			'<div class="notice notice-info"><p>%s <a href="%s">%s</a></p></div>',
+			esc_html( __( 'ShieldScope scan finished.', 'shieldscope-site-security-scanner' ) . ' ' . ShieldScope_PDF_Report::verdict( $summary ) ),
+			esc_url( admin_url( 'admin.php?page=' . SHIELDSCOPE_SLUG . '-report' ) ),
+			esc_html__( 'View the report', 'shieldscope-site-security-scanner' )
 		);
 	}
 
@@ -228,6 +272,7 @@ class ShieldScope_Admin {
 		}
 		$logger      = new ShieldScope_Logger();
 		$last_scan   = get_option( 'shieldscope_last_scan', '' );
+		update_option( 'shieldscope_last_seen', $last_scan, false );
 		$findings    = $last_scan ? $logger->get_findings( $last_scan ) : array();
 		$summary     = $last_scan ? $logger->get_summary( $last_scan ) : array();
 		include SHIELDSCOPE_PLUGIN_DIR . 'admin/views/report.php';
@@ -251,7 +296,8 @@ class ShieldScope_Admin {
 				'cpu_limit'          => 20,
 				'chunk_time_limit'   => 2,
 				'max_scan_file_size' => 2 * MB_IN_BYTES,
-				'pause_on_blur'      => 1,
+				'pause_on_blur'      => 0,
+				'background_scan'    => 1,
 				'developer_review'   => 0,
 			)
 		);
@@ -306,6 +352,7 @@ class ShieldScope_Admin {
 			'chunk_time_limit'   => isset( $raw['chunk_time_limit'] ) ? max( 1, min( 10, (int) $raw['chunk_time_limit'] ) ) : 2,
 			'max_scan_file_size' => $mb * MB_IN_BYTES,
 			'pause_on_blur'      => ! empty( $raw['pause_on_blur'] ) ? 1 : 0,
+			'background_scan'    => ! empty( $raw['background_scan'] ) ? 1 : 0,
 			'developer_review'   => ! empty( $raw['developer_review'] ) ? 1 : 0,
 			'wpscan_api_key'     => $wpscan_key,
 		);

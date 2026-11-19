@@ -56,12 +56,24 @@ defined( 'ABSPATH' ) || exit;
 				</tr>
 				<tr>
 					<th scope="row">
+						<?php esc_html_e( 'Background scanning', 'shieldscope-site-security-scanner' ); ?>
+					</th>
+					<td>
+						<label>
+							<input name="shieldscope_settings[background_scan]" type="checkbox" value="1" <?php checked( ! empty( $settings['background_scan'] ) ); ?> />
+							<?php esc_html_e( 'Keep scanning when the scan page is closed (uses WP-Cron).', 'shieldscope-site-security-scanner' ); ?>
+						</label>
+						<p class="description"><?php esc_html_e( 'WP-Cron runs when the site gets visits (or from a server cron job), so on a quiet site a background scan can take longer. With the scan page open, it runs at full pace either way.', 'shieldscope-site-security-scanner' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
 						<?php esc_html_e( 'Pause when tab is hidden', 'shieldscope-site-security-scanner' ); ?>
 					</th>
 					<td>
 						<label>
-							<input name="shieldscope_settings[pause_on_blur]" type="checkbox" value="1" <?php checked( $settings['pause_on_blur'] ); ?> />
-							<?php esc_html_e( 'Automatically pause the scan if you switch tabs or minimize the window.', 'shieldscope-site-security-scanner' ); ?>
+							<input name="shieldscope_settings[pause_on_blur]" type="checkbox" value="1" <?php checked( ! empty( $settings['pause_on_blur'] ) ); ?> />
+							<?php esc_html_e( 'Pause the scan while you switch tabs or minimise the window (only when background scanning is off).', 'shieldscope-site-security-scanner' ); ?>
 						</label>
 					</td>
 				</tr>

@@ -149,7 +149,8 @@ final class ShieldScope_Core {
 					'cpu_limit'          => 20, // percent.
 					'chunk_time_limit'   => 2,  // seconds per chunk.
 					'max_scan_file_size' => 2 * MB_IN_BYTES,
-					'pause_on_blur'      => 1,
+					'pause_on_blur'      => 0,
+					'background_scan'    => 1,
 				)
 			);
 		}

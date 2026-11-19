@@ -34,6 +34,8 @@ function ss_tests_reset_state() {
 	$GLOBALS['ss_test_site_transients'] = array();
 	$GLOBALS['ss_test_plugins']         = array();
 	$GLOBALS['ss_test_theme']           = null;
+	$GLOBALS['ss_test_cron']            = array();
+	$GLOBALS['ss_test_spawned']         = 0;
 	unset( $_SERVER['SERVER_SOFTWARE'] );
 	$GLOBALS['wp_version'] = '6.8.1';
 }
@@ -208,9 +210,22 @@ function wp_verify_nonce( $nonce, $action = -1 ) {
 }
 function add_settings_error( $setting, $code, $message, $type = 'error' ) {}
 function rawurlencode_deep( $value ) { return $value; }
-function wp_next_scheduled( $hook ) { return false; }
+function wp_next_scheduled( $hook ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_next_scheduled', array( $hook ) );
+	return $hit ? $result : false;
+}
 function wp_schedule_event( $ts, $recurrence, $hook ) { return true; }
-function wp_schedule_single_event( $ts, $hook ) { return true; }
+function wp_schedule_single_event( $ts, $hook ) {
+	$GLOBALS['ss_test_cron'][] = array( $ts, $hook );
+	return true;
+}
+function spawn_cron() {
+	$GLOBALS['ss_test_spawned'] = isset( $GLOBALS['ss_test_spawned'] ) ? $GLOBALS['ss_test_spawned'] + 1 : 1;
+}
+function get_current_screen() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_current_screen', array() );
+	return $hit ? $result : null;
+}
 function wp_unschedule_event( $ts, $hook ) { return true; }
 function wp_upload_dir() { return wp_get_upload_dir(); }
 function wp_get_upload_dir() {

@@ -17,7 +17,7 @@ Security audit for WordPress: checks core, plugins, themes, users, files and ser
 
 ShieldScope is an audit, not a firewall: it does not block attacks, clean infected files or monitor your site between scans.
 
-**How a scan runs.** The scan runs from your browser tab in short steps with pauses between them, and saves its place after each step. By default it pauses while the tab is hidden and continues from the same point when you return (you can turn that off in Settings). A typical scan takes about 5 to 20 minutes.
+**How a scan runs.** The scan works in short steps with pauses between them and saves its place after each step. With the scan page open it runs at full pace; you can also close the page and it carries on in the background using WP-Cron, with a notice in the admin when it finishes. WP-Cron runs when the site gets visits, so on a quiet site a closed-page scan can take longer. A typical scan takes about 5 to 20 minutes.
 
 **What a finding means.** Configuration, version and file checks report facts about your site. The code checks (code patterns, injection, server-side requests) look for patterns in plugin and theme source code; those findings are titled "Matches pattern" or "Review:" and must be confirmed by reading the code. They are not proof of a vulnerability or of malware.
 
@@ -105,7 +105,7 @@ The PDF report is built on your server, with no network requests, using Dompdf 3
 1. In your WordPress admin, go to **Plugins → Add New**, search for **ShieldScope**, then click **Install Now** and **Activate**.
 2. Click **ShieldScope** in the admin menu.
 3. Optionally adjust the settings (scan pace, file size limit, WPScan API key) under **ShieldScope → Settings**.
-4. Click **Start Scan** and keep the tab open until it finishes.
+4. Click **Start Scan**. You can keep the page open (fastest) or close it; the scan continues in the background.
 5. Open **ShieldScope → Report** to see the results, and use **Download PDF report** to save them.
 
 On multisite, only super admins can run a scan.
@@ -116,9 +116,9 @@ On multisite, only super admins can run a scan.
 
 Visitors should not notice on most hosts. The scan works in short steps with pauses between them; the scan pace setting (default 20%) is the share of time spent working, not a CPU limit. Each step uses one PHP process while it runs, so on small shared hosting run large scans at a quiet time.
 
-= Why does the scan pause when I switch browser tabs? =
+= Do I have to keep the scan page open? =
 
-The scan runs from your browser tab. By default it pauses while the tab is hidden and continues from the same point when you come back. You can turn this off in Settings; the tab still has to stay open.
+No. With background scanning on (the default), the scan continues using WP-Cron after you close the page, and a notice appears in the admin when it finishes. WP-Cron only runs when the site gets visits or from a server cron job, so on a quiet site keep the page open for the fastest scan. If you turn background scanning off in Settings, the scan runs only while the page is open.
 
 = Does it change my site? =
 

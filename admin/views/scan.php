@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
 		<?php
 		printf(
 			/* translators: %s: scan time estimate, for example "about 5 to 20 minutes" */
-			esc_html__( 'Audit WordPress core, plugins, themes, users, files and server settings. A scan takes %s and runs from this tab in short steps with pauses between them.', 'shieldscope-site-security-scanner' ),
+			esc_html__( 'Audit WordPress core, plugins, themes, users, files and server settings. A scan takes %s and works in short steps with pauses between them; it can carry on in the background after you close this page.', 'shieldscope-site-security-scanner' ),
 			esc_html( ShieldScope_Admin::scan_time_estimate() )
 		);
 		?>
@@ -42,7 +42,7 @@ defined( 'ABSPATH' ) || exit;
 			</div>
 
 			<div class="shieldscope-progress-wrap">
-				<div class="shieldscope-progress-bar">
+				<div class="shieldscope-progress-bar" id="shieldscope-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo esc_attr( (int) ( ! empty( $state['total_steps'] ) ? floor( ( $state['done_steps'] * 100 ) / $state['total_steps'] ) : 0 ) ); ?>" aria-label="<?php esc_attr_e( 'Scan progress', 'shieldscope-site-security-scanner' ); ?>">
 					<div class="shieldscope-progress-fill" id="shieldscope-progress-fill"></div>
 				</div>
 				<div class="shieldscope-progress-meta">
@@ -51,7 +51,7 @@ defined( 'ABSPATH' ) || exit;
 						<?php
 						printf(
 							/* translators: 1: done, 2: total */
-							esc_html__( '%1$d of %2$d checks', 'shieldscope-site-security-scanner' ),
+							esc_html__( '%1$d of %2$d steps', 'shieldscope-site-security-scanner' ),
 							(int) $state['done_steps'],
 							(int) $state['total_steps']
 						);
@@ -60,7 +60,7 @@ defined( 'ABSPATH' ) || exit;
 				</div>
 			</div>
 
-			<p id="shieldscope-message" class="shieldscope-message">
+			<p id="shieldscope-message" class="shieldscope-message" role="status" aria-live="polite">
 				<?php echo esc_html( $state['last_message'] ); ?>
 			</p>
 
@@ -78,6 +78,11 @@ defined( 'ABSPATH' ) || exit;
 					<?php esc_html_e( 'Abort', 'shieldscope-site-security-scanner' ); ?>
 				</button>
 			</div>
+		</div>
+
+		<div class="shieldscope-card shieldscope-checks-card shieldscope-hidden">
+			<h2><?php esc_html_e( 'Checks', 'shieldscope-site-security-scanner' ); ?></h2>
+			<ol id="shieldscope-check-list" class="shieldscope-check-list"></ol>
 		</div>
 
 		<div class="shieldscope-card shieldscope-summary shieldscope-hidden" id="shieldscope-summary">
@@ -98,8 +103,13 @@ defined( 'ABSPATH' ) || exit;
 
 		<div class="shieldscope-card shieldscope-notice-card">
 			<p>
-				<strong><?php esc_html_e( 'Keep this tab open:', 'shieldscope-site-security-scanner' ); ?></strong>
-				<?php esc_html_e( 'the scan runs from this browser tab. By default it also pauses while the tab is hidden and continues from the same point when you return; you can turn that off in Settings. If you close the tab, start the page again and press Resume.', 'shieldscope-site-security-scanner' ); ?>
+				<?php if ( ShieldScope_Scanner::background_enabled() ) : ?>
+					<strong><?php esc_html_e( 'You can close this tab:', 'shieldscope-site-security-scanner' ); ?></strong>
+					<?php esc_html_e( 'the scan carries on in the background using WP-Cron, and a notice appears in the admin when it finishes. WP-Cron runs when the site gets visits, so on a quiet site a closed-tab scan can be slow; keeping this tab open runs it at full pace.', 'shieldscope-site-security-scanner' ); ?>
+				<?php else : ?>
+					<strong><?php esc_html_e( 'Keep this tab open:', 'shieldscope-site-security-scanner' ); ?></strong>
+					<?php esc_html_e( 'background scanning is off in Settings, so the scan runs only from this browser tab. If you close the tab, open this page again and press Resume.', 'shieldscope-site-security-scanner' ); ?>
+				<?php endif; ?>
 			</p>
 		</div>
 	</div>
@@ -129,7 +139,7 @@ defined( 'ABSPATH' ) || exit;
 				<?php
 				printf(
 					/* translators: %s: scan time estimate, for example "about 5 to 20 minutes" */
-					esc_html__( 'A scan usually takes %s, depending on the number of plugins, themes and PHP files. Keep this tab open until it finishes.', 'shieldscope-site-security-scanner' ),
+					esc_html__( 'A scan usually takes %s, depending on the number of plugins, themes and PHP files. It runs fastest with this page open.', 'shieldscope-site-security-scanner' ),
 					esc_html( ShieldScope_Admin::scan_time_estimate() )
 				);
 				?>
@@ -155,7 +165,7 @@ defined( 'ABSPATH' ) || exit;
 				<span class="shieldscope-faq-chevron">&#9654;</span>
 			</summary>
 			<div class="shieldscope-faq-answer">
-				<p><?php esc_html_e( 'By default the scan pauses while this tab is hidden. Return to the tab and it continues from where it stopped; findings so far are kept.', 'shieldscope-site-security-scanner' ); ?></p>
+				<p><?php esc_html_e( 'If you paused it, press Resume. If background scanning is off and "Pause when tab is hidden" is on, the scan pauses while this tab is hidden and continues when you return; findings so far are kept.', 'shieldscope-site-security-scanner' ); ?></p>
 				<p><?php esc_html_e( 'If the scan stops without finishing, a PHP timeout on the server may have interrupted it. Lower Time per step in Settings, or run the scan at a quiet time.', 'shieldscope-site-security-scanner' ); ?></p>
 			</div>
 		</details>
