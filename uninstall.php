@@ -24,6 +24,7 @@ $shieldscope_options = array(
 	'shieldscope_tick_lock',
 	'shieldscope_coverage',
 	'shieldscope_ignored',
+	'shieldscope_last_seen',
 );
 
 /**

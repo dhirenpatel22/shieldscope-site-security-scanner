@@ -229,6 +229,85 @@ class ShieldScope_Scanner {
 	}
 
 	/**
+	 * Seconds without progress after which a running scan is "stalled".
+	 */
+	const STALL_SECONDS = 120;
+
+	/**
+	 * Is background scanning (WP-Cron) on? Default on (S-10).
+	 *
+	 * @return bool
+	 */
+	public static function background_enabled() {
+		$settings = (array) get_option( 'shieldscope_settings', array() );
+		return ! array_key_exists( 'background_scan', $settings ) || ! empty( $settings['background_scan'] );
+	}
+
+	/**
+	 * Keep a running background scan moving: make sure a cron event is
+	 * queued and ask WordPress to run due cron events now. Safe to call
+	 * often; chunks never overlap (tick lock).
+	 *
+	 * @param array $state Current state.
+	 * @return void
+	 */
+	public function kick_background( array $state ) {
+		if ( self::STATUS_RUNNING !== $state['status'] || ! self::background_enabled() ) {
+			return;
+		}
+		if ( ! wp_next_scheduled( 'shieldscope_run_scan_chunk' ) ) {
+			wp_schedule_single_event( time(), 'shieldscope_run_scan_chunk' );
+		}
+		if ( function_exists( 'spawn_cron' ) ) {
+			spawn_cron();
+		}
+	}
+
+	/**
+	 * Has a running scan stopped making progress?
+	 *
+	 * @param array $state State.
+	 * @return bool
+	 */
+	public static function is_stalled( array $state ) {
+		return self::STATUS_RUNNING === $state['status'] && ! empty( $state['updated_at'] ) && ( time() - (int) $state['updated_at'] ) > self::STALL_SECONDS;
+	}
+
+	/**
+	 * Per-check progress for the scan page (S-12).
+	 *
+	 * @param array $state State.
+	 * @return array[] Each: label, status (waiting|running|done|partial|error), notes.
+	 */
+	public function check_progress( array $state ) {
+		$out    = array();
+		$status = isset( $state['check_status'] ) && is_array( $state['check_status'] ) ? $state['check_status'] : array();
+		$active = in_array( $state['status'], array( self::STATUS_RUNNING, self::STATUS_PAUSED ), true );
+		foreach ( $this->get_check_classes() as $i => $cls ) {
+			if ( ! class_exists( $cls ) ) {
+				continue;
+			}
+			$check = new $cls( '', $this->logger );
+			$id    = $check->get_id();
+			if ( self::STATUS_IDLE === $state['status'] || '' === $state['scan_id'] ) {
+				$st = 'waiting';
+			} elseif ( $i < (int) $state['check_index'] || self::STATUS_COMPLETED === $state['status'] ) {
+				$st = isset( $status[ $id ]['status'] ) ? $status[ $id ]['status'] : ShieldScope_Coverage::DONE;
+			} elseif ( $i === (int) $state['check_index'] && $active ) {
+				$st = 'running';
+			} else {
+				$st = 'waiting';
+			}
+			$out[] = array(
+				'label' => $check->get_label(),
+				'status' => $st,
+				'notes' => isset( $status[ $id ]['notes'] ) ? array_values( (array) $status[ $id ]['notes'] ) : array(),
+			);
+		}
+		return $out;
+	}
+
+	/**
 	 * Start a new scan, discarding any previous state.
 	 *
 	 * @return array New state.
@@ -268,6 +347,7 @@ class ShieldScope_Scanner {
 			'check_status' => array(),
 		);
 		$this->save_state( $state );
+		$this->kick_background( $state );
 		return $state;
 	}
 
@@ -297,6 +377,7 @@ class ShieldScope_Scanner {
 			$state['status']       = self::STATUS_RUNNING;
 			$state['last_message'] = __( 'Scan resumed.', 'shieldscope-site-security-scanner' );
 			$this->save_state( $state );
+			$this->kick_background( $state );
 		}
 		return $state;
 	}

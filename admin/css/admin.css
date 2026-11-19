@@ -734,3 +734,20 @@ details.shieldscope-faq-item[open] > summary .shieldscope-faq-chevron {
 .shieldscope-ignore form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-top: 6px; }
 .shieldscope-ignore label { display: flex; flex-direction: column; font-size: 12px; }
 .shieldscope-inline-form { display: inline; }
+
+/* Per-check progress (S-12) */
+.shieldscope-check-list { margin: 0; padding-left: 1.5em; columns: 2; column-gap: 32px; }
+.shieldscope-check-list li { break-inside: avoid; margin-bottom: 4px; }
+.shieldscope-check-name { font-weight: 600; }
+.shieldscope-check-status { margin-left: 8px; font-size: 12px; color: #50575e; }
+.shieldscope-check-list li.is-running .shieldscope-check-status { color: #2271b1; font-weight: 600; }
+.shieldscope-check-list li.is-partial .shieldscope-check-status { color: #6b4d00; }
+.shieldscope-check-list li.is-error .shieldscope-check-status { color: #b32d2e; }
+.shieldscope-check-notes { display: block; font-size: 12px; color: #50575e; }
+@media ( max-width: 782px ) {
+	.shieldscope-check-list { columns: 1; }
+	.shieldscope-controls .button { margin-bottom: 6px; }
+}
+.shieldscope-wrap .button:focus-visible,
+.shieldscope-wrap summary:focus-visible,
+.shieldscope-wrap a:focus-visible { outline: 2px solid #2271b1; outline-offset: 2px; }

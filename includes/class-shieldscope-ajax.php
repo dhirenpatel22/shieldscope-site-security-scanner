@@ -122,6 +122,7 @@ class ShieldScope_Ajax {
 		$this->authorize();
 		$scanner = new ShieldScope_Scanner();
 		$state   = $scanner->get_state();
+		$scanner->kick_background( $state );
 		wp_send_json_success( $this->envelope( $state, $scanner ) );
 	}
 
@@ -146,6 +147,9 @@ class ShieldScope_Ajax {
 			'summary'      => $summary,
 			'busy'         => ! empty( $state['busy'] ),
 			'rest_ms'      => isset( $state['rest_ms'] ) ? max( 0, (int) $state['rest_ms'] ) : 0,
+			'stalled'      => ShieldScope_Scanner::is_stalled( $state ),
+			'background'   => ShieldScope_Scanner::background_enabled(),
+			'checks'       => $scanner->check_progress( $state ),
 			'save_failed'  => ShieldScope_Logger::save_failed( (string) $state['scan_id'] ),
 		);
 	}
