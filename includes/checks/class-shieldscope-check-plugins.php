@@ -36,7 +36,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 	 * @return array
 	 */
 	public function get_steps() {
-		return array( 'updates', 'inactive', 'unknown_source', 'abandoned' );
+		return array( 'updates', 'inactive', 'unknown_source', 'abandoned', 'checksums' );
 	}
 
 	/**
@@ -63,6 +63,8 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 				break;
 			case 'abandoned':
 				return $this->check_abandoned( $cursor );
+			case 'checksums':
+				return $this->check_checksums( $cursor );
 		}
 		return array( 'continue' => false, 'cursor' => array() );
 	}
@@ -331,5 +333,227 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 		$keep = array_intersect_key( $info, array_flip( array( 'slug', 'version', 'last_updated', 'error', 'closed', 'closed_date', 'reason', 'reason_text' ) ) );
 		set_transient( $key, $keep, self::WPORG_CACHE_TTL );
 		return $keep;
+	}
+
+	/**
+	 * WordPress.org plugin checksums endpoint (slug, version).
+	 */
+	const CHECKSUMS_URL = 'https://downloads.wordpress.org/plugin-checksums/%s/%s.json';
+
+	/**
+	 * Files hashed per call before the time budget is checked.
+	 */
+	const CHECKSUM_BATCH = 200;
+
+	/**
+	 * Compare plugin files with the WordPress.org checksums for the
+	 * installed version (S-22). Only plugins listed on WordPress.org can
+	 * be verified; the rest are counted in a coverage note.
+	 *
+	 * Cursor: i (plugin index), offset (position in its checksum list),
+	 * modified (relative paths found so far for this plugin), and counts.
+	 *
+	 * @param array $cursor Cursor.
+	 * @return array
+	 */
+	private function check_checksums( array $cursor = array() ) {
+		$plugins = array();
+		foreach ( (array) get_plugins() as $file => $data ) {
+			$slug = dirname( $file );
+			if ( '.' !== $slug && '' !== $slug && ! empty( $data['Version'] ) ) {
+				$plugins[] = array( $file, $slug, $data );
+			}
+		}
+		$cursor += array(
+			'i'          => 0,
+			'offset'     => 0,
+			'modified'   => array(),
+			'unverified' => 0,
+			'verified'   => 0,
+		);
+
+		while ( $cursor['i'] < count( $plugins ) ) {
+			list( $file, $slug, $data ) = $plugins[ $cursor['i'] ];
+
+			$info = $this->wporg_info( $slug );
+			$sums = ( is_array( $info ) && ! empty( $info['last_updated'] ) ) ? $this->plugin_checksums( $slug, $data['Version'] ) : null;
+			if ( null === $sums ) {
+				++$cursor['unverified'];
+				$cursor = array_merge( $cursor, array( 'i' => $cursor['i'] + 1, 'offset' => 0, 'modified' => array() ) );
+				continue;
+			}
+
+			$dir   = SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $slug;
+			$paths = array_keys( $sums );
+			sort( $paths );
+			$done = 0;
+			while ( $cursor['offset'] < count( $paths ) ) {
+				if ( $done >= self::CHECKSUM_BATCH && $this->out_of_time() ) {
+					return array( 'continue' => true, 'cursor' => $cursor );
+				}
+				$rel  = $paths[ $cursor['offset'] ];
+				$full = $dir . '/' . $rel;
+				++$cursor['offset'];
+				++$done;
+				if ( ! is_file( $full ) ) {
+					continue; // Missing files are not a security concern.
+				}
+				$expected = (array) ( isset( $sums[ $rel ]['sha256'] ) ? $sums[ $rel ]['sha256'] : array() );
+				$actual   = hash_file( 'sha256', $full );
+				if ( $expected && ! in_array( $actual, $expected, true ) ) {
+					$cursor['modified'][] = $rel;
+				}
+			}
+
+			$this->report_plugin_checksums( $file, $slug, $data, $paths, $cursor['modified'], $dir );
+			++$cursor['verified'];
+			$cursor = array_merge( $cursor, array( 'i' => $cursor['i'] + 1, 'offset' => 0, 'modified' => array() ) );
+			if ( $this->out_of_time() && $cursor['i'] < count( $plugins ) ) {
+				return array( 'continue' => true, 'cursor' => $cursor );
+			}
+		}
+
+		if ( $cursor['unverified'] > 0 ) {
+			$this->note_partial(
+				sprintf(
+					/* translators: %d: number of plugins */
+					__( '%d plugin(s) not verified against WordPress.org checksums (not listed there, or no checksums for the installed version)', 'shieldscope-site-security-scanner' ),
+					$cursor['unverified']
+				)
+			);
+		}
+		return array( 'continue' => false, 'cursor' => array() );
+	}
+
+	/**
+	 * Findings for one verified plugin.
+	 *
+	 * @param string   $file     Plugin file.
+	 * @param string   $slug     Folder.
+	 * @param array    $data     Header data.
+	 * @param string[] $paths    Files in the official release.
+	 * @param string[] $modified Files that differ.
+	 * @param string   $dir      Plugin directory.
+	 * @return void
+	 */
+	private function report_plugin_checksums( $file, $slug, array $data, array $paths, array $modified, $dir ) {
+		$name = isset( $data['Name'] ) ? $data['Name'] : $slug;
+		$ctx  = array( 'plugin_name' => $name );
+
+		// Many differences: probably not the official release, report once.
+		if ( count( $modified ) > max( 10, (int) ( 0.25 * count( $paths ) ) ) ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				/* translators: %s: plugin name */
+				sprintf( __( 'Most files of %s differ from WordPress.org', 'shieldscope-site-security-scanner' ), $name ),
+				sprintf(
+					/* translators: 1: number of files, 2: plugin version */
+					__( '%1$d files differ from the WordPress.org release of version %2$s. The installed copy is probably not the official release (a different build or a modified copy), so individual files were not listed.', 'shieldscope-site-security-scanner' ),
+					count( $modified ),
+					$data['Version']
+				),
+				__( 'Reinstall the plugin from WordPress.org (Plugins → deactivate, delete, reinstall), or confirm where this copy came from.', 'shieldscope-site-security-scanner' ),
+				'plugin:' . $file,
+				$ctx
+			);
+			$modified = array();
+		}
+
+		foreach ( $modified as $rel ) {
+			$php = (bool) preg_match( '/\.(php|phtml|phar|inc)$/i', $rel );
+			$this->finding(
+				$php ? ShieldScope_Logger::SEVERITY_HIGH : ShieldScope_Logger::SEVERITY_LOW,
+				/* translators: %s: plugin name */
+				sprintf( __( 'Plugin file differs from the WordPress.org release: %s', 'shieldscope-site-security-scanner' ), $name ),
+				$php
+					? __( 'This PHP file is not identical to the same file in the official release of the installed version. Someone changed it after installation: a local edit, or injected code.', 'shieldscope-site-security-scanner' )
+					: __( 'This file is not identical to the same file in the official release of the installed version.', 'shieldscope-site-security-scanner' ),
+				__( 'Compare the file with the official release. If nobody on your team edited it, reinstall the plugin from WordPress.org and check the site for other changes.', 'shieldscope-site-security-scanner' ),
+				SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $slug . '/' . $rel,
+				$ctx
+			);
+		}
+
+		// PHP files that are not part of the release.
+		$known = array_flip( $paths );
+		foreach ( self::php_files_under( $dir ) as $rel ) {
+			if ( ! isset( $known[ $rel ] ) ) {
+				$this->finding(
+					ShieldScope_Logger::SEVERITY_MEDIUM,
+					/* translators: %s: plugin name */
+					sprintf( __( 'Review: PHP file not in the WordPress.org release: %s', 'shieldscope-site-security-scanner' ), $name ),
+					__( 'This PHP file is inside the plugin folder but is not part of the official release of the installed version. Some plugins write cache or configuration files; a file nobody recognises can be a planted backdoor.', 'shieldscope-site-security-scanner' ),
+					__( 'Find out what created the file. If it is not needed, remove it, or reinstall the plugin from WordPress.org.', 'shieldscope-site-security-scanner' ),
+					SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $slug . '/' . $rel,
+					$ctx
+				);
+			}
+		}
+	}
+
+	/**
+	 * PHP files under a directory, relative paths (symlinks not followed, capped).
+	 *
+	 * @param string $dir Directory.
+	 * @return string[]
+	 */
+	private static function php_files_under( $dir ) {
+		$out   = array();
+		$stack = array( '' );
+		while ( $stack && count( $out ) < 20000 ) {
+			$rel     = array_pop( $stack );
+			$entries = @scandir( $dir . ( '' === $rel ? '' : '/' . $rel ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			foreach ( (array) $entries as $entry ) {
+				if ( '.' === $entry || '..' === $entry ) {
+					continue;
+				}
+				$child = '' === $rel ? $entry : $rel . '/' . $entry;
+				$full  = $dir . '/' . $child;
+				if ( is_dir( $full ) ) {
+					if ( ! is_link( $full ) ) {
+						$stack[] = $child;
+					}
+				} elseif ( preg_match( '/\.(php|phtml|phar)$/i', $entry ) ) {
+					$out[] = $child;
+				}
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Checksums for a plugin version, cached for a day. Null when not available.
+	 *
+	 * @param string $slug    Slug.
+	 * @param string $version Version.
+	 * @return array|null relative path => { md5, sha256 }.
+	 */
+	private function plugin_checksums( $slug, $version ) {
+		$key    = 'shieldscope_psum_' . md5( $slug . '|' . $version );
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) ) {
+			return empty( $cached ) ? null : $cached;
+		}
+		$response = wp_remote_get( sprintf( self::CHECKSUMS_URL, rawurlencode( $slug ), rawurlencode( $version ) ), array( 'timeout' => 15 ) );
+		if ( is_wp_error( $response ) ) {
+			return null;
+		}
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		if ( 404 === $code ) {
+			set_transient( $key, array(), DAY_IN_SECONDS ); // No checksums for this version.
+			return null;
+		}
+		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		if ( 200 !== $code || ! is_array( $body ) || empty( $body['files'] ) || ! is_array( $body['files'] ) ) {
+			return null;
+		}
+		$files = array();
+		foreach ( $body['files'] as $rel => $hashes ) {
+			if ( isset( $hashes['sha256'] ) ) {
+				$files[ (string) $rel ] = array( 'sha256' => $hashes['sha256'] );
+			}
+		}
+		set_transient( $key, $files, DAY_IN_SECONDS );
+		return $files;
 	}
 }
