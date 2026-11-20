@@ -99,9 +99,16 @@ defined( 'ABSPATH' ) || exit;
 							id="shieldscope_wpscan_api_key"
 							type="password"
 							class="regular-text"
-							value="<?php echo esc_attr( $settings['wpscan_api_key'] ?? '' ); ?>"
+							value=""
+							placeholder="<?php echo empty( $settings['wpscan_api_key'] ) ? '' : esc_attr__( 'Leave empty to keep the saved key', 'shieldscope-site-security-scanner' ); ?>"
 							autocomplete="new-password"
 						/>
+						<?php if ( ! empty( $settings['wpscan_api_key'] ) ) : ?>
+							<label class="shieldscope-remove-key">
+								<input name="shieldscope_settings[wpscan_api_key_remove]" type="checkbox" value="1" />
+								<?php esc_html_e( 'Remove the saved key', 'shieldscope-site-security-scanner' ); ?>
+							</label>
+						<?php endif; ?>
 						<p class="description">
 							<?php
 							printf(
@@ -111,7 +118,15 @@ defined( 'ABSPATH' ) || exit;
 							);
 							?>
 							<?php if ( ! empty( $settings['wpscan_api_key'] ) ) : ?>
-								<br><span class="shieldscope-api-key-set">&#10003; <?php esc_html_e( 'API key is configured.', 'shieldscope-site-security-scanner' ); ?></span>
+								<br><span class="shieldscope-api-key-set">&#10003;
+								<?php
+								printf(
+									/* translators: %s: last four characters of the saved key */
+									esc_html__( 'A key ending in %s is saved.', 'shieldscope-site-security-scanner' ),
+									'<code>' . esc_html( ShieldScope_Admin::key_tail( $settings['wpscan_api_key'] ) ) . '</code>'
+								);
+								?>
+								</span>
 							<?php else : ?>
 								<br><em>
 								<?php

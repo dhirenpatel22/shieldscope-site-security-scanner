@@ -32,6 +32,17 @@ class ShieldScope_Admin {
 	}
 
 	/**
+	 * Last four characters of a secret, for display (B-08).
+	 *
+	 * @param string $key Secret.
+	 * @return string
+	 */
+	public static function key_tail( $key ) {
+		$key = (string) $key;
+		return strlen( $key ) > 4 ? '…' . substr( $key, -4 ) : '…';
+	}
+
+	/**
 	 * Support forum URL.
 	 */
 	const SUPPORT_URL = 'https://wordpress.org/support/plugin/shieldscope-site-security-scanner/';
@@ -342,9 +353,12 @@ class ShieldScope_Admin {
 		// WPScan API key — preserve existing value if the field was submitted blank
 		// (browser password fields submit empty when not changed by user).
 		$existing     = (array) get_option( 'shieldscope_settings', array() );
-		$wpscan_key   = isset( $raw['wpscan_api_key'] ) ? sanitize_text_field( $raw['wpscan_api_key'] ) : '';
+		$wpscan_key   = isset( $raw['wpscan_api_key'] ) ? trim( sanitize_text_field( $raw['wpscan_api_key'] ) ) : '';
 		if ( '' === $wpscan_key && ! empty( $existing['wpscan_api_key'] ) ) {
 			$wpscan_key = $existing['wpscan_api_key'];
+		}
+		if ( ! empty( $raw['wpscan_api_key_remove'] ) ) {
+			$wpscan_key = '';
 		}
 
 		$clean = array(
