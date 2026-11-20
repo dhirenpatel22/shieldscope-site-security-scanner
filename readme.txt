@@ -132,6 +132,10 @@ Not always. Configuration and version findings are facts. Findings titled "Match
 
 No. ShieldScope audits configuration, versions and code patterns. It does not use a malware signature database, clean files, block traffic or monitor the site between scans.
 
+= Where can I see every rule ShieldScope checks? =
+
+The full rule catalogue, with an ID, severity and the limits of each check, is in docs/rules.md in the plugin's GitHub repository (https://github.com/dhirenpatel22/shieldscope-site-security-scanner/blob/main/docs/rules.md). How false positives are tested is in docs/accuracy.md.
+
 = Where do I find the results? =
 
 Go to **ShieldScope → Report**. Findings are grouped by severity so you can start with the most important ones. **Download PDF report** saves them as a PDF.
