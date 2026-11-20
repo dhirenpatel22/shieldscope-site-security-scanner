@@ -1,7 +1,7 @@
-=== ShieldScope – Site Security Scanner ===
+=== ShieldScope – WordPress Security Audit ===
 
 Contributors: dhirenpatel22
-Tags: security, scanner, malware, hardening, audit
+Tags: security audit, site audit, hardening, security checklist, security report
 Requires at least: 5.8
 Tested up to: 7.0
 Requires PHP: 7.4
@@ -9,7 +9,7 @@ Stable tag: 1.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Security audit for WordPress: checks core, plugins, themes, users, files and server settings, and reports findings by severity with what to do.
+Security audit for WordPress: checks core, plugins, users, files and server settings, with evidence for every finding and a PDF report.
 
 == Description ==
 
