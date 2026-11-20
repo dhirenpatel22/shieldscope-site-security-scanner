@@ -45,7 +45,17 @@ class Test_Severity extends TestCase {
 	protected function setUp(): void {
 		ss_tests_reset_state();
 		$this->saved_wpdb = isset( $GLOBALS['wpdb'] ) ? $GLOBALS['wpdb'] : null;
-		$GLOBALS['wpdb']  = (object) array( 'prefix' => 'wp_' );
+		$GLOBALS['wpdb']  = new class() {
+			public $prefix  = 'wp_';
+			public $options = 'wp_options';
+			public $posts   = 'wp_posts';
+			public function prepare( $sql ) {
+				return $sql;
+			}
+			public function get_results( $sql = null, $output = null ) {
+				return array();
+			}
+		};
 	}
 
 	protected function tearDown(): void {
