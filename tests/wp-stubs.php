@@ -533,3 +533,24 @@ function wp_get_current_user() {
 	return $hit ? $result : (object) array( 'ID' => 1, 'user_login' => 'auditor' );
 }
 function wp_safe_redirect( $location ) { throw new SS_Test_Exit( 'redirect:' . $location ); }
+
+// ---------------------------------------------------------------------------
+// Settings page rendering (B-08)
+// ---------------------------------------------------------------------------
+
+function settings_errors( $setting = '' ) {}
+if ( ! function_exists( 'checked' ) ) {
+	function checked( $checked, $current = true, $display = true ) {
+		$out = ( (string) $checked === (string) $current ) ? " checked='checked'" : '';
+		if ( $display ) {
+			echo $out; // phpcs:ignore
+		}
+		return $out;
+	}
+}
+if ( ! function_exists( 'esc_attr__' ) ) {
+	function esc_attr__( $text, $domain = 'default' ) { return $text; }
+}
+if ( ! function_exists( 'submit_button' ) ) {
+	function submit_button( $text = '' ) { echo '<button>' . $text . '</button>'; } // phpcs:ignore
+}
