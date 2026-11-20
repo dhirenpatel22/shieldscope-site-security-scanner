@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: ShieldScope 1.3.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/shieldscope-site-"
 "security-scanner/\n"
-"POT-Creation-Date: 2026-11-20 08:56+0530\n"
+"POT-Creation-Date: 2026-11-20 08:58+0530\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2989,57 +2989,57 @@ msgstr ""
 msgid "Plugins"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:84
+#: includes/checks/class-shieldscope-check-plugins.php:86
 msgid "Plugin update available"
 msgstr ""
 
 #. translators: 1: name, 2: current, 3: new
-#: includes/checks/class-shieldscope-check-plugins.php:87
+#: includes/checks/class-shieldscope-check-plugins.php:89
 #, php-format
 msgid ""
 "Plugin \"%1$s\" is at version %2$s; %3$s is available. Outdated plugins are "
 "the single most common WordPress compromise vector."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:92
+#: includes/checks/class-shieldscope-check-plugins.php:94
 msgid ""
 "Go to Dashboard → Updates and update this plugin. Check the changelog for "
 "the word \"security\" to understand what's fixed. Outdated plugins are the "
 "leading cause of WordPress compromises — do not delay security updates."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:114
+#: includes/checks/class-shieldscope-check-plugins.php:116
 msgid "Inactive plugin present on disk"
 msgstr ""
 
 #. translators: %s: name
-#: includes/checks/class-shieldscope-check-plugins.php:117
+#: includes/checks/class-shieldscope-check-plugins.php:119
 #, php-format
 msgid ""
 "Plugin \"%s\" is installed but not active. Its code is still on disk and "
 "could be exploited if it has a vulnerability."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:120
+#: includes/checks/class-shieldscope-check-plugins.php:122
 msgid ""
 "Go to Plugins → Installed Plugins and click Delete — not just Deactivate. "
 "Inactive plugins leave code on disk that can still be exploited if they "
 "contain vulnerabilities. Only keep plugins you actively use."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:143
+#: includes/checks/class-shieldscope-check-plugins.php:145
 msgid "Plugin has no update source declared"
 msgstr ""
 
 #. translators: %s: name
-#: includes/checks/class-shieldscope-check-plugins.php:146
+#: includes/checks/class-shieldscope-check-plugins.php:148
 #, php-format
 msgid ""
 "Plugin \"%s\" declares neither a PluginURI nor an UpdateURI. If this is not "
 "a custom plugin, verify it came from a trusted source."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:149
+#: includes/checks/class-shieldscope-check-plugins.php:151
 msgid ""
 "Search wordpress.org/plugins to verify this plugin is legitimate. If it's a "
 "custom-built plugin, this warning can be ignored. If it came from a \"free "
@@ -3049,27 +3049,27 @@ msgid ""
 msgstr ""
 
 #. translators: %d: number of plugins
-#: includes/checks/class-shieldscope-check-plugins.php:214
+#: includes/checks/class-shieldscope-check-plugins.php:216
 #, php-format
 msgid "%d plugin(s) could not be looked up on WordPress.org"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:236
+#: includes/checks/class-shieldscope-check-plugins.php:238
 msgid "not given"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:237
+#: includes/checks/class-shieldscope-check-plugins.php:239
 msgid "unknown date"
 msgstr ""
 
 #. translators: %s: plugin name
-#: includes/checks/class-shieldscope-check-plugins.php:241
+#: includes/checks/class-shieldscope-check-plugins.php:243
 #, php-format
 msgid "Plugin closed on WordPress.org: %s"
 msgstr ""
 
 #. translators: 1: plugin name, 2: date, 3: reason
-#: includes/checks/class-shieldscope-check-plugins.php:244
+#: includes/checks/class-shieldscope-check-plugins.php:246
 #, php-format
 msgid ""
 "WordPress.org closed \"%1$s\" on %2$s (reason: %3$s). A closed plugin gets "
@@ -3077,7 +3077,7 @@ msgid ""
 "security issue usually means a known, unfixed vulnerability."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:249
+#: includes/checks/class-shieldscope-check-plugins.php:251
 msgid ""
 "Replace the plugin with a maintained alternative and delete it. If you must "
 "keep it for now, check the plugin's page and support forum on WordPress.org "
@@ -3085,13 +3085,13 @@ msgid ""
 msgstr ""
 
 #. translators: %s: plugin name
-#: includes/checks/class-shieldscope-check-plugins.php:267
+#: includes/checks/class-shieldscope-check-plugins.php:269
 #, php-format
 msgid "Plugin not updated on WordPress.org for over 2 years: %s"
 msgstr ""
 
 #. translators: 1: plugin name, 2: date
-#: includes/checks/class-shieldscope-check-plugins.php:270
+#: includes/checks/class-shieldscope-check-plugins.php:272
 #, php-format
 msgid ""
 "The last release of \"%1$s\" on WordPress.org was on %2$s. Plugins without "
@@ -3099,11 +3099,85 @@ msgid ""
 "new WordPress or PHP versions."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:274
+#: includes/checks/class-shieldscope-check-plugins.php:276
 msgid ""
 "Check the plugin's support forum for signs of maintenance and look for a "
 "maintained alternative. If you keep it, review it whenever WordPress or PHP "
 "is updated."
+msgstr ""
+
+#. translators: %d: number of plugins
+#: includes/checks/class-shieldscope-check-plugins.php:420
+#, php-format
+msgid ""
+"%d plugin(s) not verified against WordPress.org checksums (not listed there, "
+"or no checksums for the installed version)"
+msgstr ""
+
+#. translators: %s: plugin name
+#: includes/checks/class-shieldscope-check-plugins.php:448
+#, php-format
+msgid "Most files of %s differ from WordPress.org"
+msgstr ""
+
+#. translators: 1: number of files, 2: plugin version
+#: includes/checks/class-shieldscope-check-plugins.php:451
+#, php-format
+msgid ""
+"%1$d files differ from the WordPress.org release of version %2$s. The "
+"installed copy is probably not the official release (a different build or a "
+"modified copy), so individual files were not listed."
+msgstr ""
+
+#: includes/checks/class-shieldscope-check-plugins.php:455
+msgid ""
+"Reinstall the plugin from WordPress.org (Plugins → deactivate, delete, "
+"reinstall), or confirm where this copy came from."
+msgstr ""
+
+#. translators: %s: plugin name
+#: includes/checks/class-shieldscope-check-plugins.php:467
+#, php-format
+msgid "Plugin file differs from the WordPress.org release: %s"
+msgstr ""
+
+#: includes/checks/class-shieldscope-check-plugins.php:469
+msgid ""
+"This PHP file is not identical to the same file in the official release of "
+"the installed version. Someone changed it after installation: a local edit, "
+"or injected code."
+msgstr ""
+
+#: includes/checks/class-shieldscope-check-plugins.php:470
+msgid ""
+"This file is not identical to the same file in the official release of the "
+"installed version."
+msgstr ""
+
+#: includes/checks/class-shieldscope-check-plugins.php:471
+msgid ""
+"Compare the file with the official release. If nobody on your team edited "
+"it, reinstall the plugin from WordPress.org and check the site for other "
+"changes."
+msgstr ""
+
+#. translators: %s: plugin name
+#: includes/checks/class-shieldscope-check-plugins.php:484
+#, php-format
+msgid "Review: PHP file not in the WordPress.org release: %s"
+msgstr ""
+
+#: includes/checks/class-shieldscope-check-plugins.php:485
+msgid ""
+"This PHP file is inside the plugin folder but is not part of the official "
+"release of the installed version. Some plugins write cache or configuration "
+"files; a file nobody recognises can be a planted backdoor."
+msgstr ""
+
+#: includes/checks/class-shieldscope-check-plugins.php:486
+msgid ""
+"Find out what created the file. If it is not needed, remove it, or reinstall "
+"the plugin from WordPress.org."
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-security-config.php:26
@@ -4129,8 +4203,10 @@ msgid ""
 "sends requests to your own site (to check headers, HTTPS and files that "
 "should not be public) and contacts api.wordpress.org (it sends your "
 "WordPress version and locale, and the folder names of installed plugins to "
-"check whether they are closed or unmaintained). If you add a WPScan API key "
-"it also sends plugin and theme slugs to wpscan.com."
+"check whether they are closed or unmaintained) and downloads.wordpress.org "
+"(plugin folder names and versions, to compare plugin files with the official "
+"release). If you add a WPScan API key it also sends plugin and theme slugs "
+"to wpscan.com."
 msgstr ""
 
 #: includes/class-shieldscope-admin.php:75
