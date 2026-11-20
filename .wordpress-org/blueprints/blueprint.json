@@ -1,6 +1,6 @@
 {
   "$schema": "https://playground.wordpress.net/blueprint-schema.json",
-  "landingPage": "/wp-admin/admin.php?page=shieldscope",
+  "landingPage": "/wp-admin/admin.php?page=shieldscope-report",
   "login": true,
   "steps": [
     {
@@ -12,6 +12,10 @@
       "options": {
         "activate": true
       }
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php require '/wordpress/wp-load.php'; $admins = get_users( array( 'role' => 'administrator', 'number' => 1 ) ); wp_set_current_user( $admins[0]->ID ); $settings = (array) get_option( 'shieldscope_settings', array() ); $settings['background_scan'] = 0; update_option( 'shieldscope_settings', $settings ); $scanner = new ShieldScope_Scanner(); $state = $scanner->start(); $started = microtime( true ); while ( 'running' === $state['status'] && ( microtime( true ) - $started ) < 90 ) { $state = $scanner->run_chunk( false ); }"
     }
   ]
 }
