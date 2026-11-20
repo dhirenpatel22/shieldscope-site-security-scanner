@@ -48,7 +48,7 @@ Certificate validity and expiry, older TLS versions, HTTP to HTTPS redirects and
 Browser security headers (for example Content-Security-Policy and X-Frame-Options) and whether the WordPress version is shown publicly.
 
 = Database Settings =
-Open registration with a risky default role, site address mismatches and recently created administrators.
+Open registration with a risky default role, site address mismatches, recently created administrators, and post content or options that contain obfuscated JavaScript, hidden iframes or script tags (read on the server, nothing is sent anywhere).
 
 = Injection Patterns =
 Optional (Settings → Developer review, off by default). Looks in plugin and theme code for request data reaching risky calls (SQL queries, echo, unserialize and others). Matches are findings to review, mostly Low, to confirm by reading the code.

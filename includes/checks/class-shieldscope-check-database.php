@@ -36,7 +36,7 @@ class ShieldScope_Check_Database extends ShieldScope_Check_Base {
 	 * @return array
 	 */
 	public function get_steps() {
-		return array( 'unknown_admins', 'suspicious_options' );
+		return array( 'unknown_admins', 'suspicious_options', 'content' );
 	}
 
 	/**
@@ -54,6 +54,8 @@ class ShieldScope_Check_Database extends ShieldScope_Check_Base {
 			case 'suspicious_options':
 				$this->check_suspicious_options();
 				break;
+			case 'content':
+				return $this->check_content( $cursor );
 		}
 		return array( 'continue' => false, 'cursor' => array() );
 	}
@@ -128,6 +130,116 @@ class ShieldScope_Check_Database extends ShieldScope_Check_Base {
 					__( 'Go to Settings → General and verify both WordPress Address and Site Address point to your own domain. If either was changed to an unknown domain, revert it and change all admin passwords immediately. Also check wp-config.php for WP_HOME or WP_SITEURL constants that may be overriding the values.', 'shieldscope-site-security-scanner' )
 				);
 			}
+		}
+	}
+
+	/**
+	 * Posts read per query in the content step.
+	 */
+	const CONTENT_BATCH = 200;
+
+	/**
+	 * Patterns for injected code in stored content (S-23), worst first:
+	 * key => array( regex, severity, title ).
+	 *
+	 * @return array
+	 */
+	private static function content_rules() {
+		return array(
+			'obfuscated' => array(
+				'/(?:eval\s*\(\s*(?:atob|unescape|String\.fromCharCode)|document\.write\s*\(\s*unescape\s*\(|\\\\x[0-9a-f]{2}(?:\\\\x[0-9a-f]{2}){20,})/i',
+				ShieldScope_Logger::SEVERITY_HIGH,
+				__( 'Review: obfuscated JavaScript in stored content', 'shieldscope-site-security-scanner' ),
+			),
+			'hidden_iframe' => array(
+				'/<iframe\b[^>]*(?:display\s*:\s*none|visibility\s*:\s*hidden|\bwidth\s*=\s*["\']?[01]["\'\s>]|\bheight\s*=\s*["\']?[01]["\'\s>])/i',
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'Review: hidden iframe in stored content', 'shieldscope-site-security-scanner' ),
+			),
+			'script' => array(
+				'/<script\b/i',
+				ShieldScope_Logger::SEVERITY_LOW,
+				__( 'Review: script tag in stored content', 'shieldscope-site-security-scanner' ),
+			),
+		);
+	}
+
+	/**
+	 * Look for injected code in post content and in options (S-23).
+	 * Read-only; posts are read in batches by ID; only the first matching
+	 * rule per item is reported. Content stays on the server.
+	 *
+	 * @param array $cursor Cursor: last post ID, options done.
+	 * @return array
+	 */
+	private function check_content( array $cursor = array() ) {
+		global $wpdb;
+		$cursor += array(
+			'after'   => 0,
+			'options' => false,
+		);
+
+		if ( ! $cursor['options'] ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only scan of stored content.
+			$rows = $wpdb->get_results( "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_value LIKE '%<script%' OR option_value LIKE '%<iframe%' OR option_value LIKE '%eval(%' LIMIT 500", ARRAY_A );
+			foreach ( (array) $rows as $row ) {
+				if ( 0 === strpos( $row['option_name'], '_transient' ) || 0 === strpos( $row['option_name'], '_site_transient' ) ) {
+					continue;
+				}
+				$this->report_content_match( (string) $row['option_value'], 'option:' . $row['option_name'], __( 'This option', 'shieldscope-site-security-scanner' ) );
+			}
+			$cursor['options'] = true;
+		}
+
+		do {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only scan of stored content.
+			$posts = $wpdb->get_results( $wpdb->prepare( "SELECT ID, post_type, post_content FROM {$wpdb->posts} WHERE ID > %d AND post_type NOT IN ('revision','attachment','nav_menu_item') ORDER BY ID ASC LIMIT %d", (int) $cursor['after'], self::CONTENT_BATCH ), ARRAY_A );
+			foreach ( (array) $posts as $post ) {
+				$cursor['after'] = (int) $post['ID'];
+				$this->report_content_match(
+					(string) $post['post_content'],
+					'post:' . $post['ID'],
+					/* translators: 1: post type, 2: post ID */
+					sprintf( __( 'This %1$s (ID %2$d)', 'shieldscope-site-security-scanner' ), $post['post_type'], $post['ID'] )
+				);
+			}
+			if ( count( (array) $posts ) < self::CONTENT_BATCH ) {
+				return array( 'continue' => false, 'cursor' => array() );
+			}
+		} while ( ! $this->out_of_time() );
+
+		return array( 'continue' => true, 'cursor' => $cursor );
+	}
+
+	/**
+	 * Report the worst matching content rule for one item.
+	 *
+	 * @param string $content Stored content.
+	 * @param string $target  Target (post:ID or option:name).
+	 * @param string $what    Human description of the item.
+	 * @return void
+	 */
+	private function report_content_match( $content, $target, $what ) {
+		if ( '' === $content ) {
+			return;
+		}
+		foreach ( self::content_rules() as $key => $rule ) {
+			$at = $this->rx_offset( $rule[0], $content );
+			if ( $at < 0 ) {
+				continue;
+			}
+			$this->finding(
+				$rule[1],
+				$rule[2],
+				$what . ' ' . ( 'script' === $key
+					? __( 'contains a <script> tag. Page builders, analytics and embeds add scripts legitimately; injected spam and redirect code also hides here.', 'shieldscope-site-security-scanner' )
+					: __( 'contains code that is typical of injected spam or redirects. Legitimate content rarely needs it.', 'shieldscope-site-security-scanner' ) )
+					. ' ' . __( 'This is a pattern match, not a confirmed infection.', 'shieldscope-site-security-scanner' ),
+				__( 'Open the item in the editor (or the options table) and check the code. If nobody added it, remove it and change administrator passwords.', 'shieldscope-site-security-scanner' ),
+				$target,
+				self::evidence( $content, $content, $at )
+			);
+			return;
 		}
 	}
 }
