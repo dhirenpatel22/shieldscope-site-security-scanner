@@ -47,6 +47,15 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 		return __( 'Access Control', 'shieldscope-site-security-scanner' );
 	}
 
+	/**
+	 * Steps a quick scan skips.
+	 *
+	 * @return string[]
+	 */
+	public function get_slow_steps() {
+		return array( 'scan_plugins' );
+	}
+
 	/** @return array */
 	public function get_steps() {
 		return array(

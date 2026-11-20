@@ -71,6 +71,7 @@
 	}
 
 	function setButtons( status ) {
+		$( '#shieldscope-btn-quick' ).prop( 'disabled', 'running' === status || 'paused' === status );
 		switch ( status ) {
 			case 'running':
 				$btnStart.prop( 'disabled', true );
@@ -162,15 +163,15 @@
 		$checks.closest( '.shieldscope-checks-card' ).removeClass( 'shieldscope-hidden' );
 	}
 
-	function ajax( action ) {
+	function ajax( action, extra ) {
 		return $.ajax( {
 			url: cfg.ajaxUrl,
 			method: 'POST',
 			dataType: 'json',
-			data: {
+			data: $.extend( {
 				action: 'shieldscope_' + action,
 				_wpnonce: cfg.nonce
-			}
+			}, extra || {} )
 		} );
 	}
 
@@ -280,10 +281,13 @@
 
 	// --- Button handlers --- .
 
-	$btnStart.on( 'click', function () {
+	var $btnQuick = $( '#shieldscope-btn-quick' );
+
+	function startScan( quick ) {
 		$btnStart.prop( 'disabled', true );
+		$btnQuick.prop( 'disabled', true );
 		$msg.text( cfg.i18n.starting );
-		ajax( 'start' )
+		ajax( 'start', quick ? { quick: 1 } : {} )
 			.done( function ( resp ) {
 				if ( resp && resp.success ) {
 					failures = 0;
@@ -292,12 +296,21 @@
 					startLoops();
 				} else {
 					$btnStart.prop( 'disabled', false );
+					$btnQuick.prop( 'disabled', false );
 				}
 			} )
 			.fail( function ( xhr ) {
 				$msg.text( xhr && 403 === xhr.status ? cfg.i18n.expired : cfg.i18n.error );
 				$btnStart.prop( 'disabled', false );
+				$btnQuick.prop( 'disabled', false );
 			} );
+	}
+
+	$btnStart.on( 'click', function () {
+		startScan( false );
+	} );
+	$btnQuick.on( 'click', function () {
+		startScan( true );
 	} );
 
 	$btnPause.on( 'click', function () {

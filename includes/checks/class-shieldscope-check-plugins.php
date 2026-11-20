@@ -35,6 +35,15 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 	 *
 	 * @return array
 	 */
+	/**
+	 * Steps a quick scan skips.
+	 *
+	 * @return string[]
+	 */
+	public function get_slow_steps() {
+		return array( 'abandoned', 'checksums' );
+	}
+
 	public function get_steps() {
 		return array( 'updates', 'inactive', 'unknown_source', 'abandoned', 'checksums' );
 	}

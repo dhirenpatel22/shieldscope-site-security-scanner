@@ -312,7 +312,7 @@ class ShieldScope_Scanner {
 	 *
 	 * @return array New state.
 	 */
-	public function start() {
+	public function start( $quick = false ) {
 		// Generate a new scan id.
 		$scan_id = 'scan_' . gmdate( 'Ymd_His' ) . '_' . wp_generate_password( 8, false, false );
 
@@ -345,6 +345,7 @@ class ShieldScope_Scanner {
 			'last_message' => __( 'Scan started.', 'shieldscope-site-security-scanner' ),
 			'owner_id'     => get_current_user_id(),
 			'check_status' => array(),
+			'quick'        => (bool) $quick,
 		);
 		$this->save_state( $state );
 		$this->kick_background( $state );
@@ -472,6 +473,21 @@ class ShieldScope_Scanner {
 			}
 
 			$step = $steps[ $state['step_index'] ];
+
+			// Quick scan (S-11): skip steps that read many files or make many requests.
+			if ( ! empty( $state['quick'] ) && in_array( $step, $check->get_slow_steps(), true ) ) {
+				$state = self::mark_check(
+					$state,
+					$check,
+					ShieldScope_Coverage::PARTIAL,
+					/* translators: %s: step id */
+					sprintf( __( 'step "%s" skipped in a quick scan', 'shieldscope-site-security-scanner' ), $step )
+				);
+				$state['step_index']++;
+				$state['cursor']     = array();
+				$state['done_steps'] = min( $state['total_steps'], $state['done_steps'] + 1 );
+				continue;
+			}
 
 			// A step still marked as started when a tick begins was cut off
 			// by a killed request (time or memory limit).

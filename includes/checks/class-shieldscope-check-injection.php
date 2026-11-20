@@ -60,6 +60,15 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 		return __( 'Injection Vulnerabilities', 'shieldscope-site-security-scanner' );
 	}
 
+	/**
+	 * Steps a quick scan skips.
+	 *
+	 * @return string[]
+	 */
+	public function get_slow_steps() {
+		return array( 'scan_plugins', 'scan_themes' );
+	}
+
 	/** @return array */
 	public function get_steps() {
 		return array( 'scan_plugins', 'scan_themes', 'check_php_settings' );

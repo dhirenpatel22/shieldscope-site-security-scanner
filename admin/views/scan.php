@@ -74,6 +74,8 @@ defined( 'ABSPATH' ) || exit;
 				</div>
 			</div>
 
+			<p id="shieldscope-quick-help" class="description"><?php esc_html_e( 'A quick scan skips the steps that read every file (code patterns, file checksums, uploads) and the WordPress.org plugin lookups. Its report says which steps were skipped.', 'shieldscope-site-security-scanner' ); ?></p>
+
 			<p id="shieldscope-message" class="shieldscope-message" role="status" aria-live="polite">
 				<?php echo esc_html( $state['last_message'] ); ?>
 			</p>
@@ -81,6 +83,9 @@ defined( 'ABSPATH' ) || exit;
 			<div class="shieldscope-controls">
 				<button type="button" class="button button-primary" id="shieldscope-btn-start">
 					<?php esc_html_e( 'Start Scan', 'shieldscope-site-security-scanner' ); ?>
+				</button>
+				<button type="button" class="button" id="shieldscope-btn-quick" aria-describedby="shieldscope-quick-help">
+					<?php esc_html_e( 'Quick scan', 'shieldscope-site-security-scanner' ); ?>
 				</button>
 				<button type="button" class="button" id="shieldscope-btn-pause" disabled>
 					<?php esc_html_e( 'Pause', 'shieldscope-site-security-scanner' ); ?>

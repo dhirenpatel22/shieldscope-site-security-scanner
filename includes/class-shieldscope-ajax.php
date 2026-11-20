@@ -61,7 +61,7 @@ class ShieldScope_Ajax {
 	public function handle_start() {
 		$this->authorize();
 		$scanner = new ShieldScope_Scanner();
-		$state   = $scanner->start();
+		$state   = $scanner->start( ! empty( $_POST['quick'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce checked in authorize().
 		wp_send_json_success( $this->envelope( $state, $scanner ) );
 	}
 
