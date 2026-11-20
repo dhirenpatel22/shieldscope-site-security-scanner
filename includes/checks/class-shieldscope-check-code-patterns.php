@@ -232,9 +232,16 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 	 * @return void
 	 */
 	private function scan_request_patterns( $path, $contents ) {
-		// Shell functions: whole-word calls only, not methods, definitions or comments.
-		$shell = '/(?<![$>:])(?<!function\s)\b(?:shell_exec|passthru|proc_open|popen|system)\s*\(/i';
-		if ( $this->matches( $shell, $contents ) && $this->matches( $shell, $this->strip_comments( $contents ) ) ) {
+		// Views: $code has comments and string-literal text removed (calls only);
+		// $no_comments keeps strings for the rules that look inside them.
+		// Found by the false-positive corpus (S-25): "system (" inside strings,
+		// "require $_GET" inside a comment, base64 data: URIs.
+		$code        = self::code_view( $contents );
+		$no_comments = $this->strip_comments( $contents );
+
+		// Shell functions: whole-word calls only, not methods, definitions, comments or strings.
+		$shell = '/(?<![$>:])(?<!\w\\\\)(?<!function\s)(?<!new\s)\b(?:shell_exec|passthru|proc_open|popen|system)\s*\(/i';
+		if ( $this->matches( $shell, $code ) ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_LOW,
 				__( 'Matches pattern: shell command function', 'shieldscope-site-security-scanner' ),
@@ -246,7 +253,7 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 		}
 
 		// File inclusion from user input.
-		if ( $this->matches( '/\b(?:include|require)(?:_once)?\s*\(?\s*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
+		if ( $this->matches( '/\b(?:include|require)(?:_once)?\s*\(?\s*\$_(?:GET|POST|REQUEST|COOKIE)/i', $code ) ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_MEDIUM,
 				__( 'Matches pattern: include/require of request data', 'shieldscope-site-security-scanner' ),
@@ -278,7 +285,7 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 		// }
 
 		// Heuristic: raw $wpdb->query with string concatenation of superglobals.
-		if ( $this->matches( '/\$wpdb\s*->\s*(?:query|get_(?:row|results|var|col))\s*\(\s*["\'][^"\']*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
+		if ( $this->matches( '/\$wpdb\s*->\s*(?:query|get_(?:row|results|var|col))\s*\(\s*["\'][^"\']*\$_(?:GET|POST|REQUEST|COOKIE)/i', $no_comments ) ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_MEDIUM,
 				__( 'Matches pattern: request data in a database query string', 'shieldscope-site-security-scanner' ),
@@ -291,7 +298,7 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 		}
 
 		// Unescaped echo of superglobals (reflected XSS heuristic).
-		if ( $this->matches( '/echo\s+\$_(?:GET|POST|REQUEST|COOKIE)\b/i', $contents ) ) {
+		if ( $this->matches( '/echo\s+\$_(?:GET|POST|REQUEST|COOKIE)\b/i', $code ) ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_MEDIUM,
 				__( 'Matches pattern: echo of request data', 'shieldscope-site-security-scanner' ),
@@ -303,7 +310,7 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 		}
 
 		// File writes from user input (upload / arbitrary file write).
-		if ( $this->matches( '/\bfile_put_contents\s*\([^)]*\$_(?:GET|POST|REQUEST|FILES)/i', $contents ) ) {
+		if ( $this->matches( '/\bfile_put_contents\s*\([^)]*\$_(?:GET|POST|REQUEST|FILES)/i', $code ) ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_MEDIUM,
 				__( 'Matches pattern: file_put_contents() with request data', 'shieldscope-site-security-scanner' ),
@@ -315,7 +322,8 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 		}
 
 		// Check for long base64 strings (possible payload).
-		if ( $this->matches( '/[A-Za-z0-9+\/=]{400,}/', $contents ) ) {
+		// A whole run of 400+ base64 characters, not a data: URI (inline images and fonts).
+		if ( $this->matches( '/(?<![A-Za-z0-9+\/=])(?<!base64,)[A-Za-z0-9+\/=]{400,}/', $no_comments ) ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_LOW,
 				__( 'Matches pattern: long encoded string', 'shieldscope-site-security-scanner' ),
