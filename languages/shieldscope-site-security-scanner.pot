@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: ShieldScope 1.3.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/shieldscope-site-"
 "security-scanner/\n"
-"POT-Creation-Date: 2026-11-20 08:48+0530\n"
+"POT-Creation-Date: 2026-11-20 08:49+0530\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,22 +18,22 @@ msgstr ""
 "X-Domain: shieldscope-site-security-scanner\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: admin/views/report.php:17 admin/views/scan.php:91
+#: admin/views/report.php:17 admin/views/scan.php:115
 #: includes/class-shieldscope-pdf-report.php:162
 msgid "Critical"
 msgstr ""
 
-#: admin/views/report.php:18 admin/views/scan.php:92
+#: admin/views/report.php:18 admin/views/scan.php:116
 #: includes/class-shieldscope-pdf-report.php:163
 msgid "High"
 msgstr ""
 
-#: admin/views/report.php:19 admin/views/scan.php:93
+#: admin/views/report.php:19 admin/views/scan.php:117
 #: includes/class-shieldscope-pdf-report.php:164
 msgid "Medium"
 msgstr ""
 
-#: admin/views/report.php:20 admin/views/scan.php:94
+#: admin/views/report.php:20 admin/views/scan.php:118
 #: includes/class-shieldscope-pdf-report.php:165
 msgid "Low"
 msgstr ""
@@ -460,58 +460,84 @@ msgid ""
 "carry on in the background after you close this page."
 msgstr ""
 
-#: admin/views/scan.php:40
+#: admin/views/scan.php:44 includes/class-shieldscope-admin.php:200
+msgid "Waiting"
+msgstr ""
+
+#: admin/views/scan.php:45 includes/class-shieldscope-admin.php:201
+msgid "Running"
+msgstr ""
+
+#: admin/views/scan.php:46 includes/class-shieldscope-admin.php:202
+msgid "Done"
+msgstr ""
+
+#: admin/views/scan.php:47 includes/class-shieldscope-admin.php:203
+msgid "Partly done"
+msgstr ""
+
+#: admin/views/scan.php:48 includes/class-shieldscope-admin.php:204
+#: includes/class-shieldscope-coverage.php:127
+msgid "Error"
+msgstr ""
+
+#: admin/views/scan.php:49 includes/class-shieldscope-admin.php:205
+#: includes/class-shieldscope-coverage.php:129
+msgid "Did not run"
+msgstr ""
+
+#: admin/views/scan.php:54
 msgid "Status"
 msgstr ""
 
-#: admin/views/scan.php:45
+#: admin/views/scan.php:59
 msgid "Scan progress"
 msgstr ""
 
 #. translators: 1: done, 2: total
 #. translators: 1: steps done, 2: total steps
-#: admin/views/scan.php:54 includes/class-shieldscope-admin.php:198
+#: admin/views/scan.php:68 includes/class-shieldscope-admin.php:198
 #, php-format
 msgid "%1$d of %2$d steps"
 msgstr ""
 
-#: admin/views/scan.php:69
+#: admin/views/scan.php:83
 msgid "Start Scan"
 msgstr ""
 
-#: admin/views/scan.php:72
+#: admin/views/scan.php:86
 msgid "Pause"
 msgstr ""
 
-#: admin/views/scan.php:75
+#: admin/views/scan.php:89
 msgid "Resume"
 msgstr ""
 
-#: admin/views/scan.php:78
+#: admin/views/scan.php:92
 msgid "Abort"
 msgstr ""
 
-#: admin/views/scan.php:84
+#: admin/views/scan.php:98
 msgid "Checks"
 msgstr ""
 
-#: admin/views/scan.php:89
+#: admin/views/scan.php:113
 msgid "Live findings"
 msgstr ""
 
-#: admin/views/scan.php:95
+#: admin/views/scan.php:119
 msgid "Info"
 msgstr ""
 
-#: admin/views/scan.php:99
+#: admin/views/scan.php:123
 msgid "View full report"
 msgstr ""
 
-#: admin/views/scan.php:107
+#: admin/views/scan.php:131
 msgid "You can close this tab:"
 msgstr ""
 
-#: admin/views/scan.php:108
+#: admin/views/scan.php:132
 msgid ""
 "the scan carries on in the background using WP-Cron, and a notice appears in "
 "the admin when it finishes. WP-Cron runs when the site gets visits, so on a "
@@ -519,45 +545,45 @@ msgid ""
 "full pace."
 msgstr ""
 
-#: admin/views/scan.php:110
+#: admin/views/scan.php:134
 msgid "Keep this tab open:"
 msgstr ""
 
-#: admin/views/scan.php:111
+#: admin/views/scan.php:135
 msgid ""
 "background scanning is off in Settings, so the scan runs only from this "
 "browser tab. If you close the tab, open this page again and press Resume."
 msgstr ""
 
-#: admin/views/scan.php:121
+#: admin/views/scan.php:145
 msgid "Help &amp; Frequently Asked Questions"
 msgstr ""
 
-#: admin/views/scan.php:122
+#: admin/views/scan.php:146
 msgid "Everything you need to know about running and understanding scans."
 msgstr ""
 
-#: admin/views/scan.php:128
+#: admin/views/scan.php:152
 msgid "Running Scans"
 msgstr ""
 
-#: admin/views/scan.php:134
+#: admin/views/scan.php:158
 msgid "How long does a scan take?"
 msgstr ""
 
 #. translators: %s: scan time estimate, for example "about 5 to 20 minutes"
-#: admin/views/scan.php:142
+#: admin/views/scan.php:166
 #, php-format
 msgid ""
 "A scan usually takes %s, depending on the number of plugins, themes and PHP "
 "files. It runs fastest with this page open."
 msgstr ""
 
-#: admin/views/scan.php:153
+#: admin/views/scan.php:177
 msgid "Does the scan slow down my website for visitors?"
 msgstr ""
 
-#: admin/views/scan.php:157
+#: admin/views/scan.php:181
 msgid ""
 "Visitors should not notice on most hosts. The scan works in short steps with "
 "pauses between them (set by the scan pace in Settings), and each step uses "
@@ -565,204 +591,204 @@ msgid ""
 "time."
 msgstr ""
 
-#: admin/views/scan.php:164
+#: admin/views/scan.php:188
 msgid "Why did my scan pause or stop?"
 msgstr ""
 
-#: admin/views/scan.php:168
+#: admin/views/scan.php:192
 msgid ""
 "If you paused it, press Resume. If background scanning is off and \"Pause "
 "when tab is hidden\" is on, the scan pauses while this tab is hidden and "
 "continues when you return; findings so far are kept."
 msgstr ""
 
-#: admin/views/scan.php:169
+#: admin/views/scan.php:193
 msgid ""
 "If the scan stops without finishing, a PHP timeout on the server may have "
 "interrupted it. Lower Time per step in Settings, or run the scan at a quiet "
 "time."
 msgstr ""
 
-#: admin/views/scan.php:176
+#: admin/views/scan.php:200
 msgid "How often should I run a scan?"
 msgstr ""
 
-#: admin/views/scan.php:180
+#: admin/views/scan.php:204
 msgid "Run a scan:"
 msgstr ""
 
-#: admin/views/scan.php:182
+#: admin/views/scan.php:206
 msgid "After installing or updating plugins and themes"
 msgstr ""
 
-#: admin/views/scan.php:183
+#: admin/views/scan.php:207
 msgid "After a WordPress core update"
 msgstr ""
 
-#: admin/views/scan.php:184
+#: admin/views/scan.php:208
 msgid "Any time you notice unusual activity on your site"
 msgstr ""
 
-#: admin/views/scan.php:185
+#: admin/views/scan.php:209
 msgid "As a regular check, for example once a month"
 msgstr ""
 
-#: admin/views/scan.php:192
+#: admin/views/scan.php:216
 msgid "What Gets Checked"
 msgstr ""
 
-#: admin/views/scan.php:198
+#: admin/views/scan.php:222
 msgid "What does the scanner check?"
 msgstr ""
 
-#: admin/views/scan.php:202
+#: admin/views/scan.php:226
 msgid "The scanner covers 16 check categories:"
 msgstr ""
 
-#: admin/views/scan.php:204
+#: admin/views/scan.php:228
 msgid "WordPress core version, configuration, and file integrity"
 msgstr ""
 
-#: admin/views/scan.php:205
+#: admin/views/scan.php:229
 msgid "Plugin and theme updates and abandonment"
 msgstr ""
 
-#: admin/views/scan.php:206
+#: admin/views/scan.php:230
 msgid "User accounts, passwords, and authentication"
 msgstr ""
 
-#: admin/views/scan.php:207
+#: admin/views/scan.php:231
 msgid "File system permissions and dangerous file types"
 msgstr ""
 
-#: admin/views/scan.php:208
+#: admin/views/scan.php:232
 msgid "Database configuration and suspicious options"
 msgstr ""
 
-#: admin/views/scan.php:209
+#: admin/views/scan.php:233
 msgid "HTTP security headers (CSP, HSTS, X-Frame-Options, etc.)"
 msgstr ""
 
-#: admin/views/scan.php:210
+#: admin/views/scan.php:234
 msgid "SSL/TLS certificate health and mixed content"
 msgstr ""
 
-#: admin/views/scan.php:211
+#: admin/views/scan.php:235
 msgid "Exposed sensitive files and directory listings"
 msgstr ""
 
-#: admin/views/scan.php:212
+#: admin/views/scan.php:236
 msgid "PHP version and dangerous function availability"
 msgstr ""
 
-#: admin/views/scan.php:213
+#: admin/views/scan.php:237
 msgid ""
 "Known vulnerabilities: a limited built-in list, or WPScan if you add a key"
 msgstr ""
 
-#: admin/views/scan.php:214
+#: admin/views/scan.php:238
 msgid ""
 "Code patterns that need a manual review (injection, server-side requests, "
 "eval on decoded data)"
 msgstr ""
 
-#: admin/views/scan.php:222
+#: admin/views/scan.php:246
 msgid "Will the scan fix issues automatically?"
 msgstr ""
 
-#: admin/views/scan.php:226
+#: admin/views/scan.php:250
 msgid "No. Every finding includes a recommendation; you decide what to change."
 msgstr ""
 
-#: admin/views/scan.php:229
+#: admin/views/scan.php:253
 msgid ""
 "After fixing an issue, re-run the scan to confirm the finding no longer "
 "appears in your report."
 msgstr ""
 
-#: admin/views/scan.php:237
+#: admin/views/scan.php:261
 msgid "I found a Critical issue — what should I do first?"
 msgstr ""
 
-#: admin/views/scan.php:241
+#: admin/views/scan.php:265
 msgid ""
 "Critical findings represent the highest risk and should be addressed "
 "immediately. Common critical issues and first steps:"
 msgstr ""
 
-#: admin/views/scan.php:243
+#: admin/views/scan.php:267
 msgid ""
 "wp-config.php or a .env file readable from the web — block access to it, "
 "then change the database password and any keys it contains"
 msgstr ""
 
-#: admin/views/scan.php:244
+#: admin/views/scan.php:268
 msgid "Backup file in the web root — move it out of the web root or delete it"
 msgstr ""
 
-#: admin/views/scan.php:245
+#: admin/views/scan.php:269
 msgid ""
 "PHP file in the uploads folder — find out what added it; uploads should not "
 "contain PHP code, and an unknown file there is a common sign of a compromise"
 msgstr ""
 
-#: admin/views/scan.php:246
+#: admin/views/scan.php:270
 msgid ""
 "User with an empty password — set a strong password or remove the account"
 msgstr ""
 
-#: admin/views/scan.php:247
+#: admin/views/scan.php:271
 msgid "Expired SSL certificate — renew it"
 msgstr ""
 
-#: admin/views/scan.php:249
+#: admin/views/scan.php:273
 msgid ""
 "Open the full report and click each Critical finding for step-by-step fix "
 "instructions."
 msgstr ""
 
-#: admin/views/scan.php:255
+#: admin/views/scan.php:279
 msgid "Compatibility"
 msgstr ""
 
-#: admin/views/scan.php:261
+#: admin/views/scan.php:285
 msgid "Can I use this on a staging or local site?"
 msgstr ""
 
-#: admin/views/scan.php:265
+#: admin/views/scan.php:289
 msgid ""
 "Yes, but some checks require a publicly accessible HTTPS URL to work "
 "correctly:"
 msgstr ""
 
-#: admin/views/scan.php:267
+#: admin/views/scan.php:291
 msgid ""
 "SSL/TLS certificate checks will be skipped if the site is on HTTP or uses a "
 "self-signed cert"
 msgstr ""
 
-#: admin/views/scan.php:268
+#: admin/views/scan.php:292
 msgid ""
 "HTTP header checks probe the live homepage — localhost URLs are not "
 "reachable from the server itself in some configurations"
 msgstr ""
 
-#: admin/views/scan.php:269
+#: admin/views/scan.php:293
 msgid ""
 "Directory listing probes and sensitive file checks rely on HTTP responses"
 msgstr ""
 
-#: admin/views/scan.php:271
+#: admin/views/scan.php:295
 msgid ""
 "All code-level checks (file integrity, permissions, user accounts, PHP "
 "config) work fully on any environment."
 msgstr ""
 
-#: admin/views/scan.php:278
+#: admin/views/scan.php:302
 msgid "Does the scanner work on WordPress multisite?"
 msgstr ""
 
-#: admin/views/scan.php:282
+#: admin/views/scan.php:306
 msgid ""
 "Yes. On multisite only super admins can run a scan. It checks the shared "
 "core files, every installed plugin and theme, and all network users; site "
@@ -4183,32 +4209,6 @@ msgid ""
 "The scan has not made progress for over two minutes. WordPress runs "
 "background tasks when the site gets visits; press Resume to continue from "
 "this page."
-msgstr ""
-
-#: includes/class-shieldscope-admin.php:200
-msgid "Waiting"
-msgstr ""
-
-#: includes/class-shieldscope-admin.php:201
-msgid "Running"
-msgstr ""
-
-#: includes/class-shieldscope-admin.php:202
-msgid "Done"
-msgstr ""
-
-#: includes/class-shieldscope-admin.php:203
-msgid "Partly done"
-msgstr ""
-
-#: includes/class-shieldscope-admin.php:204
-#: includes/class-shieldscope-coverage.php:127
-msgid "Error"
-msgstr ""
-
-#: includes/class-shieldscope-admin.php:205
-#: includes/class-shieldscope-coverage.php:129
-msgid "Did not run"
 msgstr ""
 
 #: includes/class-shieldscope-admin.php:207

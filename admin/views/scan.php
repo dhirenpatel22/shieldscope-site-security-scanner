@@ -35,6 +35,20 @@ defined( 'ABSPATH' ) || exit;
 			</div>
 		</div>
 
+		<?php
+		// Initial state is rendered here so the page is right before (or without) the first poll.
+		$shieldscope_scanner = new ShieldScope_Scanner();
+		$shieldscope_pct     = (int) $shieldscope_scanner->get_progress( $state );
+		$shieldscope_checks  = '' !== (string) $state['scan_id'] ? $shieldscope_scanner->check_progress( $state ) : array();
+		$shieldscope_status  = array(
+			'waiting' => __( 'Waiting', 'shieldscope-site-security-scanner' ),
+			'running' => __( 'Running', 'shieldscope-site-security-scanner' ),
+			'done'    => __( 'Done', 'shieldscope-site-security-scanner' ),
+			'partial' => __( 'Partly done', 'shieldscope-site-security-scanner' ),
+			'error'   => __( 'Error', 'shieldscope-site-security-scanner' ),
+			'not_run' => __( 'Did not run', 'shieldscope-site-security-scanner' ),
+		);
+		?>
 		<div class="shieldscope-card">
 			<div class="shieldscope-status-row">
 				<span class="shieldscope-status-label"><?php esc_html_e( 'Status', 'shieldscope-site-security-scanner' ); ?>:</span>
@@ -42,11 +56,11 @@ defined( 'ABSPATH' ) || exit;
 			</div>
 
 			<div class="shieldscope-progress-wrap">
-				<div class="shieldscope-progress-bar" id="shieldscope-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo esc_attr( (int) ( ! empty( $state['total_steps'] ) ? floor( ( $state['done_steps'] * 100 ) / $state['total_steps'] ) : 0 ) ); ?>" aria-label="<?php esc_attr_e( 'Scan progress', 'shieldscope-site-security-scanner' ); ?>">
-					<div class="shieldscope-progress-fill" id="shieldscope-progress-fill"></div>
+				<div class="shieldscope-progress-bar" id="shieldscope-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo esc_attr( $shieldscope_pct ); ?>" aria-label="<?php esc_attr_e( 'Scan progress', 'shieldscope-site-security-scanner' ); ?>">
+					<div class="shieldscope-progress-fill" id="shieldscope-progress-fill" style="width: <?php echo esc_attr( $shieldscope_pct ); ?>%;"></div>
 				</div>
 				<div class="shieldscope-progress-meta">
-					<span id="shieldscope-progress-pct">0%</span>
+					<span id="shieldscope-progress-pct"><?php echo esc_html( $shieldscope_pct . '%' ); ?></span>
 					<span id="shieldscope-progress-steps">
 						<?php
 						printf(
@@ -80,9 +94,19 @@ defined( 'ABSPATH' ) || exit;
 			</div>
 		</div>
 
-		<div class="shieldscope-card shieldscope-checks-card shieldscope-hidden">
+		<div class="shieldscope-card shieldscope-checks-card<?php echo $shieldscope_checks ? '' : ' shieldscope-hidden'; ?>">
 			<h2><?php esc_html_e( 'Checks', 'shieldscope-site-security-scanner' ); ?></h2>
-			<ol id="shieldscope-check-list" class="shieldscope-check-list"></ol>
+			<ol id="shieldscope-check-list" class="shieldscope-check-list">
+				<?php foreach ( $shieldscope_checks as $shieldscope_check ) : ?>
+					<li class="is-<?php echo esc_attr( $shieldscope_check['status'] ); ?>">
+						<span class="shieldscope-check-name"><?php echo esc_html( $shieldscope_check['label'] ); ?></span>
+						<span class="shieldscope-check-status"><?php echo esc_html( isset( $shieldscope_status[ $shieldscope_check['status'] ] ) ? $shieldscope_status[ $shieldscope_check['status'] ] : $shieldscope_check['status'] ); ?></span>
+						<?php if ( $shieldscope_check['notes'] ) : ?>
+							<span class="shieldscope-check-notes"><?php echo esc_html( implode( '; ', $shieldscope_check['notes'] ) ); ?></span>
+						<?php endif; ?>
+					</li>
+				<?php endforeach; ?>
+			</ol>
 		</div>
 
 		<div class="shieldscope-card shieldscope-summary shieldscope-hidden" id="shieldscope-summary">
