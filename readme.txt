@@ -154,9 +154,10 @@ About 5 to 20 minutes, depending on the number of plugins, themes and PHP files.
 
 == Screenshots ==
 
-1. Scan dashboard — start, pause, or resume a scan with a live progress bar and real-time status updates.
-2. Security report — findings grouped by severity (Critical through Info) with a plain-English description and a clear action to take for every issue.
-3. Settings page — adjust scan speed, file size limits, tab-pause behaviour, and optionally add a WPScan API key.
+1. Report: a one-line verdict, counts by severity, the findings to fix first, coverage of the 16 checks, and every finding labelled Confirmed or Needs review. Download as PDF, CSV or JSON.
+2. Scan page: progress and the result of each check; with background scanning on, you can close the page and the scan continues.
+3. PDF report for a client or your records: summary, findings with what to do and the affected items, ignored findings and the method and limits.
+4. Settings: scan pace, time per step, file size limit, background scanning, the optional Developer review code checks and an optional WPScan API key.
 
 == Disclaimer ==
 
