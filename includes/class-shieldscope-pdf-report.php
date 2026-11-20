@@ -194,13 +194,21 @@ class ShieldScope_PDF_Report {
 	public static function verdict( array $counts ) {
 		$critical = isset( $counts['critical'] ) ? (int) $counts['critical'] : 0;
 		$high     = isset( $counts['high'] ) ? (int) $counts['high'] : 0;
-		if ( $critical + $high > 0 ) {
+		if ( $critical > 0 && $high > 0 ) {
 			return sprintf(
 				/* translators: 1: number of critical findings, 2: number of high findings */
 				__( '%1$d critical and %2$d high findings need attention first.', 'shieldscope-site-security-scanner' ),
 				$critical,
 				$high
 			);
+		}
+		if ( $critical > 0 ) {
+			/* translators: %d: number of critical findings */
+			return sprintf( _n( '%d critical finding needs attention first.', '%d critical findings need attention first.', $critical, 'shieldscope-site-security-scanner' ), $critical );
+		}
+		if ( $high > 0 ) {
+			/* translators: %d: number of high findings */
+			return sprintf( _n( '%d high finding needs attention first.', '%d high findings need attention first.', $high, 'shieldscope-site-security-scanner' ), $high );
 		}
 		return __( 'No critical or high findings. Review the medium and low findings below; a report without serious findings does not mean the site is secure.', 'shieldscope-site-security-scanner' );
 	}

@@ -28,6 +28,7 @@ $severity_label = array(
 // Ignored findings (S-07) are left out of the counts but listed below.
 list( $findings, $shieldscope_ignored ) = ShieldScope_Ignore::split( (array) $findings );
 $shieldscope_reasons                    = ShieldScope_Ignore::reasons();
+$shieldscope_labels                     = ShieldScope_PDF_Report::check_labels();
 
 $tabs = array();
 foreach ( $severity_order as $sev ) {
@@ -220,7 +221,7 @@ foreach ( (array) $findings as $f ) {
 								<?php echo $is_review ? esc_html__( 'Needs review', 'shieldscope-site-security-scanner' ) : esc_html__( 'Confirmed', 'shieldscope-site-security-scanner' ); ?>
 							</span>
 							<?php if ( '' !== $check_id ) : ?>
-								<span class="shieldscope-finding-check"><?php echo esc_html( $check_id ); ?></span>
+								<span class="shieldscope-finding-check"><?php echo esc_html( isset( $shieldscope_labels[ $check_id ] ) ? $shieldscope_labels[ $check_id ] : $check_id ); ?></span>
 							<?php endif; ?>
 							<?php if ( 1 === $count && '' !== $plugin_name ) : ?>
 								<span class="shieldscope-issue-badge"><?php echo esc_html( $plugin_name ); ?></span>
