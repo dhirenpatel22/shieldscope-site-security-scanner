@@ -130,6 +130,7 @@ class ShieldScope_PDF_Report {
 			'findings'     => $findings,
 			'check_labels' => self::check_labels(),
 			'coverage'     => '' !== $scan_id ? ShieldScope_Coverage::get( $scan_id ) : null,
+			'comparison'   => '' !== $scan_id ? ShieldScope_History::compare_with_previous( $scan_id, $findings ) : null,
 			'root'         => ABSPATH,
 		);
 	}
@@ -277,6 +278,19 @@ class ShieldScope_PDF_Report {
 		$html .= '<h2>' . $e( __( 'Summary', 'shieldscope-site-security-scanner' ) ) . '</h2>';
 		$html .= '<p class="verdict">' . $e( self::verdict( $counts ) ) . '</p>';
 		$coverage = isset( $report['coverage'] ) && is_array( $report['coverage'] ) ? $report['coverage'] : null;
+		if ( ! empty( $report['comparison'] ) ) {
+			$c     = $report['comparison'];
+			$html .= '<p class="cov">' . $e(
+				sprintf(
+					/* translators: 1: date of the previous scan, 2: new findings, 3: fixed findings, 4: still open */
+					__( 'Since the previous scan (%1$s): %2$d new, %3$d fixed, %4$d still open.', 'shieldscope-site-security-scanner' ),
+					substr( $c['previous']['date'], 0, 10 ),
+					count( $c['new'] ),
+					count( $c['fixed'] ),
+					$c['open']
+				)
+			) . '</p>';
+		}
 		if ( $coverage ) {
 			$html .= '<p class="cov">' . $e( __( 'Coverage:', 'shieldscope-site-security-scanner' ) . ' ' . ShieldScope_Coverage::summary( $coverage ) ) . '</p>';
 		}
