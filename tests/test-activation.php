@@ -25,6 +25,10 @@ class SS_A15_WPDB {
 		return $this->insert_result;
 	}
 	public function prepare( $sql, ...$args ) {
+		// Like wpdb::prepare(), accept the values as one array too.
+		if ( 1 === count( $args ) && is_array( $args[0] ) ) {
+			$args = $args[0];
+		}
 		foreach ( $args as $a ) {
 			$sql = preg_replace( '/%[sd]/', is_int( $a ) ? (string) $a : "'" . $a . "'", $sql, 1 );
 		}
@@ -160,7 +164,7 @@ class Test_Activation extends TestCase {
 
 		$sql = end( $this->wpdb->queries );
 		$this->assertStringContainsString( 'DELETE FROM wp_shieldscope_findings WHERE created_at <', $sql );
-		$this->assertStringContainsString( "scan_id <> 'scan_last'", $sql );
+		$this->assertStringContainsString( "scan_id NOT IN ('scan_last')", $sql );
 	}
 
 	private function render_report( $last_scan, array $findings ) {

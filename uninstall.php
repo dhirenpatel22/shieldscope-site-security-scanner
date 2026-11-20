@@ -25,6 +25,7 @@ $shieldscope_options = array(
 	'shieldscope_coverage',
 	'shieldscope_ignored',
 	'shieldscope_last_seen',
+	'shieldscope_scan_history',
 );
 
 /**

@@ -617,6 +617,7 @@ class ShieldScope_Scanner {
 
 			update_option( 'shieldscope_last_scan', $state['scan_id'], false );
 			ShieldScope_Coverage::save( $state['scan_id'], $state['check_status'], $this->check_labels() );
+			ShieldScope_History::record( $state['scan_id'], $this->logger->get_summary( $state['scan_id'] ) );
 		}
 
 		$this->save_state( $state );

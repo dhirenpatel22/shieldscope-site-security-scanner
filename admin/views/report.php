@@ -190,6 +190,38 @@ foreach ( (array) $findings as $f ) {
 			</div>
 		<?php endif; ?>
 
+		<?php $shieldscope_cmp = ShieldScope_History::compare_with_previous( $last_scan, array_merge( $findings, $shieldscope_ignored ) ); ?>
+		<?php if ( null !== $shieldscope_cmp ) : ?>
+			<div class="shieldscope-card shieldscope-compare">
+				<p><strong><?php esc_html_e( 'Since the previous scan', 'shieldscope-site-security-scanner' ); ?></strong>
+				(<?php echo esc_html( wp_date( get_option( 'date_format' ), strtotime( $shieldscope_cmp['previous']['date'] . ' UTC' ) ) ); ?>):
+				<?php
+				echo esc_html(
+					sprintf(
+						/* translators: 1: new findings, 2: fixed findings, 3: findings still open */
+						__( '%1$d new, %2$d fixed, %3$d still open.', 'shieldscope-site-security-scanner' ),
+						count( $shieldscope_cmp['new'] ),
+						count( $shieldscope_cmp['fixed'] ),
+						$shieldscope_cmp['open']
+					)
+				);
+				?>
+				</p>
+				<?php foreach ( array( 'new' => __( 'New', 'shieldscope-site-security-scanner' ), 'fixed' => __( 'Fixed', 'shieldscope-site-security-scanner' ) ) as $shieldscope_key => $shieldscope_heading ) : ?>
+					<?php if ( $shieldscope_cmp[ $shieldscope_key ] ) : ?>
+						<details>
+							<summary><?php echo esc_html( $shieldscope_heading . ' (' . count( $shieldscope_cmp[ $shieldscope_key ] ) . ')' ); ?></summary>
+							<ul>
+								<?php foreach ( $shieldscope_cmp[ $shieldscope_key ] as $shieldscope_row ) : ?>
+									<li><?php echo esc_html( ( isset( $severity_label[ $shieldscope_row['severity'] ] ) ? $severity_label[ $shieldscope_row['severity'] ] : '' ) . ': ' . $shieldscope_row['title'] . ( ! empty( $shieldscope_row['target'] ) ? ' — ' . $shieldscope_row['target'] : '' ) ); ?></li>
+								<?php endforeach; ?>
+							</ul>
+						</details>
+					<?php endif; ?>
+				<?php endforeach; ?>
+			</div>
+		<?php endif; ?>
+
 		<?php foreach ( $severity_order as $sev ) : ?>
 			<?php
 			if ( empty( $tabs[ $sev ]['groups'] ) ) {

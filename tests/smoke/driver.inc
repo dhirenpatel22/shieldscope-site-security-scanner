@@ -203,4 +203,9 @@ function shieldscope_smoke_scan( array &$result ) {
 	$result['bg_status']  = $bg_state['status'];
 	$result['bg_runs']    = $bg_runs;
 	$result['bg_elapsed'] = round( microtime( true ) - $bg_started, 1 );
+
+	// History and comparison (S-08): the background scan follows the first one.
+	$result['history'] = count( ShieldScope_History::all() );
+	$cmp               = ShieldScope_History::compare_with_previous( $bg_state['scan_id'], $logger->get_findings( $bg_state['scan_id'] ) );
+	$result['compare'] = null === $cmp ? null : array( 'new' => count( $cmp['new'] ), 'fixed' => count( $cmp['fixed'] ), 'open' => $cmp['open'] );
 }
