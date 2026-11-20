@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: ShieldScope 1.3.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/shieldscope-site-"
 "security-scanner/\n"
-"POT-Creation-Date: 2026-11-20 08:41+0530\n"
+"POT-Creation-Date: 2026-11-20 08:48+0530\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -42,282 +42,282 @@ msgstr ""
 msgid "Informational"
 msgstr ""
 
-#: admin/views/report.php:45 includes/class-shieldscope-pdf-report.php:222
+#: admin/views/report.php:46 includes/class-shieldscope-pdf-report.php:230
 msgid "Unknown issue"
 msgstr ""
 
-#: admin/views/report.php:52
+#: admin/views/report.php:53
 msgid "ShieldScope: Report"
 msgstr ""
 
-#: admin/views/report.php:58
+#: admin/views/report.php:59
 msgid "Item ignored. It is listed under Ignored findings and can be restored."
 msgstr ""
 
-#: admin/views/report.php:59
+#: admin/views/report.php:60
 msgid "Item restored."
 msgstr ""
 
-#: admin/views/report.php:60
+#: admin/views/report.php:61
 msgid ""
 "Not ignored: choose a reason, and add a note for Critical findings or for "
 "\"Other\"."
 msgstr ""
 
-#: admin/views/report.php:61
+#: admin/views/report.php:62
 msgid "Not ignored: that item is not in the latest scan."
 msgstr ""
 
-#: admin/views/report.php:70
+#: admin/views/report.php:71
 msgid "No completed scan yet. Run a scan first."
 msgstr ""
 
-#: admin/views/report.php:77
+#: admin/views/report.php:78
 msgid ""
 "The results of this scan could not be saved, so no report is available. Run "
 "a new scan."
 msgstr ""
 
-#: admin/views/report.php:79
+#: admin/views/report.php:80
 msgid "Report expired, run a new scan."
 msgstr ""
 
-#: admin/views/report.php:87
+#: admin/views/report.php:88
 msgid ""
 "The results of this scan could not be saved in full, so this report may be "
 "missing findings. Run a new scan."
 msgstr ""
 
 #. translators: %s: scan id
-#: admin/views/report.php:102
+#: admin/views/report.php:103
 #, php-format
 msgid "Scan ID: %s"
 msgstr ""
 
 #. translators: %s: date and time the scan finished
-#: admin/views/report.php:109
+#: admin/views/report.php:110
 #, php-format
 msgid "Scan date: %s"
 msgstr ""
 
-#: admin/views/report.php:121
+#: admin/views/report.php:122
 msgid "Download PDF report"
 msgstr ""
 
-#: admin/views/report.php:126
+#: admin/views/report.php:127
 msgid "Download CSV"
 msgstr ""
 
-#: admin/views/report.php:127
+#: admin/views/report.php:128
 msgid "Download JSON"
 msgstr ""
 
-#: admin/views/report.php:128
+#: admin/views/report.php:129
 msgid "File paths in downloads are shown relative to the WordPress folder."
 msgstr ""
 
-#: admin/views/report.php:156 includes/class-shieldscope-pdf-report.php:289
+#: admin/views/report.php:157 includes/class-shieldscope-pdf-report.php:297
 msgid "Fix first"
 msgstr ""
 
-#: admin/views/report.php:168 includes/class-shieldscope-pdf-report.php:273
+#: admin/views/report.php:169 includes/class-shieldscope-pdf-report.php:281
 msgid "Coverage:"
 msgstr ""
 
-#: admin/views/report.php:171
+#: admin/views/report.php:172
 msgid "Show every check"
 msgstr ""
 
-#: admin/views/report.php:174
+#: admin/views/report.php:175
 msgid "Check"
 msgstr ""
 
-#: admin/views/report.php:175
+#: admin/views/report.php:176
 msgid "Result"
 msgstr ""
 
-#: admin/views/report.php:176
+#: admin/views/report.php:177
 msgid "Notes"
 msgstr ""
 
 #. translators: 1: severity name, 2: number of findings
-#: admin/views/report.php:202 includes/class-shieldscope-pdf-report.php:304
+#: admin/views/report.php:203 includes/class-shieldscope-pdf-report.php:312
 #, php-format
 msgid "%1$s (%2$d)"
 msgstr ""
 
-#: admin/views/report.php:220 includes/class-shieldscope-pdf-report.php:311
+#: admin/views/report.php:221 includes/class-shieldscope-pdf-report.php:319
 msgid "Confirmed"
 msgstr ""
 
-#: admin/views/report.php:220 includes/class-shieldscope-pdf-report.php:311
+#: admin/views/report.php:221 includes/class-shieldscope-pdf-report.php:319
 msgid "Needs review"
 msgstr ""
 
 #. translators: %d: number of affected items
-#: admin/views/report.php:233
+#: admin/views/report.php:234
 #, php-format
 msgid "%d instance"
 msgid_plural "%d instances"
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/views/report.php:245
+#: admin/views/report.php:246
 msgid "Recommendation:"
 msgstr ""
 
-#: admin/views/report.php:249
+#: admin/views/report.php:250
 msgid ""
 "This is a pattern match. Open the file at the line shown and check whether "
 "the flagged code really does what the finding describes before changing "
 "anything."
 msgstr ""
 
-#: admin/views/report.php:265
+#: admin/views/report.php:266
 msgid "Affected items:"
 msgstr ""
 
-#: admin/views/report.php:265
+#: admin/views/report.php:266
 msgid "Target:"
 msgstr ""
 
-#: admin/views/report.php:276
+#: admin/views/report.php:277
 msgid "Ignore…"
 msgstr ""
 
-#: admin/views/report.php:282
+#: admin/views/report.php:283
 msgid "Reason"
 msgstr ""
 
-#: admin/views/report.php:289
+#: admin/views/report.php:290
 msgid "Note"
 msgstr ""
 
-#: admin/views/report.php:289
+#: admin/views/report.php:290
 msgid "Note (required)"
 msgstr ""
 
-#: admin/views/report.php:292
+#: admin/views/report.php:293
 msgid "Ignore this item"
 msgstr ""
 
 #. translators: %d: number of ignored findings
-#: admin/views/report.php:311
+#: admin/views/report.php:312
 #, php-format
 msgid "Ignored finding (%d)"
 msgid_plural "Ignored findings (%d)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/views/report.php:314
+#: admin/views/report.php:315
 msgid ""
 "Ignored items are left out of the counts above but still appear in the PDF, "
 "CSV and JSON downloads with their reason."
 msgstr ""
 
-#: admin/views/report.php:329
+#: admin/views/report.php:330
 msgid "Restore"
 msgstr ""
 
-#: admin/views/report.php:350
+#: admin/views/report.php:351
 msgid "Checks with no findings"
 msgstr ""
 
-#: admin/views/report.php:356 includes/class-shieldscope-pdf-report.php:354
+#: admin/views/report.php:357 includes/class-shieldscope-pdf-report.php:362
 msgid "Method and limits"
 msgstr ""
 
-#: admin/views/report.php:367
+#: admin/views/report.php:368
 msgid "Understanding Your Results"
 msgstr ""
 
-#: admin/views/report.php:368
+#: admin/views/report.php:369
 msgid "A guide to reading your security report and knowing what to do next."
 msgstr ""
 
-#: admin/views/report.php:374
+#: admin/views/report.php:375
 msgid "Severity Levels"
 msgstr ""
 
-#: admin/views/report.php:380
+#: admin/views/report.php:381
 msgid "What do the severity levels mean?"
 msgstr ""
 
-#: admin/views/report.php:386
+#: admin/views/report.php:387
 msgid ""
 "Immediate risk of data breach, site takeover, or credential exposure. Act "
 "today."
 msgstr ""
 
-#: admin/views/report.php:390
+#: admin/views/report.php:391
 msgid ""
 "Significant risk that a motivated attacker could exploit. Address within 24–"
 "48 hours."
 msgstr ""
 
-#: admin/views/report.php:394
+#: admin/views/report.php:395
 msgid ""
 "Notable weaknesses that increase attack surface. Fix during your next "
 "maintenance window."
 msgstr ""
 
-#: admin/views/report.php:398
+#: admin/views/report.php:399
 msgid ""
 "Hardening recommendations and best practices. Useful to address but not "
 "urgent."
 msgstr ""
 
-#: admin/views/report.php:402
+#: admin/views/report.php:403
 msgid "Status details and observations that require no immediate action."
 msgstr ""
 
-#: admin/views/report.php:410
+#: admin/views/report.php:411
 msgid "Where should I start?"
 msgstr ""
 
-#: admin/views/report.php:414
+#: admin/views/report.php:415
 msgid ""
 "Work through findings in severity order — Critical first, then High, then "
 "Medium. Each finding has a Recommendation section with clear steps."
 msgstr ""
 
-#: admin/views/report.php:416
+#: admin/views/report.php:417
 msgid "Fix all Critical findings immediately — these are active risks"
 msgstr ""
 
-#: admin/views/report.php:417
+#: admin/views/report.php:418
 msgid "Address High findings within 24–48 hours"
 msgstr ""
 
-#: admin/views/report.php:418
+#: admin/views/report.php:419
 msgid "Schedule Medium fixes in your next maintenance window"
 msgstr ""
 
-#: admin/views/report.php:419
+#: admin/views/report.php:420
 msgid "Work through Low and Info findings as time allows"
 msgstr ""
 
-#: admin/views/report.php:423
+#: admin/views/report.php:424
 msgid ""
 "After fixing issues, run a new scan from the Scan page — the report updates "
 "only after a fresh scan completes."
 msgstr ""
 
-#: admin/views/report.php:430
+#: admin/views/report.php:431
 msgid "Taking Action"
 msgstr ""
 
-#: admin/views/report.php:436
+#: admin/views/report.php:437
 msgid "A finding mentions a plugin I use — what do I do?"
 msgstr ""
 
-#: admin/views/report.php:440
+#: admin/views/report.php:441
 msgid ""
 "Check Dashboard → Updates first — an update may already fix the issue. If an "
 "update is available, apply it, then re-run the scan to confirm."
 msgstr ""
 
-#: admin/views/report.php:441
+#: admin/views/report.php:442
 msgid ""
 "If no update is available, visit the plugin's page on wordpress.org, open "
 "the Support tab, and post a message to the developer asking for a fix "
@@ -325,17 +325,17 @@ msgid ""
 "vulnerability is high-severity and you do not rely on it critically."
 msgstr ""
 
-#: admin/views/report.php:448
+#: admin/views/report.php:449
 msgid "How do I fix WordPress core update and integrity issues?"
 msgstr ""
 
-#: admin/views/report.php:452
+#: admin/views/report.php:453
 msgid ""
 "For outdated core: go to Dashboard → Updates and click \"Update Now\". This "
 "is always safe and takes under 2 minutes."
 msgstr ""
 
-#: admin/views/report.php:453
+#: admin/views/report.php:454
 msgid ""
 "For modified or missing core files: go to Dashboard → Updates and click \"Re-"
 "install now\" — this re-downloads all core files without touching your "
@@ -343,105 +343,105 @@ msgid ""
 "WordPress installation."
 msgstr ""
 
-#: admin/views/report.php:460
+#: admin/views/report.php:461
 msgid "How do I share this report with my developer?"
 msgstr ""
 
-#: admin/views/report.php:464
+#: admin/views/report.php:465
 msgid ""
 "The simplest way is to give your developer temporary Administrator access to "
 "this WordPress dashboard so they can view the report directly. If you prefer "
 "not to do that:"
 msgstr ""
 
-#: admin/views/report.php:466
+#: admin/views/report.php:467
 msgid ""
 "Take a screenshot or use your browser's print function (Ctrl/Cmd+P) to save "
 "the report as a PDF"
 msgstr ""
 
-#: admin/views/report.php:467
+#: admin/views/report.php:468
 msgid "Copy the key Critical and High findings and paste them into an email"
 msgstr ""
 
-#: admin/views/report.php:474
+#: admin/views/report.php:475
 msgid "About Results"
 msgstr ""
 
-#: admin/views/report.php:480
+#: admin/views/report.php:481
 msgid "Could any findings be false positives?"
 msgstr ""
 
-#: admin/views/report.php:484
+#: admin/views/report.php:485
 msgid "Yes, occasionally. Some examples:"
 msgstr ""
 
-#: admin/views/report.php:486
+#: admin/views/report.php:487
 msgid ""
 "\"No brute-force protection\" may appear even if your host applies firewall-"
 "level rate limiting that this plugin cannot detect"
 msgstr ""
 
-#: admin/views/report.php:487
+#: admin/views/report.php:488
 msgid ""
 "\"Inactive plugin present\" fires for all inactive plugins, even ones "
 "intentionally kept as backups"
 msgstr ""
 
-#: admin/views/report.php:488
+#: admin/views/report.php:489
 msgid ""
 "Version disclosure warnings (Low) are informational signals — they are not "
 "exploitable on their own"
 msgstr ""
 
-#: admin/views/report.php:490
+#: admin/views/report.php:491
 msgid ""
 "Read the description of each finding — it explains why the issue was "
 "flagged, giving you the context to judge whether it applies to your setup."
 msgstr ""
 
-#: admin/views/report.php:497
+#: admin/views/report.php:498
 msgid "I fixed an issue — why does it still appear in the report?"
 msgstr ""
 
-#: admin/views/report.php:501
+#: admin/views/report.php:502
 msgid ""
 "The report displays results from the last completed scan — it does not "
 "update automatically. Go to ShieldScope → Scan, run a new scan, and the "
 "updated report will reflect your fixes."
 msgstr ""
 
-#: admin/views/report.php:508
+#: admin/views/report.php:509
 msgid "How do I know when my site is properly secured?"
 msgstr ""
 
-#: admin/views/report.php:512
+#: admin/views/report.php:513
 msgid "A well-secured WordPress site typically shows:"
 msgstr ""
 
-#: admin/views/report.php:514
+#: admin/views/report.php:515
 msgid "Zero Critical or High findings in the report"
 msgstr ""
 
-#: admin/views/report.php:515
+#: admin/views/report.php:516
 msgid "WordPress core, all plugins, and all themes up to date"
 msgstr ""
 
-#: admin/views/report.php:516
+#: admin/views/report.php:517
 msgid "Valid SSL certificate with plenty of days remaining"
 msgstr ""
 
-#: admin/views/report.php:517
+#: admin/views/report.php:518
 msgid "Key security headers (HSTS, CSP, X-Frame-Options) all present"
 msgstr ""
 
-#: admin/views/report.php:519
+#: admin/views/report.php:520
 msgid ""
 "Security is an ongoing process, not a one-time task. Regular scans and "
 "keeping software updated are the two most effective things you can do."
 msgstr ""
 
-#: admin/views/report.php:525
+#: admin/views/report.php:526
 msgid ""
 "ShieldScope does not change your files, settings, users or content. It "
 "stores only its own scan data."
@@ -4388,83 +4388,99 @@ msgstr ""
 msgid "%1$d critical and %2$d high findings need attention first."
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:205
+#. translators: %d: number of critical findings
+#: includes/class-shieldscope-pdf-report.php:207
+#, php-format
+msgid "%d critical finding needs attention first."
+msgid_plural "%d critical findings need attention first."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of high findings
+#: includes/class-shieldscope-pdf-report.php:211
+#, php-format
+msgid "%d high finding needs attention first."
+msgid_plural "%d high findings need attention first."
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/class-shieldscope-pdf-report.php:213
 msgid ""
 "No critical or high findings. Review the medium and low findings below; a "
 "report without serious findings does not mean the site is secure."
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:250
-#: includes/class-shieldscope-pdf-report.php:456
+#: includes/class-shieldscope-pdf-report.php:258
+#: includes/class-shieldscope-pdf-report.php:464
 msgid "WordPress security audit"
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:255
+#: includes/class-shieldscope-pdf-report.php:263
 msgid "Scan date"
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:256
+#: includes/class-shieldscope-pdf-report.php:264
 msgid "Report generated"
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:257
+#: includes/class-shieldscope-pdf-report.php:265
 msgid "Scan ID"
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:258
+#: includes/class-shieldscope-pdf-report.php:266
 msgid "Tool"
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:265
+#: includes/class-shieldscope-pdf-report.php:273
 msgid ""
 "Some results of this scan could not be saved, so this report may be missing "
 "findings."
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:269
+#: includes/class-shieldscope-pdf-report.php:277
 msgid "Summary"
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:319
+#: includes/class-shieldscope-pdf-report.php:327
 msgid "What to do:"
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:323
+#: includes/class-shieldscope-pdf-report.php:331
 msgid "Affected"
 msgstr ""
 
 #. translators: %d: number of further affected items
-#: includes/class-shieldscope-pdf-report.php:331
+#: includes/class-shieldscope-pdf-report.php:339
 #, php-format
 msgid "and %d more"
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:344
+#: includes/class-shieldscope-pdf-report.php:352
 msgid "Ignored findings"
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:345
+#: includes/class-shieldscope-pdf-report.php:353
 msgid ""
 "These items were reviewed and marked as ignored on the site; they are not "
 "counted above."
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:359
+#: includes/class-shieldscope-pdf-report.php:367
 msgid "Checks run"
 msgstr ""
 
-#: includes/class-shieldscope-pdf-report.php:365
+#: includes/class-shieldscope-pdf-report.php:373
 msgid "File paths are shown relative to the WordPress root folder."
 msgstr ""
 
 #. translators: 1: ShieldScope version, 2: site address
-#: includes/class-shieldscope-pdf-report.php:464
+#: includes/class-shieldscope-pdf-report.php:472
 #, php-format
 msgid "ShieldScope %1$s · %2$s · ShieldScope did not change this site."
 msgstr ""
 
 #. translators: {PAGE_NUM} and {PAGE_COUNT} are filled in by the PDF library; keep them as they are.
-#: includes/class-shieldscope-pdf-report.php:470
+#: includes/class-shieldscope-pdf-report.php:478
 msgid "Page {PAGE_NUM} of {PAGE_COUNT}"
 msgstr ""
 

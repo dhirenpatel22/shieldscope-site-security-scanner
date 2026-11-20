@@ -34,7 +34,7 @@ class Test_A13_Strings extends TestCase {
 
 	public function test_old_product_and_menu_names_are_gone() {
 		foreach ( $this->ui_sources() as $file => $source ) {
-			$this->assertDoesNotMatchRegularExpression( '/Security Scan\b|Security Audit|Last Report/', $source, $file );
+			$this->assertDoesNotMatchRegularExpression( '/Security Scan\b|Site Security Audit|Last Report/', $source, $file );
 		}
 	}
 

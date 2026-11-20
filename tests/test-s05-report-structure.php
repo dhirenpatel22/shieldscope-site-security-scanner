@@ -70,6 +70,17 @@ class Test_S05_Report_Structure extends TestCase {
 		$this->assertStringContainsString( 'does not mean the site is secure', $html );
 	}
 
+	public function test_verdict_names_only_nonzero_severities() {
+		$this->assertSame( '4 high findings need attention first.', ShieldScope_PDF_Report::verdict( array( 'critical' => 0, 'high' => 4 ) ) );
+		$this->assertSame( '1 critical finding needs attention first.', ShieldScope_PDF_Report::verdict( array( 'critical' => 1 ) ) );
+		$this->assertSame( '2 critical and 3 high findings need attention first.', ShieldScope_PDF_Report::verdict( array( 'critical' => 2, 'high' => 3 ) ) );
+	}
+
+	public function test_check_label_not_raw_id() {
+		$html = $this->render( array( $this->row( 'low', 'Low A', 'security_config' ) ) );
+		$this->assertStringNotContainsString( '>security_config<', $html );
+	}
+
 	public function test_description_html_is_escaped() {
 		$html = $this->render( array( $this->row( 'low', 'Low A' ) ) );
 		$this->assertStringNotContainsString( '<b>bold</b>', $html );
