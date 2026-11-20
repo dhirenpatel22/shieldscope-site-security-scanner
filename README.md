@@ -1,148 +1,90 @@
-# ShieldScope – Site Security Scanner
+# ShieldScope
 
-A deep, read-only security scanner for WordPress that audits **core, users, filesystem, plugins, themes, code patterns, HTTP headers, injection vulnerabilities, access control, SSRF, and the database** — and does it without hogging your server.
+A WordPress security audit you run from the admin. It checks core, plugins, themes, users, files and server settings, and produces a report grouped by severity with a recommendation, evidence (file, line, snippet) and a **Confirmed** or **Needs review** label for every finding. The report downloads as PDF, CSV or JSON.
 
-## Why another security plugin?
+ShieldScope is an audit, not a firewall: it does not block traffic, clean files, use a database of known malicious code, or monitor the site between scans. Pattern-based findings are labelled **Needs review** and are never Critical.
 
-Most WP security plugins either:
+- **What it checks, rule by rule:** [`docs/rules.md`](docs/rules.md) (generated from the source; 16 checks).
+- **How severities are chosen:** [`docs/severity-rubric.md`](docs/severity-rubric.md).
+- **False-positive testing:** [`docs/accuracy.md`](docs/accuracy.md): the code rules run against pinned versions of WooCommerce, Yoast SEO, Elementor, Jetpack and other popular plugins on every pull request, and fail on any Critical or High finding.
 
-- Run synchronously and freeze admin for a minute while they thrash your CPU, or
-- Run as a background service that you can't pause, tune, or see progress on.
+## How a scan runs
 
-This one is built differently:
+- The scan works in short steps (default 2 s each) and saves its place after every step, so it can be paused, resumed and survive a closed tab.
+- **Scan pace** (default 20%) is the share of time spent working: after each step the next one waits `work × (100 − pace) / pace` seconds. The wait happens between requests, not inside them, so no PHP worker is held while the scan rests. It is not a CPU limit.
+- With the scan page open, the page drives the scan. With **Background scanning** on (default), it also continues through WP-Cron after the page is closed, and an admin notice appears when it finishes. WP-Cron runs on site visits (or a server cron job), so a closed-page scan on a quiet site is slower.
+- The report shows **coverage**: which checks completed in full, partly (and why: files skipped, no WPScan key, Developer review off) or with an error.
+- **Developer review** (off by default) adds the injection and SSRF code-pattern scans, which only produce findings to review.
 
-- **CPU-throttled.** Every unit of work is followed by a proportional sleep. At the default 20% limit, the scanner sleeps 4× longer than it works.
-- **Chunked over AJAX.** Work is broken into tiny pieces the browser drives via AJAX. No request is ever long-running.
-- **Resumable.** Scan state lives in `wp_options`. Reload the tab, come back tomorrow — it picks up where it left off.
-- **Focus-aware.** If you switch tabs, the scan pauses. When you come back, it resumes. Your server never gets pounded in the background.
-- **Read-only.** The scanner never writes to your files, users, or options (only to its own findings table).
+## Data and privacy
 
-## What it checks
+Scan results stay in the WordPress database. During a scan ShieldScope sends requests to the site itself (headers, HTTPS, files that should not be public) and contacts:
 
-| Area | What's inspected |
-|---|---|
-| **Core config** | WP version, hardening constants (`DISALLOW_FILE_EDIT`, `FORCE_SSL_ADMIN`, etc.), salts, `WP_DEBUG`, table prefix, HTTPS, XML-RPC, REST user enumeration |
-| **Core integrity** | Every core file MD5-verified against `api.wordpress.org` checksums; flags modified files and unknown files inside `wp-admin` / `wp-includes` |
-| **Users** | Default `admin` account, admin count, weak/legacy password hashes, empty passwords, display-name/login leak, recently-created admins |
-| **Filesystem** | `wp-config.php` permissions, world-writable directories, `readme.html` exposure, PHP files in `uploads/`, backup artefacts (`.bak`, `.sql`), directory listing |
-| **Plugins** | Pending updates, inactive plugins, missing PluginURI/UpdateURI, abandoned plugins |
-| **Themes** | Pending updates, extra inactive themes, default-theme fallback |
-| **Code patterns** | `eval(base64_decode(...))` backdoors, `shell_exec` / `passthru` / `proc_open` / `popen` / `system`, include/require on superglobals, missing `ABSPATH` guards, unprepared `$wpdb` queries, unescaped `echo` of superglobals, `file_put_contents()` on user input, long base64 payloads |
-| **HTTP headers** | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Strict-Transport-Security`, WP generator meta leak, brute-force throttle plugin presence |
-| **Database** | Open registration with `administrator` default role, `siteurl` vs `home` host mismatch, recently-created administrator accounts |
-| **Injection** | PHP object injection (direct + multi-line taint tracking + co-occurrence heuristics), variable-variable injection, `extract()` on superglobals, `create_function()`, `preg_replace()` `/e` modifier, `call_user_func()` on user input, SQL injection via `sprintf`/`$wpdb`, XSS via `printf`/`echo`, LDAP injection, XXE, PHP `register_globals`/`allow_url_include` |
-| **Access control** | Unauthenticated REST API write probe, Application Passwords on admin accounts, username exposure via `?author=` redirect, login page brute-force and 2FA plugin detection, AJAX handlers without nonce/capability checks, admin pages without `current_user_can()` |
-| **Security misconfiguration** | PHP EOL version (7.x → Critical, 8.0 → High, 8.1 → Medium, 8.2 → Low), server/PHP version disclosure in response headers, publicly accessible `.env` / `.git/config` / `debug.log` / `phpinfo.php`, WP-Cron HTTP vs server cron, cookie security (`FORCE_SSL_ADMIN`, `COOKIE_DOMAIN`), PHP dangerous functions (`exec`, `shell_exec`, etc.) |
-| **SSRF** | `wp_remote_*()` / `file_get_contents()` / `cURL` / `fsockopen()` called with user-controlled URLs, open redirects via `wp_redirect()` / `header(Location:)`, oEmbed REST proxy exposure, pingback, `allow_url_fopen` |
-| **Vulnerable components** | MySQL/MariaDB EOL detection, WordPress version ranges with critical known CVEs, plugins with high historical CVE counts, HTTP-to-HTTPS redirect verification |
-| **Vulnerability database** | WPScan API integration (optional key, 25 req/day, 24 h cache) for every installed plugin and theme; built-in curated CVE list for 18+ commonly-exploited plugins |
+| Service | Sent | When |
+|---|---|---|
+| `api.wordpress.org/core/checksums` | WordPress version and locale | Core integrity check |
+| `api.wordpress.org/plugins/info` | Folder names (slugs) of installed plugins | Plugins check (closed / unmaintained plugins) |
+| `wpscan.com` | Plugin and theme slugs | Only with a WPScan API key (free key: 25 requests a day, non-commercial) |
 
-Findings are grouped by severity: **Critical / High / Medium / Low / Info**.
+ShieldScope does not change files, settings, users or content. It stores its settings and scan progress (options), cached lookups (transients), a findings table and scheduled tasks; `uninstall.php` removes all of them.
 
-## Installation
+## Using it
 
-### From a zip
+1. **ShieldScope → Scan**, then **Start Scan**.
+2. **ShieldScope → Report**: verdict, "Fix first" list, findings by severity with evidence, coverage, checks with no findings, and "Method and limits".
+3. **Ignore…** under any affected item records a reason (accepted risk, false positive, handled by host or CDN, other; a note is required for Critical). Ignored items leave the counts but stay listed, with their reason, on the page and in every download.
+4. **Download PDF / CSV / JSON**. Paths are relative to the WordPress folder; CSV cells that could run as spreadsheet formulas are neutralised.
 
-1. Download `shieldscope.zip`.
-2. In WP admin, go to **Plugins → Add New → Upload Plugin**.
-3. Choose the zip and click **Install Now**, then **Activate**.
+On multisite only super admins can use ShieldScope.
 
-### Manually via SFTP
+## Plugin security
 
-1. Unzip the archive.
-2. Upload the `shieldscope/` folder to `wp-content/plugins/`.
-3. Activate from the **Plugins** screen.
-
-## Usage
-
-1. Open **Security Scan** in the admin sidebar.
-2. Optionally visit **Security Scan → Settings** and adjust:
-   - **Max CPU usage** (default 20%)
-   - **Chunk time budget** (default 2 s per AJAX chunk)
-   - **Skip files larger than N MB** (default 2 MB)
-   - **Pause when tab is hidden** (default on)
-   - **WPScan API Key** (optional — enables live CVE lookups for every installed plugin and theme)
-3. Click **Start Scan**.
-4. When complete, visit **Security Scan → Last Report** for findings grouped by severity.
-
-## How the throttle works
-
-After every unit of work the scanner computes:
-
-```
-sleep_seconds = work_seconds × (100 − cpu_limit) / cpu_limit   (capped at 2s)
-```
-
-So at `cpu_limit = 20`, it sleeps `work_seconds × 4`. Combined with AJAX chunking, the scan stays well under ~20% of one CPU core.
-
-## How focus-lock works
-
-The admin JS listens for `window.blur`, `window.focus`, and `visibilitychange`. When the scan tab is no longer the active tab:
-
-1. JS calls `ssa_pause` — the server stops doing work.
-2. A friendly banner appears on the page. The document title changes to `⏸ Scan paused — come back!` so you see it in the tab bar.
-3. On focus return, JS calls `ssa_resume` and the scan continues from where it stopped.
-
-You can disable this in **Settings → Pause when tab is hidden** if you prefer the scan to continue in the background.
-
-## Security posture of the plugin itself
-
-- `ABSPATH` guard on every PHP file.
-- Every AJAX handler and admin page: `current_user_can('manage_options')` + nonce verification.
-- All input passed through `wp_unslash()` + appropriate sanitize function.
-- All queries use `$wpdb->prepare()`; schema built via `dbDelta()`.
-- All output escaped (`esc_html`, `esc_attr`, `esc_url`, `wp_kses_post`).
-- Singleton with `__clone` / `__wakeup` guards.
-- Autoloader scoped to the `SSA_` prefix.
-- `uninstall.php` removes the findings table, options, transients, and cron events cleanly.
+- Every admin page, AJAX action and download checks the capability (`manage_options`, or `manage_network_options` on multisite) and a nonce.
+- Input is unslashed and sanitised; queries use `$wpdb->prepare()`; output is escaped at render (`esc_html`, `esc_attr`, `esc_url`). Text from scanned files is treated as untrusted everywhere, including the PDF.
+- The PDF library (Dompdf 3.1.6) is bundled under the `ShieldScope\Vendor` namespace and runs with remote loading, PHP and JavaScript off and file access limited to its font folder.
 
 ## File layout
 
 ```
-shieldscope/
-├── shieldscope-site-security-scanner.php  # bootstrap, constants, autoloader
-├── uninstall.php                          # clean DB on plugin delete
-├── readme.txt                             # WP.org-style readme
-├── README.md                              # this file
-├── includes/
-│   ├── class-ssa-core.php               # singleton controller, activation hooks
-│   ├── class-ssa-scanner.php            # chunked scan engine + resumable state
-│   ├── class-ssa-throttle.php           # CPU sleep logic
-│   ├── class-ssa-logger.php             # findings persistence
-│   ├── class-ssa-ajax.php               # AJAX endpoints
-│   ├── class-ssa-admin.php              # menus, enqueue, settings save
-│   └── checks/                            # one file per check module
-│       ├── class-ssa-check-base.php
-│       ├── class-ssa-check-core.php
-│       ├── class-ssa-check-core-integrity.php
-│       ├── class-ssa-check-users.php
-│       ├── class-ssa-check-database.php
-│       ├── class-ssa-check-filesystem.php
-│       ├── class-ssa-check-plugins.php
-│       ├── class-ssa-check-themes.php
-│       ├── class-ssa-check-config.php
-│       ├── class-ssa-check-code-patterns.php
-│       ├── class-ssa-check-injection.php
-│       ├── class-ssa-check-access-control.php
-│       ├── class-ssa-check-security-config.php
-│       ├── class-ssa-check-ssrf.php
-│       ├── class-ssa-check-components.php
-│       └── class-ssa-check-vuln-db.php
-├── admin/
-│   ├── views/                             # scan.php, report.php, settings.php
-│   ├── js/admin.js
-│   └── css/admin.css
-└── languages/
-    └── shieldscope.pot
+shieldscope-site-security-scanner.php   plugin header, constants, autoloader
+uninstall.php                           removes options, transients, cron events, findings table
+admin/
+  views/scan.php, report.php, settings.php
+  js/admin.js, css/admin.css
+includes/
+  class-shieldscope-core.php            hooks, activation, cron handlers, upgrade
+  class-shieldscope-scanner.php         resumable scan engine, tick lock, background scan, per-check progress
+  class-shieldscope-throttle.php        scan pace (rest between steps)
+  class-shieldscope-logger.php          findings table
+  class-shieldscope-coverage.php        per-check coverage of a completed scan
+  class-shieldscope-ignore.php          ignored findings
+  class-shieldscope-pdf-report.php      PDF download
+  class-shieldscope-export.php          CSV and JSON downloads
+  class-shieldscope-ajax.php            scan AJAX endpoints
+  class-shieldscope-admin.php           menus, settings, notices, shared statements
+  class-shieldscope-eol-data.php        dated end-of-life tables (PHP, MySQL, MariaDB, WordPress)
+  class-shieldscope-probe.php           requests to the site itself
+  checks/class-shieldscope-check-*.php  the 16 checks and their shared base
+vendor-prefixed/                        bundled PDF library (built by bin/prefix-vendor.php)
+languages/                              translation template
+docs/                                   rules, severity rubric, accuracy
+tests/                                  PHPUnit tests, Playground smoke run, false-positive corpus manifest
+bin/                                    release checks, corpus, rule catalogue, .pot, vendor prefixing
 ```
+
+## Development
+
+- Tests: `phpunit` (PHPUnit 9.6). Release checks: `bin/verify-release.sh`.
+- Real WordPress (Playground, PHP 7.4): `tests/smoke/run.sh` runs a scan, the PDF, and a background (cron-only) scan.
+- False-positive corpus: `php bin/fp-corpus.php`.
+- After changing a finding: `php bin/rule-catalogue.php` (a test fails if `docs/rules.md` is stale).
+- After changing strings: `bin/make-pot.sh`.
+- After changing the PDF library: `composer install --no-dev && php bin/prefix-vendor.php`.
 
 ## Requirements
 
-- WordPress 5.8+
-- PHP 7.4+
-- The core integrity and access-control checks call external URLs (`api.wordpress.org`, your own site); outbound HTTPS is required for those checks.
-- The WPScan API key feature requires outbound HTTPS to `wpscan.com` (optional).
+WordPress 5.8+, PHP 7.4+. Outbound HTTPS for the WordPress.org checks (and WPScan if used). PDF download needs the PHP `dom` and `mbstring` extensions.
 
 ## License
 
-GPL-2.0-or-later. See `readme.txt` for the full license notice.
+GPL-2.0-or-later. Bundled libraries keep their licences (LGPL-2.1, LGPL-2.1-or-later, LGPL-3.0-or-later, MIT); see `readme.txt`.
