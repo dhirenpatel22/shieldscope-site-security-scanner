@@ -85,5 +85,9 @@ function shieldscope_bootstrap() {
 	// Text domain is loaded automatically by WordPress when the plugin is hosted
 	// on wordpress.org — no manual load_plugin_textdomain() call needed (WP 4.6+).
 	ShieldScope_Core::instance()->init();
+
+	if ( defined( 'WP_CLI' ) && WP_CLI ) {
+		WP_CLI::add_command( 'shieldscope', 'ShieldScope_CLI' );
+	}
 }
 add_action( 'plugins_loaded', 'shieldscope_bootstrap' );

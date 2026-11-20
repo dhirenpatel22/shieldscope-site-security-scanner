@@ -132,6 +132,10 @@ Not always. Configuration and version findings are facts. Findings titled "Match
 
 No. ShieldScope audits configuration, versions and code patterns. It does not use a malware signature database, clean files, block traffic or monitor the site between scans.
 
+= Can I run it from the command line or CI? =
+
+Yes, with WP-CLI: `wp shieldscope scan` runs a full scan and prints the findings (`--format=table|json|csv|summary`). It exits with status 1 when there is a finding at or above `--fail-on` (default `critical`; ignored findings do not count). `wp shieldscope report` prints the last report.
+
 = Where can I see every rule ShieldScope checks? =
 
 The full rule catalogue, with an ID, severity and the limits of each check, is in docs/rules.md in the plugin's GitHub repository (https://github.com/dhirenpatel22/shieldscope-site-security-scanner/blob/main/docs/rules.md). How false positives are tested is in docs/accuracy.md.
