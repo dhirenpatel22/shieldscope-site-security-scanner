@@ -324,7 +324,7 @@ class Test_A11b_Step_Budget_Walker extends TestCase {
 		$this->assertCount( 1, $logger->findings );
 		$this->assertSame( ShieldScope_Logger::SEVERITY_INFO, $logger->findings[0]['severity'] );
 		$this->assertSame( $this->root, $logger->findings[0]['target'] );
-		$this->assertStringContainsString( 'Folders skipped (vendor, node_modules, .git): 2.', $logger->findings[0]['description'] );
+		$this->assertStringContainsString( 'Folders skipped (such as vendor, node_modules, .git): 2.', $logger->findings[0]['description'] );
 		$this->assertStringContainsString( 'Symlinked folders not followed: 1.', $logger->findings[0]['description'] );
 		$this->assertStringContainsString( 'Files skipped (too large or unreadable): 1.', $logger->findings[0]['description'] );
 	}

@@ -505,7 +505,7 @@ foreach ( (array) $findings as $f ) {
 			<div class="shieldscope-faq-answer">
 				<p><?php esc_html_e( 'The simplest way is to give your developer temporary Administrator access to this WordPress dashboard so they can view the report directly. If you prefer not to do that:', 'shieldscope-site-security-scanner' ); ?></p>
 				<ul>
-					<li><?php esc_html_e( 'Take a screenshot or use your browser\'s print function (Ctrl/Cmd+P) to save the report as a PDF', 'shieldscope-site-security-scanner' ); ?></li>
+					<li><?php esc_html_e( 'Use Download PDF report at the top of this page (or Download CSV / JSON for a spreadsheet or another tool)', 'shieldscope-site-security-scanner' ); ?></li>
 					<li><?php esc_html_e( 'Copy the key Critical and High findings and paste them into an email', 'shieldscope-site-security-scanner' ); ?></li>
 				</ul>
 			</div>

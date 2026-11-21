@@ -421,11 +421,16 @@ class SS_Test_WPDB {
 	public $options = 'wp_options';
 	public function query( $sql ) {
 		$this->queries[] = $sql;
-		// The scan lock row: an INSERT IGNORE that succeeds once.
-		return 0 === strpos( ltrim( $sql ), 'INSERT IGNORE' ) ? 1 : 0;
+		// The scan lock row: INSERT IGNORE, renewal UPDATE and release DELETE succeed.
+		return preg_match( '/^\s*(?:INSERT IGNORE|UPDATE|DELETE)\b/', $sql ) ? 1 : 0;
 	}
 	public function get_var( $sql = null ) { return null; }
 	public function get_results( $sql = null, $output = null ) { return array(); }
+	public $insert_id = 0;
+	public function insert( $table, $data ) {
+		++$this->insert_id;
+		return 1;
+	}
 }
 
 // ---------------------------------------------------------------------------

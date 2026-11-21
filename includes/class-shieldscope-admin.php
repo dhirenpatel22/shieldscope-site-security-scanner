@@ -395,10 +395,24 @@ class ShieldScope_Admin {
 		}
 
 		// A preset sets pace and step time together (S-15); "custom" keeps the fields.
+		// If the pace or step fields were changed and do not match the chosen
+		// preset, the typed values win (SC2-06).
 		$presets = self::load_presets();
 		if ( isset( $raw['load_preset'], $presets[ $raw['load_preset'] ] ) ) {
-			$raw['cpu_limit']        = $presets[ $raw['load_preset'] ][1];
-			$raw['chunk_time_limit'] = $presets[ $raw['load_preset'] ][2];
+			$preset = $presets[ $raw['load_preset'] ];
+			$posted = array(
+				isset( $raw['cpu_limit'] ) ? (int) $raw['cpu_limit'] : $preset[1],
+				isset( $raw['chunk_time_limit'] ) ? (int) $raw['chunk_time_limit'] : $preset[2],
+			);
+			$before = array(
+				isset( $existing['cpu_limit'] ) ? (int) $existing['cpu_limit'] : 20,
+				isset( $existing['chunk_time_limit'] ) ? (int) $existing['chunk_time_limit'] : 2,
+			);
+			$edited = $posted !== $before && $posted !== array( $preset[1], $preset[2] );
+			if ( ! $edited ) {
+				$raw['cpu_limit']        = $preset[1];
+				$raw['chunk_time_limit'] = $preset[2];
+			}
 		}
 
 		$clean = array(

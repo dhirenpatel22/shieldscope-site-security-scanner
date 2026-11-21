@@ -81,15 +81,6 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Steps.
-	 *
-	 * fetch   — pull the checksums JSON from api.wordpress.org
-	 * verify  — walk checksums, verify each file's md5 (resumable, batched)
-	 * extras  — walk wp-admin / wp-includes for files NOT in checksums
-	 *
-	 * @return array
-	 */
-	/**
 	 * Steps a quick scan skips.
 	 *
 	 * @return string[]
@@ -98,6 +89,15 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 		return array( 'verify', 'extras' );
 	}
 
+	/**
+	 * Steps.
+	 *
+	 * fetch   — pull the checksums JSON from api.wordpress.org
+	 * verify  — walk checksums, verify each file's md5 (resumable, batched)
+	 * extras  — walk wp-admin / wp-includes for files NOT in checksums
+	 *
+	 * @return array
+	 */
 	public function get_steps() {
 		return array( 'fetch', 'verify', 'extras', 'persistence' );
 	}
@@ -263,37 +263,46 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 		}
 		$checksums = $cached['checksums'];
 
-		if ( ! isset( $cursor['keys'] ) ) {
-			// Filter out entries we deliberately don't want to police.
-			$skip_prefixes = array(
-				'wp-content/', // User content — owned by the user, not core.
-			);
-			$skip_paths = array(
-				'wp-config-sample.php',
-				'readme.html',
-				'license.txt',
-			);
+		// The file list is rebuilt from the cached checksums on each call; only
+		// a position is kept in the cursor, which is saved in the scan state
+		// after every step (SC2-13: about 3,000 paths otherwise).
+		// Filter out entries we deliberately don't want to police.
+		$skip_prefixes = array(
+			'wp-content/', // User content — owned by the user, not core.
+		);
+		$skip_paths = array(
+			'wp-config-sample.php',
+			'readme.html',
+			'license.txt',
+		);
 
-			$keys = array();
-			foreach ( $checksums as $path => $hash ) {
-				if ( ! is_string( $path ) || ! is_string( $hash ) ) {
-					continue;
-				}
-				$skip = false;
-				foreach ( $skip_prefixes as $p ) {
-					if ( 0 === strpos( $path, $p ) ) {
-						$skip = true;
-						break;
-					}
-				}
-				if ( $skip || in_array( $path, $skip_paths, true ) ) {
-					continue;
-				}
-				$keys[] = $path;
+		$keys = array();
+		foreach ( $checksums as $path => $hash ) {
+			if ( ! is_string( $path ) || ! is_string( $hash ) ) {
+				continue;
 			}
+			$skip = false;
+			foreach ( $skip_prefixes as $p ) {
+				if ( 0 === strpos( $path, $p ) ) {
+					$skip = true;
+					break;
+				}
+			}
+			if ( $skip || in_array( $path, $skip_paths, true ) ) {
+				continue;
+			}
+			$keys[] = $path;
+		}
+		sort( $keys );
 
+		if ( isset( $cursor['keys'] ) ) {
+			// Cursor saved by an earlier version: convert the list to a position.
+			$cursor['offset'] = max( 0, count( $keys ) - count( (array) $cursor['keys'] ) );
+			unset( $cursor['keys'] );
+		}
+		if ( ! isset( $cursor['offset'] ) ) {
 			$cursor = array(
-				'keys'    => $keys,
+				'offset'  => 0,
 				'total'   => count( $keys ),
 				'bad'     => 0,
 				'missing' => 0,
@@ -306,8 +315,9 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 		}
 
 		$seen = 0;
-		while ( ! empty( $cursor['keys'] ) && $seen < self::VERIFY_BATCH ) {
-			$path     = array_shift( $cursor['keys'] );
+		while ( $cursor['offset'] < count( $keys ) && $seen < self::VERIFY_BATCH ) {
+			$path     = $keys[ $cursor['offset'] ];
+			++$cursor['offset'];
 			$expected = isset( $checksums[ $path ] ) ? $checksums[ $path ] : '';
 			$full     = ABSPATH . $path;
 
@@ -342,7 +352,7 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 		}
 
 		// More files left? Ask the scanner to call us again with the cursor.
-		if ( ! empty( $cursor['keys'] ) ) {
+		if ( $cursor['offset'] < count( $keys ) ) {
 			return array( 'continue' => true, 'cursor' => $cursor );
 		}
 

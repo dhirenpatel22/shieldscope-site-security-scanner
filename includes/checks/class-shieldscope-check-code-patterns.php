@@ -69,11 +69,6 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Steps.
-	 *
-	 * @return array
-	 */
-	/**
 	 * Steps a quick scan skips.
 	 *
 	 * @return string[]
@@ -82,6 +77,11 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 		return array( 'scan_plugins', 'scan_themes' );
 	}
 
+	/**
+	 * Steps.
+	 *
+	 * @return array
+	 */
 	public function get_steps() {
 		return array( 'scan_plugins', 'scan_themes' );
 	}

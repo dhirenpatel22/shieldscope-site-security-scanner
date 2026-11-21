@@ -16,7 +16,9 @@ class Test_Throttle extends TestCase {
 		// Reflection to read the private property after construction.
 		$read = function ( $throttle, $prop ) {
 			$r = new ReflectionProperty( ShieldScope_Throttle::class, $prop );
-			$r->setAccessible( true );
+			if ( PHP_VERSION_ID < 80100 ) {
+				$r->setAccessible( true ); // No effect (and deprecated) from PHP 8.1.
+			}
 			return $r->getValue( $throttle );
 		};
 
@@ -29,7 +31,9 @@ class Test_Throttle extends TestCase {
 	public function test_chunk_time_limit_is_clamped() {
 		$read = function ( $throttle ) {
 			$r = new ReflectionProperty( ShieldScope_Throttle::class, 'chunk_time_limit' );
-			$r->setAccessible( true );
+			if ( PHP_VERSION_ID < 80100 ) {
+				$r->setAccessible( true ); // No effect (and deprecated) from PHP 8.1.
+			}
 			return $r->getValue( $throttle );
 		};
 

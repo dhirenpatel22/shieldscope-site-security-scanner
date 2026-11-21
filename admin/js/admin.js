@@ -477,3 +477,20 @@
 	input.addEventListener( 'input', apply );
 	review.addEventListener( 'change', apply );
 } )();
+
+// ── Settings page: editing pace or step time switches the preset to Custom (SC2-06).
+( function () {
+	'use strict';
+	var preset = document.getElementById( 'shieldscope_load_preset' );
+	if ( ! preset ) {
+		return;
+	}
+	[ 'shieldscope_cpu_limit', 'shieldscope_chunk_time' ].forEach( function ( id ) {
+		var field = document.getElementById( id );
+		if ( field ) {
+			field.addEventListener( 'input', function () {
+				preset.value = 'custom';
+			} );
+		}
+	} );
+} )();

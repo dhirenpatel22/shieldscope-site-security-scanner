@@ -667,7 +667,7 @@ abstract class ShieldScope_Check_Base {
 				__( 'Some files were not scanned', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: 1: number of folders, 2: number of symlinked folders, 3: number of files */
-					__( 'Folders skipped (vendor, node_modules, .git): %1$d. Symlinked folders not followed: %2$d. Files skipped (too large or unreadable): %3$d.', 'shieldscope-site-security-scanner' ),
+					__( 'Folders skipped (such as vendor, node_modules, .git): %1$d. Symlinked folders not followed: %2$d. Files skipped (too large or unreadable): %3$d.', 'shieldscope-site-security-scanner' ),
 					$cursor['skipped']['dirs'],
 					$cursor['skipped']['links'],
 					$cursor['skipped']['files']
