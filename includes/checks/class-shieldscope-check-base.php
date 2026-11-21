@@ -264,17 +264,27 @@ abstract class ShieldScope_Check_Base {
 	 * @return string
 	 */
 	public static function code_view( $contents, $keep_strings = false ) {
+		$views = self::code_views( $contents );
+		return $keep_strings ? $views[1] : $views[0];
+	}
+
+	/**
+	 * Both views of a file from one tokenizer pass: the code view (comments,
+	 * string text and inline HTML blanked) and the same with strings kept.
+	 *
+	 * @param string $contents PHP source.
+	 * @return string[] array( code view, view with strings ).
+	 */
+	public static function code_views( $contents ) {
 		if ( ! function_exists( 'token_get_all' ) ) {
-			return $contents;
+			return array( $contents, $contents );
 		}
 		$code = '';
+		$keep = '';
 		foreach ( @token_get_all( $contents ) as $token ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- scanned files may be malformed.
 			if ( ! is_array( $token ) ) {
 				$code .= $token;
-				continue;
-			}
-			if ( $keep_strings && T_COMMENT !== $token[0] && T_DOC_COMMENT !== $token[0] ) {
-				$code .= $token[1];
+				$keep .= $token;
 				continue;
 			}
 			// Blanked tokens keep their line breaks so offsets map to the same line.
@@ -282,18 +292,103 @@ abstract class ShieldScope_Check_Base {
 			switch ( $token[0] ) {
 				case T_COMMENT:
 				case T_DOC_COMMENT:
+					$code .= ' ' . $breaks;
+					$keep .= ' ' . $breaks;
+					break;
 				case T_ENCAPSED_AND_WHITESPACE:
 				case T_INLINE_HTML:
 					$code .= ' ' . $breaks;
+					$keep .= $token[1];
 					break;
 				case T_CONSTANT_ENCAPSED_STRING:
 					$code .= "''" . $breaks;
+					$keep .= $token[1];
 					break;
 				default:
 					$code .= $token[1];
+					$keep .= $token[1];
 			}
 		}
-		return $code;
+		return array( $code, $keep );
+	}
+
+	/**
+	 * Largest file that is tokenized; bigger files are checked on raw text.
+	 * token_get_all() needs about 30-100 times the file size in memory (SC2-01).
+	 */
+	const TOKENIZE_MAX_BYTES = 524288;
+
+	/**
+	 * When true (the step was killed once), files are not tokenized at all.
+	 *
+	 * @var bool
+	 */
+	private $careful = false;
+
+	/**
+	 * Set careful mode for the next step (retry after a killed request).
+	 *
+	 * @param bool $careful Careful.
+	 * @return void
+	 */
+	public function set_careful( $careful ) {
+		$this->careful = (bool) $careful;
+	}
+
+	/**
+	 * Can this many bytes be tokenized within the PHP memory limit?
+	 *
+	 * @param int $bytes File size.
+	 * @return bool
+	 */
+	public static function can_tokenize( $bytes ) {
+		if ( $bytes > self::TOKENIZE_MAX_BYTES ) {
+			return false;
+		}
+		$limit = self::bytes_from_ini( (string) ini_get( 'memory_limit' ) );
+		if ( $limit <= 0 ) {
+			return true; // No limit.
+		}
+		return memory_get_usage() + 100 * $bytes < 0.8 * $limit;
+	}
+
+	/**
+	 * Bytes from a php.ini size such as "128M" (-1 or 0: no limit).
+	 *
+	 * @param string $value Ini value.
+	 * @return int
+	 */
+	public static function bytes_from_ini( $value ) {
+		$value = trim( $value );
+		$num   = (int) $value;
+		switch ( strtolower( substr( $value, -1 ) ) ) {
+			case 'g':
+				$num *= 1024;
+				// Fall through.
+			case 'm':
+				$num *= 1024;
+				// Fall through.
+			case 'k':
+				$num *= 1024;
+		}
+		return $num;
+	}
+
+	/**
+	 * Code view and view-with-strings for a file, or the raw text twice when
+	 * the file is too large for the memory available or the step is being
+	 * retried after a killed request (SC2-01). Raw text still runs every
+	 * rule, only without comment and string removal; the coverage says so.
+	 *
+	 * @param string $contents PHP source.
+	 * @return string[] array( code view, view with strings ).
+	 */
+	protected function views( $contents ) {
+		if ( $this->careful || ! self::can_tokenize( strlen( $contents ) ) ) {
+			$this->note_partial( __( 'some large or dense files were checked on their raw text (comments and strings not removed)', 'shieldscope-site-security-scanner' ) );
+			return array( $contents, $contents );
+		}
+		return self::code_views( $contents );
 	}
 
 	/**

@@ -37,6 +37,13 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 	private $max_file_size;
 
 	/**
+	 * The current file with comments removed and strings kept.
+	 *
+	 * @var string
+	 */
+	private $with_strings = '';
+
+	/**
 	 * Constructor.
 	 *
 	 * @param string       $scan_id Scan ID.
@@ -131,7 +138,7 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 		}
 
 		$this->rx_failed = false;
-		$code            = self::code_view( $contents );
+		list( $code, $this->with_strings ) = $this->views( $contents );
 		$raw             = $this->neutralise_safe_calls( $code );
 
 		$this->phase1_direct_patterns( $path, $contents, $raw );
@@ -257,7 +264,7 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 				self::evidence( $contents, $raw, $at )
 			);
 		}
-		$no_comments = self::code_view( $contents, true );
+		$no_comments = $this->with_strings;
 		$at = $this->rx_offset( '/preg_replace\s*\(\s*["\'][^"\']*\/e[imsuUxAJD]*["\'][^,]*,/i', $no_comments );
 		if ( $at >= 0 ) {
 			$this->finding(
@@ -378,17 +385,13 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 		$sg      = '\$_(?:GET|POST|REQUEST|COOKIE)\b';
 		$tainted = array();
 
-		// $var = <expression containing raw request data>;
-		$result = preg_match_all( '/\$(\w+)\s*=(?![=>])([^;]*);/', $raw, $m, PREG_SET_ORDER );
-		if ( false === $result || PREG_NO_ERROR !== preg_last_error() ) {
-			$this->rx_failed = true;
-		} else {
-			foreach ( $m as $match ) {
-				if ( $this->rx_match( '/' . $sg . '|\b\w+::get_(?:post_)?param\s*\(|\bfilter_input\s*\(\s*INPUT_(?:POST|GET|REQUEST|COOKIE)/i', $match[2] ) ) {
-					$tainted[] = $match[1];
-				}
-			}
-		}
+		// $var = <expression containing raw request data>; only those
+		// assignments are collected, so a file with many statements does not
+		// build a huge match list (SC2-01).
+		$tainted = array_merge(
+			$tainted,
+			$this->rx_all( '/\$(\w+)\s*=(?![=>])[^;]*?(?:' . $sg . '|\b\w+::get_(?:post_)?param\s*\(|\bfilter_input\s*\(\s*INPUT_(?:POST|GET|REQUEST|COOKIE))[^;]*;/i', $raw )
+		);
 
 		// wp_parse_str( $_POST['q'], $output ) — $output becomes tainted.
 		$tainted = array_merge( $tainted, $this->rx_all( '/wp_parse_str\s*\([^,;]*' . $sg . '[^,;]*,\s*\$(\w+)/i', $raw ) );
@@ -421,7 +424,7 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 	 * @return void
 	 */
 	private function phase3_cooccurrence( $path, $contents, $code ) {
-		$no_comments           = self::code_view( $contents, true );
+		$no_comments           = $this->with_strings;
 		$has_user_input        = $this->rx_match( '/\$_(?:GET|POST|REQUEST|COOKIE)\s*\[/i', $code );
 		$has_nopriv_ajax       = $this->rx_match( "/add_action\s*\(\s*['\"]wp_ajax_nopriv_/i", $no_comments );
 		$has_any_ajax          = $this->rx_match( "/add_action\s*\(\s*['\"]wp_ajax_/i", $no_comments );
