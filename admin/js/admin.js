@@ -433,3 +433,40 @@
 		poll();
 	}
 } )( jQuery );
+
+// ── Report page: filter findings (S-09) ──────────────────────────────────
+( function () {
+	'use strict';
+
+	var input  = document.getElementById( 'shieldscope-filter-text' );
+	var review = document.getElementById( 'shieldscope-filter-review' );
+	var count  = document.getElementById( 'shieldscope-filter-count' );
+	if ( ! input || ! review ) {
+		return;
+	}
+	var items    = Array.prototype.slice.call( document.querySelectorAll( '.shieldscope-sev-section .shieldscope-finding' ) );
+	var sections = Array.prototype.slice.call( document.querySelectorAll( '.shieldscope-sev-section' ) );
+	var labels   = ( window.ShieldScope && window.ShieldScope.i18n ) || {};
+
+	function apply() {
+		var q     = input.value.trim().toLowerCase();
+		var shown = 0;
+		items.forEach( function ( el ) {
+			var ok = ( ! q || el.textContent.toLowerCase().indexOf( q ) !== -1 ) &&
+				( ! review.checked || el.querySelector( '.shieldscope-confidence.is-review' ) );
+			el.hidden = ! ok;
+			if ( ok ) {
+				shown++;
+			}
+		} );
+		sections.forEach( function ( sec ) {
+			sec.hidden = ! sec.querySelector( '.shieldscope-finding:not([hidden])' );
+		} );
+		count.textContent = ( q || review.checked ) && labels.filterCount
+			? labels.filterCount.replace( '%1$d', shown ).replace( '%2$d', items.length )
+			: '';
+	}
+
+	input.addEventListener( 'input', apply );
+	review.addEventListener( 'change', apply );
+} )();

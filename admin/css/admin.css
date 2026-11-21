@@ -751,3 +751,7 @@ details.shieldscope-faq-item[open] > summary .shieldscope-faq-chevron {
 .shieldscope-wrap .button:focus-visible,
 .shieldscope-wrap summary:focus-visible,
 .shieldscope-wrap a:focus-visible { outline: 2px solid #2271b1; outline-offset: 2px; }
+
+/* Report filter (S-09) */
+.shieldscope-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 16px 0; }
+.shieldscope-filter label[for] { font-weight: 600; }

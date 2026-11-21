@@ -222,6 +222,15 @@ foreach ( (array) $findings as $f ) {
 			</div>
 		<?php endif; ?>
 
+		<?php if ( $findings ) : ?>
+			<div class="shieldscope-filter" role="search">
+				<label for="shieldscope-filter-text"><?php esc_html_e( 'Filter findings', 'shieldscope-site-security-scanner' ); ?></label>
+				<input type="search" id="shieldscope-filter-text" class="regular-text" placeholder="<?php esc_attr_e( 'Title, file or check', 'shieldscope-site-security-scanner' ); ?>" />
+				<label><input type="checkbox" id="shieldscope-filter-review" /> <?php esc_html_e( 'Needs review only', 'shieldscope-site-security-scanner' ); ?></label>
+				<span id="shieldscope-filter-count" class="description" aria-live="polite"></span>
+			</div>
+		<?php endif; ?>
+
 		<?php foreach ( $severity_order as $sev ) : ?>
 			<?php
 			if ( empty( $tabs[ $sev ]['groups'] ) ) {
