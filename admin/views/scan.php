@@ -308,7 +308,7 @@ defined( 'ABSPATH' ) || exit;
 				<span class="shieldscope-faq-chevron">&#9654;</span>
 			</summary>
 			<div class="shieldscope-faq-answer">
-				<p><?php esc_html_e( 'Yes. On multisite only super admins can run a scan. It checks the shared core files, every installed plugin and theme, and all network users; site settings are read from the site whose dashboard you run it from. There is no separate network admin screen.', 'shieldscope-site-security-scanner' ); ?></p>
+				<p><?php esc_html_e( 'Yes. On multisite only super admins can run a scan. It checks the shared core files, every installed plugin and theme, and all network users; site settings are read from the site whose dashboard you run it from. ShieldScope is also in the Network Admin menu.', 'shieldscope-site-security-scanner' ); ?></p>
 			</div>
 		</details>
 
