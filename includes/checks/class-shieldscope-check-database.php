@@ -139,71 +139,126 @@ class ShieldScope_Check_Database extends ShieldScope_Check_Base {
 	const CONTENT_BATCH = 200;
 
 	/**
-	 * Patterns for injected code in stored content (S-23), worst first:
-	 * key => array( regex, severity, title ).
+	 * Most findings reported per content rule; more are summarised (IM2-05).
+	 */
+	const CONTENT_MAX_PER_RULE = 50;
+
+	/**
+	 * Characters read from each option value.
+	 */
+	const OPTION_READ_BYTES = 65536;
+
+	/**
+	 * Post types that hold cached or temporary copies, not site content.
+	 */
+	const CONTENT_SKIP_TYPES = "'revision','attachment','nav_menu_item','oembed_cache','customize_changeset'";
+
+	/**
+	 * Content rules, worst first: key => array( severity, title ).
 	 *
 	 * @return array
 	 */
 	private static function content_rules() {
 		return array(
-			'obfuscated' => array(
-				'/(?:eval\s*\(\s*(?:atob|unescape|String\.fromCharCode)|document\.write\s*\(\s*unescape\s*\(|\\\\x[0-9a-f]{2}(?:\\\\x[0-9a-f]{2}){20,})/i',
-				ShieldScope_Logger::SEVERITY_HIGH,
-				__( 'Review: obfuscated JavaScript in stored content', 'shieldscope-site-security-scanner' ),
-			),
-			'hidden_iframe' => array(
-				'/<iframe\b[^>]*(?:display\s*:\s*none|visibility\s*:\s*hidden|\bwidth\s*=\s*["\']?[01]["\'\s>]|\bheight\s*=\s*["\']?[01]["\'\s>])/i',
-				ShieldScope_Logger::SEVERITY_MEDIUM,
-				__( 'Review: hidden iframe in stored content', 'shieldscope-site-security-scanner' ),
-			),
-			'script' => array(
-				'/<script\b/i',
-				ShieldScope_Logger::SEVERITY_LOW,
-				__( 'Review: script tag in stored content', 'shieldscope-site-security-scanner' ),
-			),
+			'obfuscated'    => array( ShieldScope_Logger::SEVERITY_HIGH, __( 'Review: obfuscated JavaScript in stored content', 'shieldscope-site-security-scanner' ) ),
+			'hidden_iframe' => array( ShieldScope_Logger::SEVERITY_MEDIUM, __( 'Review: hidden iframe in stored content', 'shieldscope-site-security-scanner' ) ),
+			'script'        => array( ShieldScope_Logger::SEVERITY_LOW, __( 'Review: script tag in stored content', 'shieldscope-site-security-scanner' ) ),
 		);
 	}
 
 	/**
-	 * Look for injected code in post content and in options (S-23).
-	 * Read-only; posts are read in batches by ID; only the first matching
-	 * rule per item is reported. Content stays on the server.
+	 * Offset of the first match of a content rule, or -1.
 	 *
-	 * @param array $cursor Cursor: last post ID, options done.
+	 * @param string $key     Rule key.
+	 * @param string $content Content.
+	 * @return int
+	 */
+	private function content_match( $key, $content ) {
+		if ( 'obfuscated' === $key ) {
+			return $this->rx_offset( '/(?:eval\s*\(\s*(?:atob|unescape|String\.fromCharCode)|document\.write\s*\(\s*unescape\s*\(|\\\\x[0-9a-f]{2}(?:\\\\x[0-9a-f]{2}){20,})/i', $content );
+		}
+		if ( 'script' === $key ) {
+			return $this->rx_offset( '/<script\b/i', $content );
+		}
+		// Hidden iframe: take each <iframe ...> tag (bounded, possessive, so
+		// the scan is linear: IM2-07) and test its attributes. Google Tag
+		// Manager's noscript iframe (ns.html) is standard and exempt.
+		$result = preg_match_all( '/<iframe\b[^>]{0,4000}+/i', $content, $tags, PREG_OFFSET_CAPTURE );
+		if ( false === $result || PREG_NO_ERROR !== preg_last_error() ) {
+			$this->rx_failed = true;
+			return -1;
+		}
+		foreach ( $tags[0] as $tag ) {
+			if ( false !== stripos( $tag[0], 'googletagmanager.com/ns.html' ) ) {
+				continue;
+			}
+			if ( preg_match( '/display\s*:\s*none|visibility\s*:\s*hidden|\b(?:width|height)\s*=\s*["\']?[01](?:px)?(?:["\'\s]|$)/i', $tag[0] ) ) {
+				return (int) $tag[1];
+			}
+		}
+		return -1;
+	}
+
+	/**
+	 * Look for injected code in options and post content (S-23).
+	 * Read-only; options and posts are read in batches by ID within the
+	 * step time budget; only the worst matching rule per item is reported,
+	 * and at most CONTENT_MAX_PER_RULE items per rule. Content stays on the
+	 * server.
+	 *
+	 * @param array $cursor Cursor: phase, last option/post id, per-rule counts.
 	 * @return array
 	 */
 	private function check_content( array $cursor = array() ) {
 		global $wpdb;
 		$cursor += array(
-			'after'   => 0,
-			'options' => false,
+			'phase'  => 'options',
+			'after'  => 0,
+			'counts' => array(),
 		);
 
-		if ( ! $cursor['options'] ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only scan of stored content.
-			$rows = $wpdb->get_results( "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_value LIKE '%<script%' OR option_value LIKE '%<iframe%' OR option_value LIKE '%eval(%' LIMIT 500", ARRAY_A );
-			foreach ( (array) $rows as $row ) {
-				if ( 0 === strpos( $row['option_name'], '_transient' ) || 0 === strpos( $row['option_name'], '_site_transient' ) ) {
-					continue;
-				}
-				$this->report_content_match( (string) $row['option_value'], 'option:' . $row['option_name'], __( 'This option', 'shieldscope-site-security-scanner' ) );
-			}
-			$cursor['options'] = true;
-		}
-
 		do {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only scan of stored content.
-			$posts = $wpdb->get_results( $wpdb->prepare( "SELECT ID, post_type, post_content FROM {$wpdb->posts} WHERE ID > %d AND post_type NOT IN ('revision','attachment','nav_menu_item') ORDER BY ID ASC LIMIT %d", (int) $cursor['after'], self::CONTENT_BATCH ), ARRAY_A );
+			if ( 'options' === $cursor['phase'] ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only scan of stored content.
+				$rows = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT option_id, option_name, LEFT(option_value, %d) AS option_value FROM {$wpdb->options} WHERE option_id > %d AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND (option_value LIKE %s OR option_value LIKE %s OR option_value LIKE %s) ORDER BY option_id ASC LIMIT %d",
+						self::OPTION_READ_BYTES,
+						(int) $cursor['after'],
+						$wpdb->esc_like( '_transient_' ) . '%',
+						$wpdb->esc_like( '_site_transient_' ) . '%',
+						'%' . $wpdb->esc_like( '<script' ) . '%',
+						'%' . $wpdb->esc_like( '<iframe' ) . '%',
+						'%' . $wpdb->esc_like( 'eval(' ) . '%',
+						self::CONTENT_BATCH
+					),
+					ARRAY_A
+				);
+				foreach ( (array) $rows as $row ) {
+					$cursor['after'] = (int) $row['option_id'];
+					$this->report_content_match( (string) $row['option_value'], 'option:' . $row['option_name'], __( 'This option', 'shieldscope-site-security-scanner' ), $cursor );
+				}
+				if ( count( (array) $rows ) < self::CONTENT_BATCH ) {
+					$cursor['phase'] = 'posts';
+					$cursor['after'] = 0;
+				}
+				continue;
+			}
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- read-only scan; CONTENT_SKIP_TYPES is a constant.
+			$posts = $wpdb->get_results( $wpdb->prepare( "SELECT ID, post_type, post_content FROM {$wpdb->posts} WHERE ID > %d AND post_type NOT IN (" . self::CONTENT_SKIP_TYPES . ') ORDER BY ID ASC LIMIT %d', (int) $cursor['after'], self::CONTENT_BATCH ), ARRAY_A );
 			foreach ( (array) $posts as $post ) {
 				$cursor['after'] = (int) $post['ID'];
 				$this->report_content_match(
 					(string) $post['post_content'],
 					'post:' . $post['ID'],
 					/* translators: 1: post type, 2: post ID */
-					sprintf( __( 'This %1$s (ID %2$d)', 'shieldscope-site-security-scanner' ), $post['post_type'], $post['ID'] )
+					sprintf( __( 'This %1$s (ID %2$d)', 'shieldscope-site-security-scanner' ), $post['post_type'], $post['ID'] ),
+					$cursor
 				);
 			}
 			if ( count( (array) $posts ) < self::CONTENT_BATCH ) {
+				$this->summarise_content_caps( $cursor['counts'] );
 				return array( 'continue' => false, 'cursor' => array() );
 			}
 		} while ( ! $this->out_of_time() );
@@ -217,20 +272,26 @@ class ShieldScope_Check_Database extends ShieldScope_Check_Base {
 	 * @param string $content Stored content.
 	 * @param string $target  Target (post:ID or option:name).
 	 * @param string $what    Human description of the item.
+	 * @param array  $cursor  Cursor (per-rule counts, by reference).
 	 * @return void
 	 */
-	private function report_content_match( $content, $target, $what ) {
+	private function report_content_match( $content, $target, $what, array &$cursor ) {
 		if ( '' === $content ) {
 			return;
 		}
+		$this->rx_failed = false;
 		foreach ( self::content_rules() as $key => $rule ) {
-			$at = $this->rx_offset( $rule[0], $content );
+			$at = $this->content_match( $key, $content );
 			if ( $at < 0 ) {
 				continue;
 			}
+			$cursor['counts'][ $key ] = isset( $cursor['counts'][ $key ] ) ? $cursor['counts'][ $key ] + 1 : 1;
+			if ( $cursor['counts'][ $key ] > self::CONTENT_MAX_PER_RULE ) {
+				return; // Counted; summarised at the end.
+			}
 			$this->finding(
+				$rule[0],
 				$rule[1],
-				$rule[2],
 				$what . ' ' . ( 'script' === $key
 					? __( 'contains a <script> tag. Page builders, analytics and embeds add scripts legitimately; injected spam and redirect code also hides here.', 'shieldscope-site-security-scanner' )
 					: __( 'contains code that is typical of injected spam or redirects. Legitimate content rarely needs it.', 'shieldscope-site-security-scanner' ) )
@@ -240,6 +301,38 @@ class ShieldScope_Check_Database extends ShieldScope_Check_Base {
 				self::evidence( $content, $content, $at )
 			);
 			return;
+		}
+		if ( $this->rx_failed ) {
+			$this->could_not_analyse( $target );
+		}
+	}
+
+	/**
+	 * One summary per rule that matched more items than were listed.
+	 *
+	 * @param array $counts Rule key => items matched.
+	 * @return void
+	 */
+	private function summarise_content_caps( array $counts ) {
+		$rules = self::content_rules();
+		foreach ( $counts as $key => $count ) {
+			if ( $count <= self::CONTENT_MAX_PER_RULE || ! isset( $rules[ $key ] ) ) {
+				continue;
+			}
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_INFO,
+				/* translators: %s: rule title */
+				sprintf( __( 'More items matched: %s', 'shieldscope-site-security-scanner' ), $rules[ $key ][1] ),
+				sprintf(
+					/* translators: 1: items matched, 2: items listed */
+					__( '%1$d items matched this rule; the first %2$d are listed. Embeds and page builders can produce many matches.', 'shieldscope-site-security-scanner' ),
+					$count,
+					self::CONTENT_MAX_PER_RULE
+				),
+				__( 'Review the listed items first; if they are all legitimate, the rest are likely the same kind of content.', 'shieldscope-site-security-scanner' ),
+				'',
+				array( 'confidence' => self::CONFIDENCE_REVIEW )
+			);
 		}
 	}
 }

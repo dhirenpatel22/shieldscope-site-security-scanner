@@ -55,6 +55,9 @@ class Test_Severity extends TestCase {
 			public function get_results( $sql = null, $output = null ) {
 				return array();
 			}
+			public function esc_like( $text ) {
+				return $text;
+			}
 		};
 	}
 
