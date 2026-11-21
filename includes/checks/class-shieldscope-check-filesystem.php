@@ -203,11 +203,14 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 			$root,
 			$cursor,
 			function ( $full ) {
+				if ( self::is_placeholder_php( $full ) ) {
+					return true; // Empty or "Silence is golden" index.php placed by plugins.
+				}
 				$this->finding(
-					ShieldScope_Logger::SEVERITY_CRITICAL,
-					__( 'Executable PHP file inside uploads', 'shieldscope-site-security-scanner' ),
-					__( 'PHP files inside wp-content/uploads are a classic backdoor indicator. Uploads must never execute server-side code.', 'shieldscope-site-security-scanner' ),
-					__( 'A PHP file in uploads is almost always a web shell. Do NOT open it in a browser — delete it via FTP or your hosting File Manager immediately. Block PHP execution in uploads permanently by adding to wp-content/uploads/.htaccess: <Files *.php> deny from all </Files>. Then change all admin passwords.', 'shieldscope-site-security-scanner' ),
+					ShieldScope_Logger::SEVERITY_HIGH,
+					__( 'Review: PHP file inside uploads', 'shieldscope-site-security-scanner' ),
+					__( 'The uploads folder should only hold media and documents. A PHP file there can be run by anyone who requests it, which is a common way to keep access to a hacked site. Some plugins store PHP files in uploads for their own use, so check what this file is before acting.', 'shieldscope-site-security-scanner' ),
+					__( 'Do not open the file in a browser. Find out which plugin created it; if none did, take a backup, delete it, change all administrator passwords and check the site for other changes. To stop PHP from running in uploads: on Apache 2.4 put "Require all denied" inside a <FilesMatch "\.ph(p[0-9]?|tml|ar)$"> block in wp-content/uploads/.htaccess; on Nginx add a location rule that denies \.php requests under /wp-content/uploads/ (ask your host).', 'shieldscope-site-security-scanner' ),
 					$full
 				);
 			},
@@ -216,6 +219,25 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 			'/\.(php|phtml|php5|php7|phar)$/i',
 			false // Uploads never legitimately contain this plugin; don't self-skip.
 		);
+	}
+
+	/**
+	 * An empty index.php, or one that only says "Silence is golden".
+	 *
+	 * @param string $path File path.
+	 * @return bool
+	 */
+	private static function is_placeholder_php( $path ) {
+		if ( 'index.php' !== basename( $path ) ) {
+			return false;
+		}
+		$size = @filesize( $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		if ( false === $size || $size > 512 ) {
+			return false;
+		}
+		$code = trim( (string) @file_get_contents( $path ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents,WordPress.PHP.NoSilencedErrors.Discouraged
+		$code = trim( preg_replace( '#^<\?php|\?>$#', '', $code ) );
+		return '' === $code || (bool) preg_match( '#^(//|\#|/\*)\s*silence is golden\.?\s*(\*/)?$#i', $code );
 	}
 
 	/**
@@ -238,21 +260,45 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 			'dump.sql',
 		);
 
+		// What a served copy of each kind of file starts with or contains.
+		$signatures = array(
+			'zip' => '/^PK\x03\x04/',
+			'sql' => '/(?:CREATE TABLE|INSERT INTO|-- MySQL dump|-- MariaDB dump)/i',
+			'cfg' => '/DB_(?:NAME|USER|PASSWORD|HOST)/i',
+		);
+		$probe = null;
 		foreach ( $patterns as $file ) {
 			$path = ABSPATH . $file;
-			if ( file_exists( $path ) ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_CRITICAL,
-					__( 'Sensitive backup file present in webroot', 'shieldscope-site-security-scanner' ),
-					sprintf(
+			if ( ! file_exists( $path ) ) {
+				continue;
+			}
+			$kind = preg_match( '/\.zip$/i', $file ) ? 'zip' : ( preg_match( '/\.sql$/i', $file ) ? 'sql' : 'cfg' );
+			if ( null === $probe ) {
+				$probe = new ShieldScope_Probe();
+			}
+			$served = $probe->serves( home_url( '/' . $file ), $signatures[ $kind ] );
+			$this->finding(
+				$served ? ShieldScope_Logger::SEVERITY_CRITICAL : ShieldScope_Logger::SEVERITY_MEDIUM,
+				$served
+					? __( 'Backup file can be downloaded from the web', 'shieldscope-site-security-scanner' )
+					: __( 'Backup file in the web root', 'shieldscope-site-security-scanner' ),
+				$served
+					? sprintf(
 						/* translators: %s: filename */
-						__( 'Found %s in the site root. Files like these frequently leak database credentials or full site data.', 'shieldscope-site-security-scanner' ),
+						__( '%s is in the site root and the web server sends its contents to anyone who requests it. It is likely to contain database credentials or a full copy of the site data.', 'shieldscope-site-security-scanner' ),
+						$file
+					)
+					: sprintf(
+						/* translators: %s: filename */
+						__( '%s is in the site root. The web server did not serve it when checked, but a server or plugin change could expose it; files like this often contain database credentials or site data.', 'shieldscope-site-security-scanner' ),
 						$file
 					),
-					__( 'Delete or move this file outside your webroot immediately via FTP or your hosting File Manager — it likely contains database credentials. After removing it, rotate your database password in both wp-config.php and your hosting control panel.', 'shieldscope-site-security-scanner' ),
-					$path
-				);
-			}
+				$served
+					? __( 'Delete the file or move it outside the web root now, then change the database password (in wp-config.php and in your hosting panel) and any keys it contained.', 'shieldscope-site-security-scanner' )
+					: __( 'Move the file outside the web root or delete it.', 'shieldscope-site-security-scanner' ),
+				$path,
+				array( 'served' => $served )
+			);
 		}
 	}
 

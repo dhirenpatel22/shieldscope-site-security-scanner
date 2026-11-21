@@ -90,9 +90,12 @@ class Test_Code_Patterns extends TestCase {
 			$cursor = $result['cursor'];
 		} while ( ! empty( $result['continue'] ) );
 
-		$critical = $this->logger->of_severity( ShieldScope_Logger::SEVERITY_CRITICAL );
-		$this->assertCount( 1, $critical );
-		$this->assertStringContainsString( 'shell.php', $critical[0]['target'] );
+		// IM2-04: a PHP file in uploads is a High finding to review, never Critical.
+		$this->assertSame( array(), $this->logger->of_severity( ShieldScope_Logger::SEVERITY_CRITICAL ) );
+		$high = $this->logger->of_severity( ShieldScope_Logger::SEVERITY_HIGH );
+		$this->assertCount( 1, $high );
+		$this->assertStringContainsString( 'shell.php', $high[0]['target'] );
+		$this->assertSame( 'review', $high[0]['context']['confidence'] );
 	}
 
 	public function test_uploads_with_no_php_files_is_clean() {

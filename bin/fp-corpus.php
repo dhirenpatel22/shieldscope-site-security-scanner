@@ -70,7 +70,7 @@ if ( $changed ) {
 
 $logger = new SS_Fake_Logger();
 $files  = 0;
-foreach ( array( 'ShieldScope_Check_Code_Patterns', 'ShieldScope_Check_Injection', 'ShieldScope_Check_SSRF' ) as $class ) {
+foreach ( array( 'ShieldScope_Check_Code_Patterns', 'ShieldScope_Check_Injection', 'ShieldScope_Check_SSRF', 'ShieldScope_Check_Access_Control' ) as $class ) {
 	$check  = new $class( 'corpus', $logger );
 	$cursor = array();
 	do {

@@ -1,7 +1,8 @@
 # Accuracy: false-positive corpus
 
-`bin/fp-corpus.php` runs ShieldScope's code rules (code patterns, and the
-injection and SSRF rules with Developer review on) over well-known plugins
+`bin/fp-corpus.php` runs ShieldScope's code rules (code patterns, the
+access-control AJAX rules, and the injection and SSRF rules with Developer
+review on) over well-known plugins
 pinned in `tests/corpus/manifest.json` (versions and sha256 hashes). The CI
 workflow `.github/workflows/fp-corpus.yml` fails if any rule reports a
 Critical or High finding on them.
@@ -34,3 +35,10 @@ The remaining Low findings in Developer review mode are request data near
 `maybe_unserialize()`, `echo`, `wp_redirect()` and `wp_remote_get()`; one,
 `wp_redirect( wp_unslash( $_GET['wccom-install-url'] ) )` in WooCommerce's
 helper, is worth a human look, which is what "Needs review" means.
+
+## Result, 2026-11-21 (access-control rules added to the corpus)
+
+Same eight plugins, 14,365 PHP files: Critical 0, High 0, Medium 0, Low 25,
+Info 3. The 16 additional Low findings are the access-control "Review: AJAX
+handler with no nonce/capability check in the same file" rules, which only
+see one file at a time and are labelled Needs review.

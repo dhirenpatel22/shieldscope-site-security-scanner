@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: ShieldScope 1.3.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/shieldscope-site-"
 "security-scanner/\n"
-"POT-Creation-Date: 2026-11-21 13:37+0530\n"
+"POT-Creation-Date: 2026-11-21 13:40+0530\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1195,16 +1195,18 @@ msgid ""
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-access-control.php:129
-msgid "Login error messages reveal whether a username exists"
+msgid "Login error messages may reveal whether a username exists"
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-access-control.php:130
 msgid ""
 "After a failed login, WordPress says whether the username exists (\"The "
-"password you entered for the username ... is incorrect\"). Nothing on this "
-"site changes that message, so an attacker can confirm usernames before "
-"guessing passwords. Checked by running the site's login_errors filter on "
-"WordPress's own message; no login was attempted."
+"password you entered for the username ... is incorrect\"). No login_errors "
+"filter active during the scan changes that message, so an attacker may be "
+"able to confirm usernames before guessing passwords. Some security plugins "
+"change the message only on the login page itself; open wp-login.php, try a "
+"wrong password and check what it says. Checked by running the login_errors "
+"filter on WordPress's own message; no login was attempted."
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-access-control.php:131
@@ -1293,10 +1295,11 @@ msgstr ""
 
 #: includes/checks/class-shieldscope-check-access-control.php:328
 msgid ""
-"In Users → All Users, set each author's \"Display name publicly as\" to a "
-"first name or nickname that differs from their login. To also block the "
-"redirect itself, add to functions.php: add_action('template_redirect', "
-"function(){ if(is_author()){ wp_redirect(home_url('/'), 301); exit; } });"
+"The redirect goes to the author's URL slug (user_nicename), which WordPress "
+"builds from the login, so changing the display name does not help. Block ?"
+"author= requests for logged-out visitors with a security plugin or a web-"
+"server rule, or give each account a nicename that differs from its login. "
+"Limiting login attempts matters more than hiding usernames."
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-access-control.php:385
@@ -1337,7 +1340,7 @@ msgid ""
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-access-control.php:462
-msgid "Needs review: public AJAX handler with no nonce check in the same file"
+msgid "Review: public AJAX handler with no nonce check in the same file"
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-access-control.php:466
@@ -1360,8 +1363,7 @@ msgid ""
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-access-control.php:489
-msgid ""
-"Needs review: AJAX handler with no capability or nonce check in the same file"
+msgid "Review: AJAX handler with no capability or nonce check in the same file"
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-access-control.php:493
@@ -1434,12 +1436,12 @@ msgid "Code Pattern Analysis"
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-code-patterns.php:210
-#: includes/checks/class-shieldscope-check-core-integrity.php:736
+#: includes/checks/class-shieldscope-check-core-integrity.php:746
 msgid "Matches pattern: eval() on encoded data"
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-code-patterns.php:211
-#: includes/checks/class-shieldscope-check-core-integrity.php:737
+#: includes/checks/class-shieldscope-check-core-integrity.php:747
 msgid ""
 "This file applies eval() to the output of a decode or decompress function "
 "(base64_decode, gzinflate, str_rot13 or gzuncompress). Malware often uses "
@@ -1448,7 +1450,7 @@ msgid ""
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-code-patterns.php:212
-#: includes/checks/class-shieldscope-check-core-integrity.php:738
+#: includes/checks/class-shieldscope-check-core-integrity.php:748
 msgid ""
 "Compare the file with the original plugin or theme source. If it does not "
 "belong there, remove it and check the site for other changes."
@@ -1956,12 +1958,16 @@ msgstr ""
 msgid "The WordPress.org checksums response was malformed or empty."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:377
+#: includes/checks/class-shieldscope-check-core-integrity.php:261
+msgid "core files not verified: WordPress.org checksums unavailable"
+msgstr ""
+
+#: includes/checks/class-shieldscope-check-core-integrity.php:378
 msgid "Core files differ from the official WordPress build en masse"
 msgstr ""
 
 #. translators: 1: differing count, 2: total count
-#: includes/checks/class-shieldscope-check-core-integrity.php:380
+#: includes/checks/class-shieldscope-check-core-integrity.php:381
 #, php-format
 msgid ""
 "%1$d of %2$d core files do not match the official WordPress.org checksums. "
@@ -1971,7 +1977,7 @@ msgid ""
 "findings have been suppressed."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:384
+#: includes/checks/class-shieldscope-check-core-integrity.php:385
 msgid ""
 "If this is a local, staging, or Playground environment, this is expected — "
 "re-run the scan on production. On a production site, verify your exact "
@@ -1979,19 +1985,19 @@ msgid ""
 "install now\" to restore official core files."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:398
+#: includes/checks/class-shieldscope-check-core-integrity.php:399
 msgid "Missing WordPress core file"
 msgstr ""
 
 #. translators: %s: relative path
-#: includes/checks/class-shieldscope-check-core-integrity.php:401
+#: includes/checks/class-shieldscope-check-core-integrity.php:402
 #, php-format
 msgid ""
 "The core file %s is listed in the WordPress.org checksums but is not present "
 "on disk. It may have been deleted or the installation is incomplete."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:404
+#: includes/checks/class-shieldscope-check-core-integrity.php:405
 msgid ""
 "Go to Dashboard → Updates and click \"Re-install now\" — this re-downloads "
 "all core files without touching your content, plugins, or wp-config.php. "
@@ -1999,12 +2005,12 @@ msgid ""
 "download/releases and upload just the missing file via FTP."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:413
+#: includes/checks/class-shieldscope-check-core-integrity.php:414
 msgid "Modified WordPress core file"
 msgstr ""
 
 #. translators: 1: path, 2: expected hash, 3: actual hash
-#: includes/checks/class-shieldscope-check-core-integrity.php:416
+#: includes/checks/class-shieldscope-check-core-integrity.php:417
 #, php-format
 msgid ""
 "The core file %1$s does not match the hash published on WordPress.org. "
@@ -2012,7 +2018,7 @@ msgid ""
 "edit (don't do that) or a compromise."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:421
+#: includes/checks/class-shieldscope-check-core-integrity.php:422
 msgid ""
 "Download a clean copy of the same WordPress version from wordpress.org/"
 "download/releases and compare the file. If you see injected or obfuscated "
@@ -2021,42 +2027,48 @@ msgid ""
 "all core files safely."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:435
+#: includes/checks/class-shieldscope-check-core-integrity.php:436
 msgid "Additional core file differences (summarised)"
 msgstr ""
 
 #. translators: %d: count
-#: includes/checks/class-shieldscope-check-core-integrity.php:438
+#: includes/checks/class-shieldscope-check-core-integrity.php:439
 #, php-format
 msgid ""
 "%d further core files differ from the official checksums but were not "
 "individually listed to keep the report readable."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:441
+#: includes/checks/class-shieldscope-check-core-integrity.php:442
 msgid ""
 "Go to Dashboard → Updates and click \"Re-install now\" to restore all "
 "official core files, then re-run the scan."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:461
+#: includes/checks/class-shieldscope-check-core-integrity.php:462
 msgid "WordPress Playground / WebAssembly runtime detected"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:470
+#: includes/checks/class-shieldscope-check-core-integrity.php:471
 msgid "SQLite database integration detected"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:480
+#: includes/checks/class-shieldscope-check-core-integrity.php:481
 msgid "skipped via shieldscope_skip_core_integrity filter"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:552
+#: includes/checks/class-shieldscope-check-core-integrity.php:516
+msgid ""
+"core folders not checked for unknown files: WordPress.org checksums "
+"unavailable"
+msgstr ""
+
+#: includes/checks/class-shieldscope-check-core-integrity.php:554
 msgid "Unknown file inside WordPress core directory"
 msgstr ""
 
 #. translators: %s: relative path
-#: includes/checks/class-shieldscope-check-core-integrity.php:555
+#: includes/checks/class-shieldscope-check-core-integrity.php:557
 #, php-format
 msgid ""
 "The file %s is inside a core WordPress directory but is not part of the "
@@ -2064,7 +2076,7 @@ msgid ""
 "backdoors hide."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:558
+#: includes/checks/class-shieldscope-check-core-integrity.php:560
 msgid ""
 "Open the file in a text editor (read-only) and look for eval(), "
 "base64_decode() or obfuscated code, which are common in injected code. If "
@@ -2073,18 +2085,18 @@ msgid ""
 "core files."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:625
+#: includes/checks/class-shieldscope-check-core-integrity.php:627
 msgid ""
 "WordPress root not checked for unknown PHP files: core checksums unavailable"
 msgstr ""
 
 #. translators: %s: file name
-#: includes/checks/class-shieldscope-check-core-integrity.php:636
+#: includes/checks/class-shieldscope-check-core-integrity.php:638
 #, php-format
 msgid "Review: unknown PHP file in the WordPress root: %s"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:637
+#: includes/checks/class-shieldscope-check-core-integrity.php:639
 msgid ""
 "This PHP file sits next to wp-config.php but is not part of WordPress. Some "
 "are legitimate (for example wordfence-waf.php from Wordfence, or a host's "
@@ -2092,59 +2104,65 @@ msgid ""
 "compromise, because it can be requested directly from the web."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:638
+#: includes/checks/class-shieldscope-check-core-integrity.php:640
 msgid ""
 "Find out what added the file. If nobody recognises it, take a backup, remove "
 "it, and check the site for other changes."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:659
+#: includes/checks/class-shieldscope-check-core-integrity.php:661
 msgid "Drop-in in use"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:660
+#: includes/checks/class-shieldscope-check-core-integrity.php:662
 msgid ""
 "Drop-ins are files in wp-content that replace parts of WordPress (caching, "
 "database, maintenance and error pages). They are usually added by a caching "
 "or hosting plugin and do not appear in the Plugins screen."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:661
+#: includes/checks/class-shieldscope-check-core-integrity.php:663
 msgid ""
 "Confirm each drop-in belongs to a plugin or host you use. Remove drop-ins "
 "left behind by plugins you deleted."
 msgstr ""
 
 #. translators: %s: file name
-#: includes/checks/class-shieldscope-check-core-integrity.php:669
+#: includes/checks/class-shieldscope-check-core-integrity.php:671
 #, php-format
 msgid "Review: unknown PHP file in wp-content: %s"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:670
+#: includes/checks/class-shieldscope-check-core-integrity.php:672
 msgid ""
 "WordPress only expects index.php and known drop-ins directly inside wp-"
 "content. Other PHP files there are sometimes left by plugins, and sometimes "
 "planted."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:671
+#: includes/checks/class-shieldscope-check-core-integrity.php:673
 msgid "Find out what added the file and remove it if it is not needed."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:684
+#: includes/checks/class-shieldscope-check-core-integrity.php:686
 msgid "Must-use plugin present"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:685
+#: includes/checks/class-shieldscope-check-core-integrity.php:687
 msgid ""
 "Must-use plugins load on every request and cannot be turned off from the "
 "Plugins screen. Hosts and some plugins add them legitimately; attackers use "
 "them because they are easy to miss."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:686
+#: includes/checks/class-shieldscope-check-core-integrity.php:688
 msgid "Confirm each must-use plugin comes from your host or a plugin you use."
+msgstr ""
+
+#. translators: 1: number of files, 2: folder
+#: includes/checks/class-shieldscope-check-core-integrity.php:716
+#, php-format
+msgid "only the first %1$d PHP files in %2$s were checked"
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-core.php:30
@@ -2546,57 +2564,77 @@ msgid ""
 "For Nginx: location = /readme.html { deny all; }"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:208
-msgid "Executable PHP file inside uploads"
+#: includes/checks/class-shieldscope-check-filesystem.php:211
+msgid "Review: PHP file inside uploads"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:209
+#: includes/checks/class-shieldscope-check-filesystem.php:212
 msgid ""
-"PHP files inside wp-content/uploads are a classic backdoor indicator. "
-"Uploads must never execute server-side code."
+"The uploads folder should only hold media and documents. A PHP file there "
+"can be run by anyone who requests it, which is a common way to keep access "
+"to a hacked site. Some plugins store PHP files in uploads for their own use, "
+"so check what this file is before acting."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:210
+#: includes/checks/class-shieldscope-check-filesystem.php:213
 msgid ""
-"A PHP file in uploads is almost always a web shell. Do NOT open it in a "
-"browser — delete it via FTP or your hosting File Manager immediately. Block "
-"PHP execution in uploads permanently by adding to wp-content/"
-"uploads/.htaccess: <Files *.php> deny from all </Files>. Then change all "
-"admin passwords."
+"Do not open the file in a browser. Find out which plugin created it; if none "
+"did, take a backup, delete it, change all administrator passwords and check "
+"the site for other changes. To stop PHP from running in uploads: on Apache "
+"2.4 put \"Require all denied\" inside a <FilesMatch \"\\.ph(p[0-9]?|tml|ar)$"
+"\"> block in wp-content/uploads/.htaccess; on Nginx add a location rule that "
+"denies \\.php requests under /wp-content/uploads/ (ask your host)."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:246
-msgid "Sensitive backup file present in webroot"
+#: includes/checks/class-shieldscope-check-filesystem.php:283
+msgid "Backup file can be downloaded from the web"
+msgstr ""
+
+#: includes/checks/class-shieldscope-check-filesystem.php:284
+msgid "Backup file in the web root"
 msgstr ""
 
 #. translators: %s: filename
-#: includes/checks/class-shieldscope-check-filesystem.php:249
+#: includes/checks/class-shieldscope-check-filesystem.php:288
 #, php-format
 msgid ""
-"Found %s in the site root. Files like these frequently leak database "
-"credentials or full site data."
+"%s is in the site root and the web server sends its contents to anyone who "
+"requests it. It is likely to contain database credentials or a full copy of "
+"the site data."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:252
+#. translators: %s: filename
+#: includes/checks/class-shieldscope-check-filesystem.php:293
+#, php-format
 msgid ""
-"Delete or move this file outside your webroot immediately via FTP or your "
-"hosting File Manager — it likely contains database credentials. After "
-"removing it, rotate your database password in both wp-config.php and your "
-"hosting control panel."
+"%s is in the site root. The web server did not serve it when checked, but a "
+"server or plugin change could expose it; files like this often contain "
+"database credentials or site data."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:276
+#: includes/checks/class-shieldscope-check-filesystem.php:297
+msgid ""
+"Delete the file or move it outside the web root now, then change the "
+"database password (in wp-config.php and in your hosting panel) and any keys "
+"it contained."
+msgstr ""
+
+#: includes/checks/class-shieldscope-check-filesystem.php:298
+msgid "Move the file outside the web root or delete it."
+msgstr ""
+
+#: includes/checks/class-shieldscope-check-filesystem.php:322
 msgid "wp-config.php is publicly readable and contains credentials"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:277
+#: includes/checks/class-shieldscope-check-filesystem.php:323
 msgid ""
 "A request to /wp-config.php returned HTTP 200 and the response body contains "
 "database constants (DB_NAME, DB_USER, DB_PASSWORD). Your database "
 "credentials are exposed to anyone on the internet."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:278
+#: includes/checks/class-shieldscope-check-filesystem.php:324
 msgid ""
 "Block access to wp-config.php at the webserver level immediately. Apache: "
 "add a <Files wp-config.php> deny from all </Files> block. Nginx: add "
@@ -2604,64 +2642,64 @@ msgid ""
 "password immediately."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:305
+#: includes/checks/class-shieldscope-check-filesystem.php:351
 msgid "license.txt is publicly accessible"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:306
+#: includes/checks/class-shieldscope-check-filesystem.php:352
 msgid ""
 "The WordPress license file is accessible and discloses the WordPress version "
 "in its copyright year/version line."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:307
+#: includes/checks/class-shieldscope-check-filesystem.php:353
 msgid ""
 "Delete license.txt from the webroot, or block it at the webserver level."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:312
+#: includes/checks/class-shieldscope-check-filesystem.php:358
 msgid "wp-activate.php is publicly accessible"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:313
+#: includes/checks/class-shieldscope-check-filesystem.php:359
 msgid ""
 "The wp-activate.php file is reachable from the internet. On single-site "
 "WordPress it serves no purpose and its content includes the WordPress "
 "version in the page title."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:314
+#: includes/checks/class-shieldscope-check-filesystem.php:360
 msgid ""
 "Block access to wp-activate.php at the webserver level unless you are "
 "running WordPress Multisite with email-based user activation."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:319
+#: includes/checks/class-shieldscope-check-filesystem.php:365
 msgid ".htaccess file is publicly accessible"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:320
+#: includes/checks/class-shieldscope-check-filesystem.php:366
 msgid ""
 "The .htaccess file returned HTTP 200. It may contain rewrite rules, "
 "directory configurations, or access controls that expose your site structure "
 "and configuration to attackers."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:321
+#: includes/checks/class-shieldscope-check-filesystem.php:367
 msgid ""
 "Ensure your webserver is configured to block direct access to dotfiles. For "
 "Apache, add: <FilesMatch '^\\.'> deny from all </FilesMatch>"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:357
+#: includes/checks/class-shieldscope-check-filesystem.php:403
 msgid "Directory listing enabled on uploads"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:358
+#: includes/checks/class-shieldscope-check-filesystem.php:404
 msgid "Visitors can enumerate every file under wp-content/uploads."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:359
+#: includes/checks/class-shieldscope-check-filesystem.php:405
 msgid ""
 "Add \"Options -Indexes\" to your root .htaccess file to disable directory "
 "listings site-wide. For Nginx, add \"autoindex off;\" inside your server "
@@ -2670,20 +2708,20 @@ msgid ""
 msgstr ""
 
 #. translators: %s: directory label e.g. "wp-content/plugins"
-#: includes/checks/class-shieldscope-check-filesystem.php:388
+#: includes/checks/class-shieldscope-check-filesystem.php:434
 #, php-format
 msgid "Directory listing enabled on %s"
 msgstr ""
 
 #. translators: %s: directory label
-#: includes/checks/class-shieldscope-check-filesystem.php:393
+#: includes/checks/class-shieldscope-check-filesystem.php:439
 #, php-format
 msgid ""
 "The %s directory returns a browsable file listing. Attackers can enumerate "
 "all installed plugins and themes, then match them to known CVEs."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-filesystem.php:396
+#: includes/checks/class-shieldscope-check-filesystem.php:442
 msgid ""
 "Add 'Options -Indexes' to the root .htaccess file (Apache) or 'autoindex "
 "off;' in the Nginx server block. Placing an empty index.php in each "
@@ -3064,8 +3102,9 @@ msgstr ""
 
 #: includes/checks/class-shieldscope-check-injection.php:510
 msgid ""
-"allow_url_include lets include/require load code from remote URLs. Any local "
-"file inclusion bug becomes remote code execution."
+"allow_url_include lets include/require load code from remote URLs, so a file-"
+"inclusion bug in any plugin becomes remote code execution. On its own it is "
+"not an exploit."
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-injection.php:511
@@ -3136,27 +3175,27 @@ msgid ""
 msgstr ""
 
 #. translators: %d: number of plugins
-#: includes/checks/class-shieldscope-check-plugins.php:225
+#: includes/checks/class-shieldscope-check-plugins.php:256
 #, php-format
 msgid "%d plugin(s) could not be looked up on WordPress.org"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:247
+#: includes/checks/class-shieldscope-check-plugins.php:278
 msgid "not given"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:248
+#: includes/checks/class-shieldscope-check-plugins.php:279
 msgid "unknown date"
 msgstr ""
 
 #. translators: %s: plugin name
-#: includes/checks/class-shieldscope-check-plugins.php:252
+#: includes/checks/class-shieldscope-check-plugins.php:283
 #, php-format
 msgid "Plugin closed on WordPress.org: %s"
 msgstr ""
 
 #. translators: 1: plugin name, 2: date, 3: reason
-#: includes/checks/class-shieldscope-check-plugins.php:255
+#: includes/checks/class-shieldscope-check-plugins.php:286
 #, php-format
 msgid ""
 "WordPress.org closed \"%1$s\" on %2$s (reason: %3$s). A closed plugin gets "
@@ -3164,7 +3203,7 @@ msgid ""
 "security issue usually means a known, unfixed vulnerability."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:260
+#: includes/checks/class-shieldscope-check-plugins.php:291
 msgid ""
 "Replace the plugin with a maintained alternative and delete it. If you must "
 "keep it for now, check the plugin's page and support forum on WordPress.org "
@@ -3172,13 +3211,13 @@ msgid ""
 msgstr ""
 
 #. translators: %s: plugin name
-#: includes/checks/class-shieldscope-check-plugins.php:278
+#: includes/checks/class-shieldscope-check-plugins.php:309
 #, php-format
 msgid "Plugin not updated on WordPress.org for over 2 years: %s"
 msgstr ""
 
 #. translators: 1: plugin name, 2: date
-#: includes/checks/class-shieldscope-check-plugins.php:281
+#: includes/checks/class-shieldscope-check-plugins.php:312
 #, php-format
 msgid ""
 "The last release of \"%1$s\" on WordPress.org was on %2$s. Plugins without "
@@ -3186,7 +3225,7 @@ msgid ""
 "new WordPress or PHP versions."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:285
+#: includes/checks/class-shieldscope-check-plugins.php:316
 msgid ""
 "Check the plugin's support forum for signs of maintenance and look for a "
 "maintained alternative. If you keep it, review it whenever WordPress or PHP "
@@ -3194,7 +3233,7 @@ msgid ""
 msgstr ""
 
 #. translators: %d: number of plugins
-#: includes/checks/class-shieldscope-check-plugins.php:435
+#: includes/checks/class-shieldscope-check-plugins.php:466
 #, php-format
 msgid ""
 "%d plugin(s) not verified against WordPress.org checksums (not listed there, "
@@ -3202,13 +3241,13 @@ msgid ""
 msgstr ""
 
 #. translators: %s: plugin name
-#: includes/checks/class-shieldscope-check-plugins.php:463
+#: includes/checks/class-shieldscope-check-plugins.php:494
 #, php-format
 msgid "Most files of %s differ from WordPress.org"
 msgstr ""
 
 #. translators: 1: number of files, 2: plugin version
-#: includes/checks/class-shieldscope-check-plugins.php:466
+#: includes/checks/class-shieldscope-check-plugins.php:497
 #, php-format
 msgid ""
 "%1$d files differ from the WordPress.org release of version %2$s. The "
@@ -3216,32 +3255,32 @@ msgid ""
 "modified copy), so individual files were not listed."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:470
+#: includes/checks/class-shieldscope-check-plugins.php:501
 msgid ""
 "Reinstall the plugin from WordPress.org (Plugins → deactivate, delete, "
 "reinstall), or confirm where this copy came from."
 msgstr ""
 
 #. translators: %s: plugin name
-#: includes/checks/class-shieldscope-check-plugins.php:482
+#: includes/checks/class-shieldscope-check-plugins.php:513
 #, php-format
 msgid "Plugin file differs from the WordPress.org release: %s"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:484
+#: includes/checks/class-shieldscope-check-plugins.php:515
 msgid ""
 "This PHP file is not identical to the same file in the official release of "
 "the installed version. Someone changed it after installation: a local edit, "
 "or injected code."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:485
+#: includes/checks/class-shieldscope-check-plugins.php:516
 msgid ""
 "This file is not identical to the same file in the official release of the "
 "installed version."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:486
+#: includes/checks/class-shieldscope-check-plugins.php:517
 msgid ""
 "Compare the file with the official release. If nobody on your team edited "
 "it, reinstall the plugin from WordPress.org and check the site for other "
@@ -3249,13 +3288,13 @@ msgid ""
 msgstr ""
 
 #. translators: %s: plugin name
-#: includes/checks/class-shieldscope-check-plugins.php:506
+#: includes/checks/class-shieldscope-check-plugins.php:537
 #, php-format
 msgid "Review: many PHP files not in the WordPress.org release: %s"
 msgstr ""
 
 #. translators: 1: number of files, 2: plugin version, 3: example paths
-#: includes/checks/class-shieldscope-check-plugins.php:509
+#: includes/checks/class-shieldscope-check-plugins.php:540
 #, php-format
 msgid ""
 "%1$d PHP files in this plugin folder are not part of the WordPress.org "
@@ -3264,26 +3303,26 @@ msgid ""
 "files were not listed."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:514
+#: includes/checks/class-shieldscope-check-plugins.php:545
 msgid ""
 "Confirm where this copy came from, or reinstall the plugin from "
 "WordPress.org."
 msgstr ""
 
 #. translators: %s: plugin name
-#: includes/checks/class-shieldscope-check-plugins.php:524
+#: includes/checks/class-shieldscope-check-plugins.php:555
 #, php-format
 msgid "Review: PHP file not in the WordPress.org release: %s"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:525
+#: includes/checks/class-shieldscope-check-plugins.php:556
 msgid ""
 "This PHP file is inside the plugin folder but is not part of the official "
 "release of the installed version. Some plugins write cache or configuration "
 "files; a file nobody recognises can be a planted backdoor."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-plugins.php:526
+#: includes/checks/class-shieldscope-check-plugins.php:557
 msgid ""
 "Find out what created the file. If it is not needed, remove it, or reinstall "
 "the plugin from WordPress.org."
@@ -4189,37 +4228,37 @@ msgstr ""
 msgid "WPScan error, HTTP %d"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:437
+#: includes/checks/class-shieldscope-check-vuln-db.php:442
 msgid "Unknown vulnerability"
 msgstr ""
 
 #. translators: 1: plugin name, 2: installed version, 3: fix version or 'unknown'
-#: includes/checks/class-shieldscope-check-vuln-db.php:450
+#: includes/checks/class-shieldscope-check-vuln-db.php:455
 #, php-format
 msgid "%1$s version %2$s is affected. %3$s"
 msgstr ""
 
 #. translators: %s: version number
-#: includes/checks/class-shieldscope-check-vuln-db.php:455
+#: includes/checks/class-shieldscope-check-vuln-db.php:460
 #, php-format
 msgid "Fixed in version %s."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:456
+#: includes/checks/class-shieldscope-check-vuln-db.php:461
 msgid "No fix version known — check the plugin/theme page for updates."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:459
+#: includes/checks/class-shieldscope-check-vuln-db.php:464
 msgid "Severity: Unrated (WPScan published no CVSS score for this issue)."
 msgstr ""
 
 #. translators: %s: fix version
-#: includes/checks/class-shieldscope-check-vuln-db.php:465
+#: includes/checks/class-shieldscope-check-vuln-db.php:470
 #, php-format
 msgid "Update to version %s or later immediately."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:468
+#: includes/checks/class-shieldscope-check-vuln-db.php:473
 msgid ""
 "No fix is available yet. Deactivate and remove this plugin/theme until a "
 "patch is released. Contact the developer via the wordpress.org support forum "
@@ -4227,25 +4266,25 @@ msgid ""
 msgstr ""
 
 #. translators: 1: plugin name, 2: CVE ID(s) or vulnerability title
-#: includes/checks/class-shieldscope-check-vuln-db.php:474
+#: includes/checks/class-shieldscope-check-vuln-db.php:479
 #, php-format
 msgid "[WPScan] %1$s — %2$s"
 msgstr ""
 
 #. translators: 1: number of plugins, 2: review date (YYYY-MM-DD)
-#: includes/checks/class-shieldscope-check-vuln-db.php:538
+#: includes/checks/class-shieldscope-check-vuln-db.php:543
 #, php-format
 msgid "limited built-in list (%1$d plugins, last reviewed %2$s)"
 msgstr ""
 
 #. translators: 1: plugin name, 2: vulnerability type
-#: includes/checks/class-shieldscope-check-vuln-db.php:579
+#: includes/checks/class-shieldscope-check-vuln-db.php:584
 #, php-format
 msgid "%1$s — %2$s (installed version is vulnerable)"
 msgstr ""
 
 #. translators: 1: plugin name, 2: installed version, 3: fixed version
-#: includes/checks/class-shieldscope-check-vuln-db.php:585
+#: includes/checks/class-shieldscope-check-vuln-db.php:590
 #, php-format
 msgid ""
 "%1$s version %2$s is affected by a known security vulnerability. The fix was "
@@ -4253,13 +4292,13 @@ msgid ""
 msgstr ""
 
 #. translators: 1: "limited built-in list (N plugins, last reviewed DATE)", 2: NVD URL
-#: includes/checks/class-shieldscope-check-vuln-db.php:591
+#: includes/checks/class-shieldscope-check-vuln-db.php:596
 #, php-format
 msgid "Source: %1$s. Details: %2$s"
 msgstr ""
 
 #. translators: %s: plugin name
-#: includes/checks/class-shieldscope-check-vuln-db.php:597
+#: includes/checks/class-shieldscope-check-vuln-db.php:602
 #, php-format
 msgid ""
 "Update %s immediately via Dashboard → Plugins → Updates. If an update is not "
@@ -4267,38 +4306,38 @@ msgid ""
 "forum to report the issue and ask for a timeline."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:631
+#: includes/checks/class-shieldscope-check-vuln-db.php:636
 msgid "Unrestricted File Upload leading to RCE"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:641
+#: includes/checks/class-shieldscope-check-vuln-db.php:646
 msgid "Unauthenticated Directory Traversal (Arbitrary File Read)"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:651
-#: includes/checks/class-shieldscope-check-vuln-db.php:661
+#: includes/checks/class-shieldscope-check-vuln-db.php:656
+#: includes/checks/class-shieldscope-check-vuln-db.php:666
 msgid "Unauthenticated Remote Code Execution"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:671
-#: includes/checks/class-shieldscope-check-vuln-db.php:730
+#: includes/checks/class-shieldscope-check-vuln-db.php:676
+#: includes/checks/class-shieldscope-check-vuln-db.php:735
 msgid "Unauthenticated SQL Injection"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:681
+#: includes/checks/class-shieldscope-check-vuln-db.php:686
 msgid "Unauthenticated Privilege Escalation"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:692
-#: includes/checks/class-shieldscope-check-vuln-db.php:700
+#: includes/checks/class-shieldscope-check-vuln-db.php:697
+#: includes/checks/class-shieldscope-check-vuln-db.php:705
 msgid "Unauthenticated Reflected Cross-Site Scripting"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:710
+#: includes/checks/class-shieldscope-check-vuln-db.php:715
 msgid "DOM-based Reflected Cross-Site Scripting"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:720
+#: includes/checks/class-shieldscope-check-vuln-db.php:725
 msgid "Arbitrary File Manipulation (author+)"
 msgstr ""
 

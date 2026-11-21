@@ -32,6 +32,8 @@ class Test_S22_Plugin_Checksums extends TestCase {
 		$sum = function ( $text ) {
 			return array( 'md5' => md5( $text ), 'sha256' => hash( 'sha256', $text ) );
 		};
+		// WordPress lists these as WordPress.org plugins (IM2-03).
+		$GLOBALS['ss_test_site_transients']['update_plugins'] = (object) array( 'no_update' => array_fill_keys( array_keys( $GLOBALS['ss_test_plugins'] ), (object) array() ) );
 		$this->responses = array(
 			'request%5Bslug%5D=good'    => array( 200, array( 'slug' => 'good', 'last_updated' => gmdate( 'Y-m-d' ) . ' 1:00am GMT' ) ),
 			'request%5Bslug%5D=premium' => array( 404, array( 'error' => 'Plugin not found.' ) ),

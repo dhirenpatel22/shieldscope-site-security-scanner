@@ -126,8 +126,8 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 		}
 		$this->finding(
 			ShieldScope_Logger::SEVERITY_LOW,
-			__( 'Login error messages reveal whether a username exists', 'shieldscope-site-security-scanner' ),
-			__( 'After a failed login, WordPress says whether the username exists ("The password you entered for the username ... is incorrect"). Nothing on this site changes that message, so an attacker can confirm usernames before guessing passwords. Checked by running the site\'s login_errors filter on WordPress\'s own message; no login was attempted.', 'shieldscope-site-security-scanner' ),
+			__( 'Login error messages may reveal whether a username exists', 'shieldscope-site-security-scanner' ),
+			__( 'After a failed login, WordPress says whether the username exists ("The password you entered for the username ... is incorrect"). No login_errors filter active during the scan changes that message, so an attacker may be able to confirm usernames before guessing passwords. Some security plugins change the message only on the login page itself; open wp-login.php, try a wrong password and check what it says. Checked by running the login_errors filter on WordPress\'s own message; no login was attempted.', 'shieldscope-site-security-scanner' ),
 			__( 'Use a security or login-protection plugin that shows one generic message for every failed login, or add a login_errors filter that returns a generic message. Limiting login attempts matters more than hiding usernames.', 'shieldscope-site-security-scanner' ),
 			'wp-login.php'
 		);
@@ -318,14 +318,14 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 
 		if ( in_array( $code, array( 301, 302 ), true ) && false !== strpos( (string) $location, '/author/' ) ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_MEDIUM,
+				ShieldScope_Logger::SEVERITY_LOW,
 				__( 'Username exposed via author archive redirect', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: redirect URL */
 					__( '/?author=1 redirects to %s, leaking a username to unauthenticated visitors and aiding brute-force targeting.', 'shieldscope-site-security-scanner' ),
 					$location
 				),
-				__( 'In Users → All Users, set each author\'s "Display name publicly as" to a first name or nickname that differs from their login. To also block the redirect itself, add to functions.php: add_action(\'template_redirect\', function(){ if(is_author()){ wp_redirect(home_url(\'/\'), 301); exit; } });', 'shieldscope-site-security-scanner' ),
+				__( 'The redirect goes to the author\'s URL slug (user_nicename), which WordPress builds from the login, so changing the display name does not help. Block ?author= requests for logged-out visitors with a security plugin or a web-server rule, or give each account a nicename that differs from its login. Limiting login attempts matters more than hiding usernames.', 'shieldscope-site-security-scanner' ),
 				'/?author=1',
 				array( 'redirect' => $location )
 			);
@@ -459,7 +459,7 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 			if ( ! $has_nonce ) {
 				$this->finding(
 					ShieldScope_Logger::SEVERITY_LOW,
-					__( 'Needs review: public AJAX handler with no nonce check in the same file', 'shieldscope-site-security-scanner' ),
+					__( 'Review: public AJAX handler with no nonce check in the same file', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %d: number of hooks found */
 						_n(
@@ -486,7 +486,7 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 			if ( ! $has_auth ) {
 				$this->finding(
 					ShieldScope_Logger::SEVERITY_LOW,
-					__( 'Needs review: AJAX handler with no capability or nonce check in the same file', 'shieldscope-site-security-scanner' ),
+					__( 'Review: AJAX handler with no capability or nonce check in the same file', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %d: number of hooks found */
 						_n(

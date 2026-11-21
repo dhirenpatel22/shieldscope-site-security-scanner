@@ -272,7 +272,8 @@ class Test_Access_Control extends TestCase {
 
 		$this->assertCount( 1, $this->logger->findings );
 		$this->assertSame( ShieldScope_Logger::SEVERITY_LOW, $this->logger->findings[0]['severity'] );
-		$this->assertStringContainsStringIgnoringCase( 'needs review', $this->logger->findings[0]['title'] );
+		$this->assertStringStartsWith( 'Review:', $this->logger->findings[0]['title'] );
+		$this->assertSame( 'review', $this->logger->findings[0]['context']['confidence'], 'IM2-02: labelled Needs review.' );
 	}
 
 	public function test_logged_in_ajax_without_auth_is_low_and_needs_review() {
@@ -282,7 +283,8 @@ class Test_Access_Control extends TestCase {
 
 		$this->assertCount( 1, $this->logger->findings );
 		$this->assertSame( ShieldScope_Logger::SEVERITY_LOW, $this->logger->findings[0]['severity'] );
-		$this->assertStringContainsStringIgnoringCase( 'needs review', $this->logger->findings[0]['title'] );
+		$this->assertStringStartsWith( 'Review:', $this->logger->findings[0]['title'] );
+		$this->assertSame( 'review', $this->logger->findings[0]['context']['confidence'], 'IM2-02: labelled Needs review.' );
 	}
 
 	public function test_ajax_with_nonce_check_is_not_flagged() {
