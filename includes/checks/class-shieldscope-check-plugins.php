@@ -31,11 +31,6 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Steps.
-	 *
-	 * @return array
-	 */
-	/**
 	 * Steps a quick scan skips.
 	 *
 	 * @return string[]
@@ -44,6 +39,11 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 		return array( 'abandoned', 'checksums' );
 	}
 
+	/**
+	 * Steps.
+	 *
+	 * @return array
+	 */
 	public function get_steps() {
 		return array( 'updates', 'inactive', 'unknown_source', 'abandoned', 'checksums' );
 	}

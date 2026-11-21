@@ -36,11 +36,6 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Steps.
-	 *
-	 * @return array
-	 */
-	/**
 	 * Steps a quick scan skips.
 	 *
 	 * @return string[]
@@ -49,6 +44,11 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 		return array( 'uploads_php', 'backup_files' );
 	}
 
+	/**
+	 * Steps.
+	 *
+	 * @return array
+	 */
 	public function get_steps() {
 		return array( 'wp_config_perms', 'key_perms', 'readme', 'uploads_php', 'backup_files', 'directory_listing', 'directory_listing_all', 'wp_config_http', 'sensitive_urls' );
 	}
