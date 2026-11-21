@@ -63,7 +63,7 @@ define( 'YEAR_IN_SECONDS', 31536000 );
 define( 'MB_IN_BYTES', 1048576 );
 
 $ss_plugin_root = dirname( __DIR__ );
-define( 'SHIELDSCOPE_VERSION', '2.0.0' );
+define( 'SHIELDSCOPE_VERSION', '2.1.0' );
 define( 'SHIELDSCOPE_PLUGIN_DIR', $ss_plugin_root . '/' );
 define( 'SHIELDSCOPE_PLUGIN_FILE', $ss_plugin_root . '/shieldscope-site-security-scanner.php' );
 define( 'SHIELDSCOPE_WP_CONTENT_DIR', SS_TESTS_WP_ROOT . '/wp-content' );
