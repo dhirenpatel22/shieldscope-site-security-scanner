@@ -54,8 +54,7 @@ class ShieldScope_Check_Security_Config extends ShieldScope_Check_Base {
 				$this->check_server_info();
 				break;
 			case 'sensitive_files':
-				$this->check_sensitive_files();
-				break;
+				return $this->check_sensitive_files( $cursor );
 			case 'wp_cron':
 				$this->check_wp_cron();
 				break;
@@ -206,11 +205,13 @@ class ShieldScope_Check_Security_Config extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Probe for commonly-exposed sensitive files.
+	 * Probe for commonly-exposed sensitive files. Resumable: stops at the
+	 * step time budget between probes (SC2-03).
 	 *
-	 * @return void
+	 * @param array $cursor Cursor: index of the next file.
+	 * @return array
 	 */
-	private function check_sensitive_files() {
+	private function check_sensitive_files( array $cursor = array() ) {
 		$base  = trailingslashit( home_url() );
 		$probe = new ShieldScope_Probe();
 
@@ -260,7 +261,14 @@ class ShieldScope_Check_Security_Config extends ShieldScope_Check_Base {
 			),
 		);
 
-		foreach ( $files as $file => $meta ) {
+		$names = array_keys( $files );
+		$start = isset( $cursor['i'] ) ? (int) $cursor['i'] : 0;
+		for ( $i = $start; $i < count( $names ); $i++ ) {
+			if ( $i > $start && $this->out_of_time() ) {
+				return array( 'continue' => true, 'cursor' => array( 'i' => $i ) );
+			}
+			$file = $names[ $i ];
+			$meta = $files[ $file ];
 			if ( $probe->serves( $base . ltrim( $file, '/' ), $meta['match'] ) ) {
 				$this->finding(
 					$meta['severity'],
@@ -271,6 +279,7 @@ class ShieldScope_Check_Security_Config extends ShieldScope_Check_Base {
 				);
 			}
 		}
+		return array( 'continue' => false, 'cursor' => array() );
 	}
 
 	/**

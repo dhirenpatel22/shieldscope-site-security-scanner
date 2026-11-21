@@ -331,7 +331,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 		$key    = 'shieldscope_wporg_' . md5( $slug );
 		$cached = get_transient( $key );
 		if ( is_array( $cached ) ) {
-			return $cached;
+			return empty( $cached['lookup_failed'] ) ? $cached : null;
 		}
 
 		$url      = add_query_arg(
@@ -364,10 +364,12 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 					return $info;
 				}
 			}
+			set_transient( $key, array( 'lookup_failed' => true ), 15 * MINUTE_IN_SECONDS ); // Do not retry in every step (SC2-03).
 			return null;
 		}
 		$info = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		if ( ! is_array( $info ) ) {
+			set_transient( $key, array( 'lookup_failed' => true ), 15 * MINUTE_IN_SECONDS ); // Do not retry in every step (SC2-03).
 			return null;
 		}
 		$keep = array_intersect_key( $info, array_flip( array( 'slug', 'version', 'last_updated', 'error', 'closed', 'closed_date', 'reason', 'reason_text' ) ) );
@@ -412,8 +414,15 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 			'verified'   => 0,
 		);
 
+		$calls = 0;
 		while ( $cursor['i'] < count( $plugins ) ) {
 			list( $file, $slug, $data ) = $plugins[ $cursor['i'] ];
+
+			// Each plugin may need two remote calls: stop at the budget (SC2-03).
+			if ( $calls > 0 && $this->out_of_time() ) {
+				return array( 'continue' => true, 'cursor' => $cursor );
+			}
+			++$calls;
 
 			// ShieldScope does not audit its own folder (as the file walkers).
 			if ( defined( 'SHIELDSCOPE_PLUGIN_DIR' ) && basename( rtrim( SHIELDSCOPE_PLUGIN_DIR, '/\\' ) ) === $slug ) {
@@ -606,6 +615,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 		}
 		$response = wp_remote_get( sprintf( self::CHECKSUMS_URL, rawurlencode( $slug ), rawurlencode( $version ) ), self::wporg_request_args( 15 ) );
 		if ( is_wp_error( $response ) ) {
+			set_transient( $key, array(), 15 * MINUTE_IN_SECONDS ); // Do not retry in every step (SC2-03).
 			return null;
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );

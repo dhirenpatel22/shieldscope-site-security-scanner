@@ -80,6 +80,27 @@ class ShieldScope_Ignore {
 	}
 
 	/**
+	 * Counts per severity for a scan, not counting ignored findings (IM2-11).
+	 *
+	 * @param string $scan_id Scan id.
+	 * @return array
+	 */
+	public static function active_summary( $scan_id ) {
+		$counts = array( 'critical' => 0, 'high' => 0, 'medium' => 0, 'low' => 0, 'info' => 0 );
+		if ( '' === (string) $scan_id ) {
+			return $counts;
+		}
+		$logger         = new ShieldScope_Logger();
+		list( $active ) = self::split( $logger->get_findings( $scan_id ) );
+		foreach ( $active as $row ) {
+			if ( isset( $row['severity'], $counts[ $row['severity'] ] ) ) {
+				++$counts[ $row['severity'] ];
+			}
+		}
+		return $counts;
+	}
+
+	/**
 	 * Validate and store an ignore. Returns '' or an error message.
 	 *
 	 * @param array  $row    Finding row being ignored.

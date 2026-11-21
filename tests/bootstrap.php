@@ -56,6 +56,7 @@ register_shutdown_function( 'ss_tests_rmdir', SS_TESTS_WP_ROOT );
 // ---------------------------------------------------------------------------
 
 define( 'ABSPATH', SS_TESTS_WP_ROOT . '/' );
+define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'YEAR_IN_SECONDS', 31536000 );

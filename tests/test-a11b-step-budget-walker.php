@@ -161,7 +161,7 @@ class Test_A11b_Step_Budget_Walker extends TestCase {
 		( new SS_A11a_Scanner() )->run_chunk();
 		$this->assertNotNull( $snapshot, "Step $step did not run." );
 		list( $GLOBALS['ss_test_options'], $this->wpdb->findings ) = $snapshot;
-		$GLOBALS['ss_test_options'][ ShieldScope_Scanner::LOCK_OPTION ] = ( time() - ShieldScope_Scanner::LOCK_TIMEOUT - 1 ) . ':dead';
+		$GLOBALS['ss_test_options'][ ShieldScope_Scanner::LOCK_OPTION ] = ( time() - ShieldScope_Scanner::lock_timeout() - 1 ) . ':dead';
 		$GLOBALS['ss_test_option_cache'] = array();
 		unset( SS_A11a_Fake_Check::$during[ $step ] );
 	}

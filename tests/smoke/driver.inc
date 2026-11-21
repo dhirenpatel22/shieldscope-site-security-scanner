@@ -221,4 +221,33 @@ function shieldscope_smoke_scan( array &$result ) {
 	$result['history'] = count( ShieldScope_History::all() );
 	$cmp               = ShieldScope_History::compare_with_previous( $q_state['scan_id'], $logger->get_findings( $q_state['scan_id'] ) );
 	$result['compare'] = null === $cmp ? null : array( 'new' => count( $cmp['new'] ), 'fixed' => count( $cmp['fixed'] ), 'open' => $cmp['open'] );
+
+	// SC2-02: start in the tab, then the tab closes while a cron chunk finds
+	// the lock busy; WP-Cron alone must finish the scan.
+	$tc_state = $scanner->start();
+	$tc_state = $scanner->run_chunk( false );
+	$tc_state = $scanner->run_chunk( false );
+	global $wpdb;
+	$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} ( option_name, option_value, autoload ) VALUES ( %s, %s, 'no' ) ON DUPLICATE KEY UPDATE option_value = VALUES( option_value )", ShieldScope_Scanner::LOCK_OPTION, time() . ':tab' ) );
+	$ts = wp_next_scheduled( $hook );
+	if ( false !== $ts ) {
+		wp_unschedule_event( $ts, $hook );
+		do_action( $hook ); // Busy: the tab holds the lock.
+	}
+	$result['tc_queued_after_busy'] = false !== wp_next_scheduled( $hook );
+	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", ShieldScope_Scanner::LOCK_OPTION ) );
+	$tc_started = microtime( true );
+	$tc_runs    = 0;
+	while ( ShieldScope_Scanner::STATUS_RUNNING === $tc_state['status'] && ( microtime( true ) - $tc_started ) < $cap ) {
+		$ts = wp_next_scheduled( $hook );
+		if ( false === $ts ) {
+			break;
+		}
+		wp_unschedule_event( $ts, $hook );
+		do_action( $hook );
+		++$tc_runs;
+		wp_cache_delete( 'shieldscope_scan_state', 'options' );
+		$tc_state = $scanner->get_state();
+	}
+	$result['tab_then_close'] = array( 'status' => $tc_state['status'], 'cron_runs' => $tc_runs, 'queued_after_busy' => $result['tc_queued_after_busy'] );
 }

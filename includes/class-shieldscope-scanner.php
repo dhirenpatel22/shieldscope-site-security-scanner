@@ -167,7 +167,7 @@ class ShieldScope_Scanner {
 		if ( ! $created ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- must read the current row, not the cache.
 			$held = (string) $wpdb->get_var( $wpdb->prepare( "SELECT `option_value` FROM `{$wpdb->options}` WHERE `option_name` = %s", self::LOCK_OPTION ) );
-			if ( (int) $held > time() - self::LOCK_TIMEOUT ) {
+			if ( (int) $held > time() - self::lock_timeout() ) {
 				return false;
 			}
 			// Expired: take it over only if nobody else did first.
@@ -358,13 +358,17 @@ class ShieldScope_Scanner {
 	 * @return array
 	 */
 	public function pause() {
-		$state = $this->get_state();
-		if ( self::STATUS_RUNNING === $state['status'] ) {
-			$state['status']       = self::STATUS_PAUSED;
-			$state['last_message'] = __( 'Scan paused.', 'shieldscope-site-security-scanner' );
-			$this->save_state( $state );
-		}
-		return $state;
+		return $this->with_lock(
+			function () {
+				$state = $this->get_fresh_state();
+				if ( self::STATUS_RUNNING === $state['status'] ) {
+					$state['status']       = self::STATUS_PAUSED;
+					$state['last_message'] = __( 'Scan paused.', 'shieldscope-site-security-scanner' );
+					$this->save_state( $state );
+				}
+				return $state;
+			}
+		);
 	}
 
 	/**
@@ -373,14 +377,76 @@ class ShieldScope_Scanner {
 	 * @return array
 	 */
 	public function resume() {
-		$state = $this->get_state();
-		if ( self::STATUS_PAUSED === $state['status'] ) {
-			$state['status']       = self::STATUS_RUNNING;
-			$state['last_message'] = __( 'Scan resumed.', 'shieldscope-site-security-scanner' );
-			$this->save_state( $state );
-			$this->kick_background( $state );
-		}
+		$state = $this->with_lock(
+			function () {
+				$state = $this->get_fresh_state();
+				if ( self::STATUS_PAUSED === $state['status'] ) {
+					$state['status']       = self::STATUS_RUNNING;
+					$state['last_message'] = __( 'Scan resumed.', 'shieldscope-site-security-scanner' );
+					$this->save_state( $state );
+				}
+				return $state;
+			}
+		);
+		// Also restarts a stalled running scan's background chain (SC2-10).
+		$this->kick_background( $state );
 		return $state;
+	}
+
+	/**
+	 * Run a state change while holding the tick lock, so it cannot overwrite
+	 * progress a tick saves at the same moment (SC2-09). Waits up to 5 s for
+	 * a running tick; if the lock cannot be had, the change runs anyway.
+	 *
+	 * @param callable $change Returns the new state.
+	 * @return array
+	 */
+	private function with_lock( callable $change ) {
+		$locked = false;
+		for ( $i = 0; $i < 50 && ! $locked; $i++ ) {
+			$locked = $this->acquire_lock();
+			if ( ! $locked ) {
+				usleep( 100000 );
+			}
+		}
+		try {
+			return $change();
+		} finally {
+			if ( $locked ) {
+				$this->release_lock();
+			}
+		}
+	}
+
+	/**
+	 * Seconds after which a tick lock counts as abandoned: longer than any
+	 * request can run here (SC2-03). Unlimited requests (WP-CLI) get 10 min.
+	 *
+	 * @return int
+	 */
+	public static function lock_timeout() {
+		$max = (int) ini_get( 'max_execution_time' );
+		return $max <= 0 ? 600 : max( self::LOCK_TIMEOUT, $max + 15 );
+	}
+
+	/**
+	 * Make sure a background chunk is queued no later than $delay seconds
+	 * from now (moving an existing later event earlier).
+	 *
+	 * @param int $delay Seconds.
+	 * @return void
+	 */
+	public static function queue_cron( $delay ) {
+		$hook = 'shieldscope_run_scan_chunk';
+		$at   = time() + max( 0, (int) $delay );
+		$next = wp_next_scheduled( $hook );
+		if ( false !== $next && $next <= $at ) {
+			return;
+		}
+		if ( false !== $next ) {
+			wp_unschedule_event( $next, $hook );
+		}
+		wp_schedule_single_event( $at, $hook );
 	}
 
 	/**
@@ -414,22 +480,34 @@ class ShieldScope_Scanner {
 			return $state;
 		}
 
+		// Background chain (SC2-02): queue a watchdog first, so a busy or
+		// killed chunk can never end the chain; on success it is moved earlier.
+		if ( $from_cron || self::background_enabled() ) {
+			self::queue_cron( self::lock_timeout() + 5 );
+		}
+
 		if ( ! $this->acquire_lock() ) {
 			$state         = $this->get_fresh_state();
 			$state['busy'] = true;
 			return $state;
 		}
 
+		// Store findings in the site language whoever runs the chunk, so
+		// titles and fingerprints do not depend on a user's locale (IM2-10).
+		$switched = function_exists( 'switch_to_locale' ) && function_exists( 'determine_locale' ) && determine_locale() !== get_locale() && switch_to_locale( get_locale() );
+
 		try {
 			$state = $this->run_locked_chunk();
 		} finally {
 			$this->release_lock();
+			if ( $switched ) {
+				restore_previous_locale();
+			}
 		}
 
-		// If we were called from cron and the scan is still running, re-schedule.
-		if ( $from_cron && self::STATUS_RUNNING === $state['status'] && ! wp_next_scheduled( 'shieldscope_run_scan_chunk' ) ) {
+		if ( $from_cron && self::STATUS_RUNNING === $state['status'] ) {
 			$rest = isset( $state['rest_ms'] ) ? (int) ceil( $state['rest_ms'] / 1000 ) : 0;
-			wp_schedule_single_event( time() + max( 10, $rest ), 'shieldscope_run_scan_chunk' );
+			self::queue_cron( max( 10, $rest ) );
 		}
 
 		return $state;
@@ -635,7 +713,7 @@ class ShieldScope_Scanner {
 
 			update_option( 'shieldscope_last_scan', $state['scan_id'], false );
 			ShieldScope_Coverage::save( $state['scan_id'], $state['check_status'], $this->check_labels() );
-			ShieldScope_History::record( $state['scan_id'], $this->logger->get_summary( $state['scan_id'] ) );
+			ShieldScope_History::record( $state['scan_id'], ShieldScope_Ignore::active_summary( $state['scan_id'] ) );
 		}
 
 		$this->save_state( $state );
