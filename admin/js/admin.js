@@ -144,6 +144,10 @@
 		}
 
 		setButtons( lastStatus );
+		// A stalled scan can be continued from this page (SC2-10).
+		if ( 'running' === lastStatus && data.stalled ) {
+			$btnResume.prop( 'disabled', false );
+		}
 	}
 
 	function renderChecks( checks ) {
@@ -236,6 +240,9 @@
 			.done( function ( resp ) {
 				if ( resp && resp.success ) {
 					updateUI( resp.data );
+					if ( 'completed' === resp.data.status || 'aborted' === resp.data.status ) {
+						stopLoops();
+					}
 				}
 			} )
 			.always( function () {

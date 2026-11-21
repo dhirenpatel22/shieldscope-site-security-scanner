@@ -418,7 +418,12 @@ class SS_Test_WPDB {
 	public $prefix  = 'wp_';
 	public $queries = array();
 	public function prepare( $sql ) { return $sql; }
-	public function query( $sql ) { $this->queries[] = $sql; return 0; }
+	public $options = 'wp_options';
+	public function query( $sql ) {
+		$this->queries[] = $sql;
+		// The scan lock row: an INSERT IGNORE that succeeds once.
+		return 0 === strpos( ltrim( $sql ), 'INSERT IGNORE' ) ? 1 : 0;
+	}
 	public function get_var( $sql = null ) { return null; }
 	public function get_results( $sql = null, $output = null ) { return array(); }
 }

@@ -90,12 +90,13 @@ class Test_S20_WPOrg_Plugin_Status extends TestCase {
 		$this->assertSame( 5, $this->calls );
 	}
 
-	public function test_failed_lookup_is_noted_and_not_cached() {
+	public function test_failed_lookup_is_noted_and_cached_briefly() {
 		unset( $this->api['fresh'] );
 		list( , $notes ) = $this->run_step();
 		$this->assertSame( array( '1 plugin(s) could not be looked up on WordPress.org' ), $notes );
-		$this->run_step();
-		$this->assertSame( 6, $this->calls, 'The failed lookup is retried; the others come from cache.' );
+		list( , $notes ) = $this->run_step();
+		$this->assertSame( 5, $this->calls, 'SC2-03: a failed lookup is not repeated within 15 minutes.' );
+		$this->assertSame( array( '1 plugin(s) could not be looked up on WordPress.org' ), $notes, 'It is still reported as not looked up.' );
 	}
 
 	public function test_no_file_dates_are_used() {

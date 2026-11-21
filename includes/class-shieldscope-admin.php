@@ -266,8 +266,7 @@ class ShieldScope_Admin {
 		if ( $screen && false !== strpos( (string) $screen->id, SHIELDSCOPE_SLUG ) ) {
 			return; // The scan and report pages show the result themselves.
 		}
-		$logger  = new ShieldScope_Logger();
-		$summary = $logger->get_summary( $last );
+		$summary = ShieldScope_Ignore::active_summary( $last );
 		printf(
 			'<div class="notice notice-info"><p>%s <a href="%s">%s</a></p></div>',
 			esc_html( __( 'ShieldScope scan finished.', 'shieldscope-site-security-scanner' ) . ' ' . ShieldScope_PDF_Report::verdict( $summary ) ),

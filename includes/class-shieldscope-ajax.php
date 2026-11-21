@@ -134,8 +134,7 @@ class ShieldScope_Ajax {
 	 * @return array
 	 */
 	private function envelope( array $state, ShieldScope_Scanner $scanner ) {
-		$logger  = new ShieldScope_Logger();
-		$summary = ! empty( $state['scan_id'] ) ? $logger->get_summary( $state['scan_id'] ) : array();
+		$summary = ! empty( $state['scan_id'] ) ? ShieldScope_Ignore::active_summary( $state['scan_id'] ) : array();
 
 		return array(
 			'status'       => $state['status'],

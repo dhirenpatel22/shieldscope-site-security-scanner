@@ -306,7 +306,7 @@ class Test_A11a_Scanner_Pause_Abort_Lock extends TestCase {
 	public function test_expired_lock_is_taken_over() {
 		$scanner = new SS_A11a_Scanner();
 		$scanner->start();
-		$GLOBALS['ss_test_options']['shieldscope_tick_lock'] = ( time() - ShieldScope_Scanner::LOCK_TIMEOUT - 1 ) . ':crashed';
+		$GLOBALS['ss_test_options']['shieldscope_tick_lock'] = ( time() - ShieldScope_Scanner::lock_timeout() - 1 ) . ':crashed';
 
 		$state = $scanner->run_chunk();
 
