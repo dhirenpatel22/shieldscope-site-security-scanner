@@ -93,7 +93,7 @@ class ShieldScope_Admin {
 	 * @return string
 	 */
 	public static function privacy_statement() {
-		return __( 'Scan results stay in your WordPress database. During a scan ShieldScope sends requests to your own site (to check headers, HTTPS and files that should not be public) and contacts api.wordpress.org (it sends your WordPress version and locale, and the folder names of installed plugins to check whether they are closed or unmaintained) and downloads.wordpress.org (plugin folder names and versions, to compare plugin files with the official release). If you add a WPScan API key it also sends plugin and theme slugs to wpscan.com.', 'shieldscope-site-security-scanner' );
+		return __( 'Scan results stay in your WordPress database. During a scan ShieldScope sends requests to your own site (to check headers, HTTPS and files that should not be public) and contacts api.wordpress.org (it sends your WordPress version and locale, and the folder names of installed plugins to check whether they are closed or unmaintained) and downloads.wordpress.org (plugin folder names and versions, to compare plugin files with the official release). Unless turned off in Settings, it sends the WordPress version and the slugs of plugins and themes listed on WordPress.org to www.wpvulnerability.net to look up known vulnerabilities. If you add a WPScan API key it also sends plugin and theme slugs to wpscan.com.', 'shieldscope-site-security-scanner' );
 	}
 
 	/**
@@ -425,7 +425,8 @@ class ShieldScope_Admin {
 				'pause_on_blur'      => 0,
 				'background_scan'    => 1,
 				'developer_review'   => 0,
-				'report_help_link'     => 1,
+				'report_help_link'   => 1,
+				'wpvulnerability'    => 1,
 			)
 		);
 		include SHIELDSCOPE_PLUGIN_DIR . 'admin/views/settings.php';
@@ -505,7 +506,8 @@ class ShieldScope_Admin {
 			'pause_on_blur'      => ! empty( $raw['pause_on_blur'] ) ? 1 : 0,
 			'background_scan'    => ! empty( $raw['background_scan'] ) ? 1 : 0,
 			'developer_review'   => ! empty( $raw['developer_review'] ) ? 1 : 0,
-			'report_help_link'     => ! empty( $raw['report_help_link'] ) ? 1 : 0,
+			'report_help_link'   => ! empty( $raw['report_help_link'] ) ? 1 : 0,
+			'wpvulnerability'    => ! empty( $raw['wpvulnerability'] ) ? 1 : 0,
 			'wpscan_api_key'     => $wpscan_key,
 		);
 		update_option( 'shieldscope_settings', $clean );

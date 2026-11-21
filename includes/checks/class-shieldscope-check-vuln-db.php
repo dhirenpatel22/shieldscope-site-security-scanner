@@ -2,13 +2,17 @@
 /**
  * Vulnerability database check.
  *
- * Compares installed plugin and theme versions against:
- *  1. WPScan API (https://wpscan.com) — when an API key is configured in
- *     Settings, looks up each installed plugin and the active/parent theme
- *     that is listed on WordPress.org.
- *  2. Built-in list — a small, limited list of plugin CVEs, each checked
- *     against NVD and the vendor changelog on the review date below. It is
- *     not a complete vulnerability database.
+ * Compares installed plugin, theme and WordPress core versions against:
+ *  1. WPVulnerability (https://www.wpvulnerability.com) — on by default
+ *     (Settings → Vulnerability lookups). A free, keyless API whose data is
+ *     CC0 1.0 and gathered from CVE, Patchstack, Wordfence, WPScan and
+ *     others. Only slugs and version numbers are sent; answers are cached.
+ *  2. WPScan API (https://wpscan.com) — when an API key is configured, for
+ *     plugins and themes WPVulnerability could not answer (or when it is
+ *     off), so the 25-requests-a-day free quota is not spent twice.
+ *  3. Built-in list — a small, limited list of plugin CVEs, each checked
+ *     against NVD and the vendor changelog on the review date below. Used
+ *     only for plugins no online source answered.
  *
  * WPScan free tier: 25 requests/day. Live requests are counted per day and
  * stop at that limit; successful responses are cached in transients (24h).
@@ -28,6 +32,21 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 	 * WPScan API base URL.
 	 */
 	const WPSCAN_API = 'https://wpscan.com/api/v3/';
+
+	/**
+	 * WPVulnerability API base URL.
+	 */
+	const WPV_API = 'https://www.wpvulnerability.net/';
+
+	/**
+	 * Cache for WPVulnerability answers (seconds).
+	 */
+	const WPV_CACHE_TTL = 12 * HOUR_IN_SECONDS;
+
+	/**
+	 * Most vulnerabilities listed in one finding's description.
+	 */
+	const WPV_MAX_LISTED = 8;
 
 	/**
 	 * Transient TTL for WPScan responses (seconds).
@@ -99,11 +118,15 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 		$cursor = wp_parse_args(
 			$cursor,
 			array(
-				'index'    => 0,
-				'eligible' => 0,
-				'checked'  => 0,
-				'reasons'  => array(),
-				'stop'     => '',
+				'index'        => 0,
+				'eligible'     => 0,
+				'checked'      => 0,
+				'reasons'      => array(),
+				'stop'         => '',
+				'wpv_eligible' => 0,
+				'wpv_checked'  => 0,
+				'wpv_failed'   => 0,
+				'wpv_reasons'  => array(),
 			)
 		);
 
@@ -179,6 +202,19 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 			);
 		}
 
+		// WordPress core, looked up on WPVulnerability only.
+		$core = isset( $GLOBALS['wp_version'] ) ? (string) $GLOBALS['wp_version'] : '';
+		if ( '' !== $core && self::wpv_enabled() ) {
+			$components[] = array(
+				'type'    => 'core',
+				'slug'    => $core,
+				'version' => $core,
+				'name'    => 'WordPress',
+				'target'  => 'WordPress ' . $core,
+				'on_org'  => true,
+			);
+		}
+
 		return $components;
 	}
 
@@ -209,6 +245,30 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 	 * @return array Updated cursor.
 	 */
 	private function check_component( array $component, array $cursor ) {
+		// 1. WPVulnerability, for components listed on WordPress.org (a custom
+		// plugin could share a slug with an unrelated WordPress.org plugin).
+		if ( self::wpv_enabled() && $component['on_org'] ) {
+			$cursor['wpv_eligible']++;
+			$lookup = $cursor['wpv_failed'] >= 2
+				? array( 'error' => __( 'WPVulnerability could not be reached', 'shieldscope-site-security-scanner' ) )
+				: $this->fetch_wpv( $component['type'], $component['slug'] );
+			if ( isset( $lookup['error'] ) ) {
+				$cursor['wpv_reasons'][ $lookup['error'] ] = true;
+				if ( ! empty( $lookup['unreachable'] ) ) {
+					$cursor['wpv_failed']++;
+				}
+			} else {
+				$cursor['wpv_checked']++;
+				$this->report_wpv_vulns( $lookup['data'], $component );
+				return $cursor;
+			}
+		}
+
+		if ( 'core' === $component['type'] ) {
+			return $cursor;
+		}
+
+		// 2. Not answered online: the built-in list, then WPScan if a key is set.
 		if ( 'plugins' === $component['type'] ) {
 			$this->check_built_in_list( $component['slug'], $component['version'], $component['name'], $component['target'] );
 		}
@@ -246,6 +306,14 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 	 * @return void
 	 */
 	private function report_coverage( array $cursor ) {
+		if ( self::wpv_enabled() ) {
+			$this->report_wpv_coverage( $cursor );
+			if ( (int) $cursor['eligible'] > 0 ) {
+				$this->report_wpscan_shortfall( $cursor );
+			}
+			return;
+		}
+
 		$description = __( 'Installed plugins were compared with a limited built-in list of known vulnerabilities. This is not a complete vulnerability scan: a plugin or theme that is not on the list, or a vulnerability published after the review date, is not detected.', 'shieldscope-site-security-scanner' );
 		if ( $this->get_api_key() ) {
 			$description .= ' ' . sprintf(
@@ -274,9 +342,86 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 		);
 
 		if ( ! $this->get_api_key() ) {
-			$this->note_partial( __( 'only the limited built-in list was checked (no WPScan API key)', 'shieldscope-site-security-scanner' ) );
+			$this->note_partial( __( 'only the limited built-in list was checked (WPVulnerability lookups are off in Settings and there is no WPScan API key)', 'shieldscope-site-security-scanner' ) );
 		}
 
+		$this->report_wpscan_shortfall( $cursor );
+	}
+
+	/**
+	 * Coverage when WPVulnerability lookups are on: one Info finding with the
+	 * count, plus a coverage note and a Low finding if lookups failed.
+	 *
+	 * @param array $cursor Final cursor.
+	 * @return void
+	 */
+	private function report_wpv_coverage( array $cursor ) {
+		$checked  = (int) $cursor['wpv_checked'];
+		$eligible = (int) $cursor['wpv_eligible'];
+
+		$this->finding(
+			ShieldScope_Logger::SEVERITY_INFO,
+			sprintf(
+				/* translators: 1: components looked up, 2: components eligible */
+				__( 'Vulnerability check coverage: WPVulnerability, %1$d of %2$d components looked up', 'shieldscope-site-security-scanner' ),
+				$checked,
+				$eligible
+			),
+			__( 'WordPress core and the installed plugins and themes listed on WordPress.org were looked up on WPVulnerability, a free database that combines CVE, Patchstack, Wordfence, WPScan and other sources (data under CC0 1.0). Only slugs and version numbers were sent. Plugins and themes not listed on WordPress.org (custom or premium) are not looked up, and a vulnerability that is not yet published is not detected.', 'shieldscope-site-security-scanner' ),
+			__( 'Keep WordPress, plugins and themes updated. Review custom and premium plugins with their developers.', 'shieldscope-site-security-scanner' ),
+			'',
+			array(
+				'source'   => 'wpvulnerability',
+				'checked'  => $checked,
+				'eligible' => $eligible,
+			)
+		);
+
+		if ( $checked >= $eligible ) {
+			return;
+		}
+
+		$reasons = empty( $cursor['wpv_reasons'] )
+			? array( __( 'unknown error', 'shieldscope-site-security-scanner' ) )
+			: array_keys( $cursor['wpv_reasons'] );
+
+		$this->note_partial(
+			sprintf(
+				/* translators: 1: components looked up, 2: components eligible */
+				__( 'WPVulnerability lookups: %1$d of %2$d checked', 'shieldscope-site-security-scanner' ),
+				$checked,
+				$eligible
+			)
+		);
+
+		$this->finding(
+			ShieldScope_Logger::SEVERITY_LOW,
+			sprintf(
+				/* translators: 1: components checked, 2: components eligible, 3: reason(s) */
+				__( 'Vulnerability lookup incomplete: %1$d of %2$d components checked on WPVulnerability (%3$s)', 'shieldscope-site-security-scanner' ),
+				$checked,
+				$eligible,
+				implode( '; ', $reasons )
+			),
+			__( 'Some components could not be looked up during this scan. Plugins among them were compared with the limited built-in list instead (and with WPScan if a key is set). This does not mean they are safe.', 'shieldscope-site-security-scanner' ),
+			__( 'Check that the server can make outgoing HTTPS requests to www.wpvulnerability.net and run the scan again.', 'shieldscope-site-security-scanner' ),
+			'',
+			array(
+				'source'   => 'wpvulnerability',
+				'checked'  => $checked,
+				'eligible' => $eligible,
+				'reasons'  => $reasons,
+			)
+		);
+	}
+
+	/**
+	 * Note and report WPScan lookups that failed.
+	 *
+	 * @param array $cursor Final cursor.
+	 * @return void
+	 */
+	private function report_wpscan_shortfall( array $cursor ) {
 		if ( (int) $cursor['checked'] >= (int) $cursor['eligible'] ) {
 			return;
 		}
@@ -311,6 +456,282 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 				'checked'  => (int) $cursor['checked'],
 				'eligible' => (int) $cursor['eligible'],
 				'reasons'  => $reasons,
+			)
+		);
+	}
+
+	// -----------------------------------------------------------------------
+	// WPVulnerability API
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Are WPVulnerability lookups on? On by default; Settings turns them off.
+	 *
+	 * @return bool
+	 */
+	public static function wpv_enabled() {
+		$settings = (array) get_option( 'shieldscope_settings', array() );
+		return ! isset( $settings['wpvulnerability'] ) || ! empty( $settings['wpvulnerability'] );
+	}
+
+	/**
+	 * Fetch WPVulnerability data for one component, from cache or a request.
+	 * Failures are cached for 15 minutes so a scan does not retry them.
+	 *
+	 * @param string $type 'plugins', 'themes' or 'core'.
+	 * @param string $slug Slug, or the WordPress version for core.
+	 * @return array Either [ 'data' => array ] or [ 'error' => reason, 'unreachable' => bool ].
+	 */
+	private function fetch_wpv( $type, $slug ) {
+		$cache_key = 'shieldscope_wpv_' . md5( $type . '|' . $slug );
+		$cached    = get_transient( $cache_key );
+		if ( is_array( $cached ) ) {
+			return isset( $cached['lookup_failed'] )
+				? array( 'error' => (string) $cached['lookup_failed'], 'unreachable' => false )
+				: array( 'data' => $cached );
+		}
+
+		$paths    = array( 'plugins' => 'plugin', 'themes' => 'theme', 'core' => 'core' );
+		$response = wp_remote_get( self::WPV_API . $paths[ $type ] . '/' . rawurlencode( $slug ) . '/', self::wporg_request_args( 8 ) );
+
+		$error       = '';
+		$unreachable = false;
+		if ( is_wp_error( $response ) ) {
+			$error       = __( 'could not connect to WPVulnerability', 'shieldscope-site-security-scanner' );
+			$unreachable = true;
+		} else {
+			$code = (int) wp_remote_retrieve_response_code( $response );
+			$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+			if ( 200 !== $code ) {
+				/* translators: %d: HTTP status code */
+				$error       = sprintf( __( 'WPVulnerability error, HTTP %d', 'shieldscope-site-security-scanner' ), $code );
+				$unreachable = $code >= 500;
+			} elseif ( ! is_array( $body ) || ! empty( $body['error'] ) || ! isset( $body['data'] ) || ! is_array( $body['data'] ) ) {
+				$error = __( 'WPVulnerability returned an unreadable response', 'shieldscope-site-security-scanner' );
+			} else {
+				$data = array( 'vulnerability' => isset( $body['data']['vulnerability'] ) && is_array( $body['data']['vulnerability'] ) ? $body['data']['vulnerability'] : array() );
+				set_transient( $cache_key, $data, self::WPV_CACHE_TTL );
+				return array( 'data' => $data );
+			}
+		}
+
+		set_transient( $cache_key, array( 'lookup_failed' => $error ), 15 * MINUTE_IN_SECONDS );
+		return array( 'error' => $error, 'unreachable' => $unreachable );
+	}
+
+	/**
+	 * Does a WPVulnerability entry affect the installed version?
+	 *
+	 * Core entries are per version (the lookup is for this exact version).
+	 * Otherwise the entry gives an optional lower bound (ge/gt) and upper
+	 * bound (lt/le); with no upper bound, only an entry marked unfixed counts.
+	 *
+	 * @param string $version  Installed version.
+	 * @param array  $operator The entry's "operator" object.
+	 * @param bool   $core     Core entry.
+	 * @return bool
+	 */
+	public static function wpv_affects( $version, array $operator, $core = false ) {
+		if ( $core ) {
+			return true;
+		}
+		$min     = isset( $operator['min_version'] ) ? (string) $operator['min_version'] : '';
+		$min_op  = isset( $operator['min_operator'] ) ? (string) $operator['min_operator'] : '';
+		$max     = isset( $operator['max_version'] ) ? (string) $operator['max_version'] : '';
+		$max_op  = isset( $operator['max_operator'] ) ? (string) $operator['max_operator'] : '';
+		$unfixed = ! empty( $operator['unfixed'] ) && '0' !== (string) $operator['unfixed'];
+
+		if ( '' !== $min ) {
+			$min_cmp = 'gt' === $min_op ? '>' : '>=';
+			if ( ! version_compare( $version, $min, $min_cmp ) ) {
+				return false;
+			}
+		}
+		if ( '' !== $max ) {
+			return version_compare( $version, $max, 'le' === $max_op ? '<=' : '<' );
+		}
+		return $unfixed;
+	}
+
+	/**
+	 * CVSS base score of a WPVulnerability entry (0 when none is published).
+	 *
+	 * @param array $vuln Entry.
+	 * @return float
+	 */
+	public static function wpv_score( array $vuln ) {
+		$impact = isset( $vuln['impact'] ) && is_array( $vuln['impact'] ) ? $vuln['impact'] : array();
+		foreach ( array( 'cvss3', 'cvss' ) as $key ) {
+			if ( isset( $impact[ $key ]['score'] ) && (float) $impact[ $key ]['score'] > 0 ) {
+				return (float) $impact[ $key ]['score'];
+			}
+		}
+		return 0.0;
+	}
+
+	/**
+	 * One finding per affected component, listing its known vulnerabilities.
+	 *
+	 * @param array $data      Cached lookup: [ 'vulnerability' => entries ].
+	 * @param array $component Component from get_components().
+	 * @return void
+	 */
+	private function report_wpv_vulns( array $data, array $component ) {
+		$core    = 'core' === $component['type'];
+		$version = $component['version'];
+		$items   = array();
+		$fixes   = array();
+		$unfixed = false;
+		$top     = 0.0;
+		$kev     = false;
+
+		// The same issue is often listed once per source. An entry without a
+		// CVE number that has the same fix as an entry with one is treated as
+		// the same issue; entries without a CVE are merged per fix version.
+		$affecting = array();
+		$cve_fixes = array();
+		foreach ( (array) $data['vulnerability'] as $vuln ) {
+			if ( ! is_array( $vuln ) ) {
+				continue;
+			}
+			$op = isset( $vuln['operator'] ) && is_array( $vuln['operator'] ) ? $vuln['operator'] : array();
+			if ( ! self::wpv_affects( $version, $op, $core ) ) {
+				continue;
+			}
+			$affecting[] = $vuln;
+			foreach ( isset( $vuln['source'] ) ? (array) $vuln['source'] : array() as $src ) {
+				if ( 0 === strpos( isset( $src['id'] ) ? (string) $src['id'] : '', 'CVE-' ) ) {
+					$cve_fixes[ isset( $op['max_version'] ) ? (string) $op['max_version'] : '' ] = true;
+				}
+			}
+		}
+
+		foreach ( $affecting as $vuln ) {
+			$op = isset( $vuln['operator'] ) && is_array( $vuln['operator'] ) ? $vuln['operator'] : array();
+
+			$cves  = array();
+			$label = '';
+			$link  = '';
+			foreach ( isset( $vuln['source'] ) ? (array) $vuln['source'] : array() as $src ) {
+				$id = isset( $src['id'] ) ? (string) $src['id'] : '';
+				if ( 0 === strpos( $id, 'CVE-' ) ) {
+					$cves[ $id ] = true;
+				}
+				if ( '' === $label && ! empty( $src['name'] ) ) {
+					$label = html_entity_decode( wp_strip_all_tags( (string) $src['name'] ), ENT_QUOTES, 'UTF-8' );
+				}
+				if ( '' === $link && ! empty( $src['link'] ) ) {
+					$link = (string) $src['link'];
+				}
+			}
+			$cves     = array_keys( $cves );
+			$fix_key  = isset( $op['max_version'] ) ? (string) $op['max_version'] : '';
+			if ( ! $cves && ! $core && isset( $cve_fixes[ $fix_key ] ) ) {
+				continue; // Same issue as a CVE entry with this fix, from another source.
+			}
+			$label = $cves ? implode( ', ', $cves ) : ( '' !== $label ? $label : (string) ( isset( $vuln['name'] ) ? $vuln['name'] : '' ) );
+			$key   = ( $cves || $core ? strtolower( $label ) : 'no-cve' ) . '|' . $fix_key;
+			if ( isset( $items[ $key ] ) ) {
+				continue; // Same issue listed by another source.
+			}
+
+			$score = self::wpv_score( $vuln );
+			$top   = max( $top, $score );
+			$kev   = $kev || ! empty( $vuln['impact']['ssvc']['kev'] );
+			$fixed = ( ! $core && ! empty( $op['max_version'] ) && 'lt' === ( isset( $op['max_operator'] ) ? $op['max_operator'] : '' ) ) ? (string) $op['max_version'] : '';
+			if ( '' !== $fixed ) {
+				$fixes[] = $fixed;
+			} elseif ( ! $core ) {
+				$unfixed = true;
+			}
+
+			$items[ $key ] = array(
+				'label'    => $label,
+				'fixed_in' => $fixed,
+				'cvss'     => $score > 0 ? $score : 'unrated',
+				'link'     => $link,
+			);
+		}
+
+		if ( ! $items ) {
+			return;
+		}
+
+		$severity = $this->wpscan_cvss_to_severity( $top );
+		if ( $kev && in_array( $severity, array( ShieldScope_Logger::SEVERITY_MEDIUM, ShieldScope_Logger::SEVERITY_LOW ), true ) ) {
+			$severity = ShieldScope_Logger::SEVERITY_HIGH; // Known to be exploited (CISA KEV).
+		}
+
+		usort(
+			$fixes,
+			static function ( $a, $b ) {
+				return version_compare( $b, $a );
+			}
+		);
+		$latest_fix = $fixes ? $fixes[0] : '';
+
+		$lines = array();
+		foreach ( array_slice( array_values( $items ), 0, self::WPV_MAX_LISTED ) as $item ) {
+			$parts = array();
+			if ( '' !== $item['fixed_in'] ) {
+				/* translators: %s: version */
+				$parts[] = sprintf( __( 'fixed in %s', 'shieldscope-site-security-scanner' ), $item['fixed_in'] );
+			} elseif ( ! $core ) {
+				$parts[] = __( 'no fix yet', 'shieldscope-site-security-scanner' );
+			}
+			if ( 'unrated' !== $item['cvss'] ) {
+				/* translators: %s: CVSS score */
+				$parts[] = sprintf( __( 'CVSS %s', 'shieldscope-site-security-scanner' ), number_format( (float) $item['cvss'], 1 ) );
+			}
+			$lines[] = $item['label'] . ( $parts ? ' (' . implode( ', ', $parts ) . ')' : '' ) . ( '' !== $item['link'] ? ' ' . $item['link'] : '' );
+		}
+		if ( count( $items ) > self::WPV_MAX_LISTED ) {
+			/* translators: %d: number of further vulnerabilities */
+			$lines[] = sprintf( __( 'and %d more', 'shieldscope-site-security-scanner' ), count( $items ) - self::WPV_MAX_LISTED );
+		}
+
+		$desc = sprintf(
+			/* translators: 1: component name, 2: installed version, 3: number of vulnerabilities, 4: list */
+			_n( '%1$s %2$s has %3$d known vulnerability: %4$s.', '%1$s %2$s has %3$d known vulnerabilities: %4$s.', count( $items ), 'shieldscope-site-security-scanner' ),
+			$component['name'],
+			$version,
+			count( $items ),
+			implode( '; ', $lines )
+		);
+		if ( $kev ) {
+			$desc .= ' ' . __( 'At least one is listed as exploited in the wild (CISA KEV).', 'shieldscope-site-security-scanner' );
+		}
+		$desc .= ' ' . __( 'Source: WPVulnerability.', 'shieldscope-site-security-scanner' );
+
+		if ( $core ) {
+			$rec = __( 'Update WordPress to the latest version (Dashboard → Updates). Every listed issue is fixed in a later release.', 'shieldscope-site-security-scanner' );
+		} elseif ( $unfixed ) {
+			$rec = __( 'At least one issue has no fix yet. Deactivate and remove it until a fixed version is released, or replace it; update to the latest version for the issues that are fixed.', 'shieldscope-site-security-scanner' );
+		} else {
+			/* translators: %s: version */
+			$rec = sprintf( __( 'Update to version %s or later.', 'shieldscope-site-security-scanner' ), $latest_fix );
+		}
+
+		$this->finding(
+			$severity,
+			sprintf(
+				/* translators: 1: component name, 2: installed version, 3: number of vulnerabilities */
+				_n( '[WPVulnerability] %1$s %2$s: %3$d known vulnerability', '[WPVulnerability] %1$s %2$s: %3$d known vulnerabilities', count( $items ), 'shieldscope-site-security-scanner' ),
+				$component['name'],
+				$version,
+				count( $items )
+			),
+			$desc,
+			$rec,
+			$component['target'],
+			array(
+				'source'    => 'wpvulnerability',
+				'installed' => $version,
+				'fixed_in'  => $latest_fix,
+				'unfixed'   => $unfixed,
+				'cvss'      => $top > 0 ? $top : 'unrated',
+				'kev'       => $kev,
+				'vulns'     => array_values( $items ),
 			)
 		);
 	}

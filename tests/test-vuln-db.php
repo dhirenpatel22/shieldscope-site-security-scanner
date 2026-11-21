@@ -29,6 +29,9 @@ class Test_Vuln_DB extends TestCase {
 		ss_tests_reset_state();
 		$this->logger                      = new SS_Fake_Logger();
 		$this->requests                    = array();
+		// These tests cover WPScan and the built-in list; WPVulnerability is
+		// tested in test-wpvulnerability.php.
+		update_option( 'shieldscope_settings', array( 'wpvulnerability' => 0 ) );
 	}
 
 	// ---------------------------------------------------------------------
@@ -54,7 +57,7 @@ class Test_Vuln_DB extends TestCase {
 	}
 
 	private function set_key() {
-		update_option( 'shieldscope_settings', array( 'wpscan_api_key' => 'test-key' ) );
+		update_option( 'shieldscope_settings', array( 'wpscan_api_key' => 'test-key', 'wpvulnerability' => 0 ) );
 	}
 
 	/**
