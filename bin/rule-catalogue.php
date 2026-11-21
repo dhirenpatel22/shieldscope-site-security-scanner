@@ -109,6 +109,10 @@ function ss_rules( $file ) {
 				if ( null === $title && '__' === $c && '(' === $tx( $j + 1 ) && T_CONSTANT_ENCAPSED_STRING === ( is_array( $t[ $j + 2 ] ) ? $t[ $j + 2 ][0] : 0 ) ) {
 					$title = ss_str( $tx( $j + 2 ) );
 				}
+				// _n( 'singular', 'plural', ... ): catalogue the plural form.
+				if ( null === $title && '_n' === $c && '(' === $tx( $j + 1 ) && ',' === $tx( $j + 3 ) && T_CONSTANT_ENCAPSED_STRING === ( is_array( $t[ $j + 4 ] ) ? $t[ $j + 4 ][0] : 0 ) ) {
+					$title = ss_str( $tx( $j + 4 ) );
+				}
 				if ( null === $title && '' === $var && is_array( $t[ $j ] ) && T_VARIABLE === $t[ $j ][0] && $j > $i + 3 ) {
 					$var = $c;
 				}
