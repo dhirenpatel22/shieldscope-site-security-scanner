@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: ShieldScope 2.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/shieldscope-site-"
 "security-scanner/\n"
-"POT-Creation-Date: 2026-11-21 17:59+0530\n"
+"POT-Creation-Date: 2026-11-21 18:07+0530\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -490,28 +490,28 @@ msgid ""
 "carry on in the background after you close this page."
 msgstr ""
 
-#: admin/views/scan.php:44 includes/class-shieldscope-admin.php:276
+#: admin/views/scan.php:44 includes/class-shieldscope-admin.php:286
 msgid "Waiting"
 msgstr ""
 
-#: admin/views/scan.php:45 includes/class-shieldscope-admin.php:277
+#: admin/views/scan.php:45 includes/class-shieldscope-admin.php:287
 msgid "Running"
 msgstr ""
 
-#: admin/views/scan.php:46 includes/class-shieldscope-admin.php:278
+#: admin/views/scan.php:46 includes/class-shieldscope-admin.php:288
 msgid "Done"
 msgstr ""
 
-#: admin/views/scan.php:47 includes/class-shieldscope-admin.php:279
+#: admin/views/scan.php:47 includes/class-shieldscope-admin.php:289
 msgid "Partly done"
 msgstr ""
 
-#: admin/views/scan.php:48 includes/class-shieldscope-admin.php:280
+#: admin/views/scan.php:48 includes/class-shieldscope-admin.php:290
 #: includes/class-shieldscope-coverage.php:127
 msgid "Error"
 msgstr ""
 
-#: admin/views/scan.php:49 includes/class-shieldscope-admin.php:281
+#: admin/views/scan.php:49 includes/class-shieldscope-admin.php:291
 #: includes/class-shieldscope-coverage.php:129
 msgid "Did not run"
 msgstr ""
@@ -526,7 +526,7 @@ msgstr ""
 
 #. translators: 1: done, 2: total
 #. translators: 1: steps done, 2: total steps
-#: admin/views/scan.php:68 includes/class-shieldscope-admin.php:274
+#: admin/views/scan.php:68 includes/class-shieldscope-admin.php:284
 #, php-format
 msgid "%1$d of %2$d steps"
 msgstr ""
@@ -936,15 +936,17 @@ msgid ""
 msgstr ""
 
 #: admin/views/settings.php:114
-msgid "PDF report"
+msgid "Downloaded reports"
 msgstr ""
 
 #: admin/views/settings.php:118
-msgid "Show a link to the developer's contact page in the PDF footer."
+msgid ""
+"Show a link to the developer's contact page in the PDF footer and in CSV and "
+"JSON downloads."
 msgstr ""
 
 #: admin/views/settings.php:120
-msgid "Turn this off if you hand the PDF to your own clients."
+msgid "Turn this off if you hand reports to your own clients."
 msgstr ""
 
 #: admin/views/settings.php:125
@@ -4447,7 +4449,13 @@ msgstr ""
 msgid "(opens in a new tab)"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:154
+#. translators: %s: web address of the developer's contact page
+#: includes/class-shieldscope-admin.php:155
+#, php-format
+msgid "Detailed audit or help with fixes: %s"
+msgstr ""
+
+#: includes/class-shieldscope-admin.php:164
 msgid ""
 "ShieldScope does not change your files, settings, users or content. It "
 "stores only its own data: its settings and scan progress (options), cached "
@@ -4456,139 +4464,139 @@ msgid ""
 "all of it."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:183
-#: includes/class-shieldscope-admin.php:184
+#: includes/class-shieldscope-admin.php:193
+#: includes/class-shieldscope-admin.php:194
 msgid "ShieldScope"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:194
-#: includes/class-shieldscope-admin.php:195
-#: includes/class-shieldscope-admin.php:329
+#: includes/class-shieldscope-admin.php:204
+#: includes/class-shieldscope-admin.php:205
+#: includes/class-shieldscope-admin.php:339
 msgid "Scan"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:203
-#: includes/class-shieldscope-admin.php:204
+#: includes/class-shieldscope-admin.php:213
+#: includes/class-shieldscope-admin.php:214
 msgid "Report"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:212
-#: includes/class-shieldscope-admin.php:213
+#: includes/class-shieldscope-admin.php:222
+#: includes/class-shieldscope-admin.php:223
 msgid "Settings"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:260
+#: includes/class-shieldscope-admin.php:270
 msgid "Starting scan…"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:261
+#: includes/class-shieldscope-admin.php:271
 msgid "Paused (tab not focused). Return to this tab to resume."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:262
+#: includes/class-shieldscope-admin.php:272
 msgid "Resumed. Scanning again."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:263
+#: includes/class-shieldscope-admin.php:273
 #: includes/class-shieldscope-scanner.php:729
 msgid "Scan complete."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:264
+#: includes/class-shieldscope-admin.php:274
 msgid "Scan aborted."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:265
+#: includes/class-shieldscope-admin.php:275
 msgid ""
 "A scan is running. If you leave, it stops until you come back to this page."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:266
+#: includes/class-shieldscope-admin.php:276
 msgid "Could not reach the server. Trying again…"
 msgstr ""
 
 #. translators: 1: findings shown, 2: all findings
-#: includes/class-shieldscope-admin.php:268
+#: includes/class-shieldscope-admin.php:278
 #, php-format
 msgid "Showing %1$d of %2$d findings"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:269
+#: includes/class-shieldscope-admin.php:279
 msgid "Abort this scan? Its findings so far will be discarded."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:270
+#: includes/class-shieldscope-admin.php:280
 msgid ""
 "Could not reach the server after several tries, so this page stopped sending "
 "scan steps. Reload the page to check the scan."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:271
+#: includes/class-shieldscope-admin.php:281
 msgid ""
 "Your session has expired. Reload the page (you may need to log in again); "
 "the scan keeps its place."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:272
+#: includes/class-shieldscope-admin.php:282
 msgid ""
 "The scan has not made progress for over two minutes. WordPress runs "
 "background tasks when the site gets visits; press Resume to continue from "
 "this page."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:283
+#: includes/class-shieldscope-admin.php:293
 msgid "Scan paused"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:284
+#: includes/class-shieldscope-admin.php:294
 msgid ""
 "The scan pauses while this tab is hidden and continues from the same point "
 "when you return. You can turn this off in Settings."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:285
+#: includes/class-shieldscope-admin.php:295
 msgid "Scanning… – ShieldScope"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:286
+#: includes/class-shieldscope-admin.php:296
 msgid "Scan paused – ShieldScope"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:287
+#: includes/class-shieldscope-admin.php:297
 msgid "Scan complete – ShieldScope"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:314
+#: includes/class-shieldscope-admin.php:324
 msgid "ShieldScope scan finished."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:316
+#: includes/class-shieldscope-admin.php:326
 msgid "View the report"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:342
-#: includes/class-shieldscope-admin.php:357
-#: includes/class-shieldscope-admin.php:375
-#: includes/class-shieldscope-admin.php:410
+#: includes/class-shieldscope-admin.php:352
+#: includes/class-shieldscope-admin.php:367
+#: includes/class-shieldscope-admin.php:385
+#: includes/class-shieldscope-admin.php:420
 #: includes/class-shieldscope-export.php:37
 #: includes/class-shieldscope-ignore.php:166
 #: includes/class-shieldscope-pdf-report.php:80
 msgid "Insufficient permissions."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:407
+#: includes/class-shieldscope-admin.php:417
 msgid "Security check failed."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:476
+#: includes/class-shieldscope-admin.php:486
 msgid "Settings saved."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:491
+#: includes/class-shieldscope-admin.php:501
 msgid "Disclaimer"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:493
+#: includes/class-shieldscope-admin.php:503
 msgid ""
 "Results produced by this plugin are based on automated pattern analysis and "
 "heuristic checks. Each scan module runs independently — findings related to "
@@ -4597,7 +4605,7 @@ msgid ""
 "them directly if a fix is required."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:496
+#: includes/class-shieldscope-admin.php:506
 msgid ""
 "This plugin is intended to help developers and website owners identify "
 "potential security issues. It does not find every vulnerability, and a "
@@ -4605,12 +4613,12 @@ msgid ""
 msgstr ""
 
 #. translators: %s: support link
-#: includes/class-shieldscope-admin.php:503
+#: includes/class-shieldscope-admin.php:513
 #, php-format
 msgid "For any concerns or questions, please %s."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:504
+#: includes/class-shieldscope-admin.php:514
 msgid "reach out via the support forum"
 msgstr ""
 
@@ -4667,6 +4675,10 @@ msgstr ""
 #: includes/class-shieldscope-export.php:48
 #: includes/class-shieldscope-pdf-report.php:91
 msgid "There is no completed scan to export. Run a scan first."
+msgstr ""
+
+#: includes/class-shieldscope-export.php:156
+msgid "Detailed audit or help with fixes"
 msgstr ""
 
 #: includes/class-shieldscope-ignore.php:29
@@ -4805,20 +4817,14 @@ msgid "File paths are shown relative to the WordPress root folder."
 msgstr ""
 
 #. translators: {PAGE_NUM} and {PAGE_COUNT} are filled in by the PDF library; keep them as they are.
-#: includes/class-shieldscope-pdf-report.php:496
+#: includes/class-shieldscope-pdf-report.php:498
 msgid "Page {PAGE_NUM} of {PAGE_COUNT}"
 msgstr ""
 
 #. translators: 1: ShieldScope version, 2: site address
-#: includes/class-shieldscope-pdf-report.php:513
+#: includes/class-shieldscope-pdf-report.php:516
 #, php-format
 msgid "ShieldScope %1$s · %2$s"
-msgstr ""
-
-#. translators: 1: ShieldScope version, 2: site address, 3: web address of the developer's contact page
-#: includes/class-shieldscope-pdf-report.php:517
-#, php-format
-msgid "ShieldScope %1$s · %2$s · Detailed audit or help with fixes: %3$s"
 msgstr ""
 
 #: includes/class-shieldscope-scanner.php:363
