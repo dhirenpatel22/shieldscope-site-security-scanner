@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: ShieldScope 2.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/shieldscope-site-"
 "security-scanner/\n"
-"POT-Creation-Date: 2026-11-21 19:09+0530\n"
+"POT-Creation-Date: 2026-11-21 19:12+0530\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -490,28 +490,28 @@ msgid ""
 "carry on in the background after you close this page."
 msgstr ""
 
-#: admin/views/scan.php:44 includes/class-shieldscope-admin.php:316
+#: admin/views/scan.php:44 includes/class-shieldscope-admin.php:322
 msgid "Waiting"
 msgstr ""
 
-#: admin/views/scan.php:45 includes/class-shieldscope-admin.php:317
+#: admin/views/scan.php:45 includes/class-shieldscope-admin.php:323
 msgid "Running"
 msgstr ""
 
-#: admin/views/scan.php:46 includes/class-shieldscope-admin.php:318
+#: admin/views/scan.php:46 includes/class-shieldscope-admin.php:324
 msgid "Done"
 msgstr ""
 
-#: admin/views/scan.php:47 includes/class-shieldscope-admin.php:319
+#: admin/views/scan.php:47 includes/class-shieldscope-admin.php:325
 msgid "Partly done"
 msgstr ""
 
-#: admin/views/scan.php:48 includes/class-shieldscope-admin.php:320
+#: admin/views/scan.php:48 includes/class-shieldscope-admin.php:326
 #: includes/class-shieldscope-coverage.php:127
 msgid "Error"
 msgstr ""
 
-#: admin/views/scan.php:49 includes/class-shieldscope-admin.php:321
+#: admin/views/scan.php:49 includes/class-shieldscope-admin.php:327
 #: includes/class-shieldscope-coverage.php:129
 msgid "Did not run"
 msgstr ""
@@ -526,7 +526,7 @@ msgstr ""
 
 #. translators: 1: done, 2: total
 #. translators: 1: steps done, 2: total steps
-#: admin/views/scan.php:68 includes/class-shieldscope-admin.php:314
+#: admin/views/scan.php:68 includes/class-shieldscope-admin.php:320
 #, php-format
 msgid "%1$d of %2$d steps"
 msgstr ""
@@ -968,20 +968,26 @@ msgid ""
 "in list and WPScan."
 msgstr ""
 
-#: admin/views/settings.php:143
+#. translators: %s: link to wpvulnerability.com
+#: admin/views/settings.php:142
+#, php-format
+msgid "Vulnerability data from %s."
+msgstr ""
+
+#: admin/views/settings.php:151
 msgid "WPScan API Key"
 msgstr ""
 
-#: admin/views/settings.php:152
+#: admin/views/settings.php:160
 msgid "Leave empty to keep the saved key"
 msgstr ""
 
-#: admin/views/settings.php:158
+#: admin/views/settings.php:166
 msgid "Remove the saved key"
 msgstr ""
 
 #. translators: %s: wpscan.com
-#: admin/views/settings.php:165
+#: admin/views/settings.php:173
 #, php-format
 msgid ""
 "Optional. When set, plugins and themes listed on WordPress.org that "
@@ -992,72 +998,72 @@ msgid ""
 msgstr ""
 
 #. translators: %s: last four characters of the saved key
-#: admin/views/settings.php:174
+#: admin/views/settings.php:182
 #, php-format
 msgid "A key ending in %s is saved."
 msgstr ""
 
 #. translators: %d: number of plugins in the built-in list
-#: admin/views/settings.php:184
+#: admin/views/settings.php:192
 #, php-format
 msgid ""
 "Without a key, plugins WPVulnerability could not answer are compared with a "
 "limited built-in list of %d plugins."
 msgstr ""
 
-#: admin/views/settings.php:196
+#: admin/views/settings.php:204
 msgid "Save Changes"
 msgstr ""
 
-#: admin/views/settings.php:203
+#: admin/views/settings.php:211
 msgid "Settings Help &amp; FAQ"
 msgstr ""
 
-#: admin/views/settings.php:204
+#: admin/views/settings.php:212
 msgid ""
 "What each setting does and how to tune the scanner for your hosting "
 "environment."
 msgstr ""
 
-#: admin/views/settings.php:210
+#: admin/views/settings.php:218
 msgid "WPScan API"
 msgstr ""
 
-#: admin/views/settings.php:216
+#: admin/views/settings.php:224
 msgid "What is the WPScan API key and do I need one?"
 msgstr ""
 
-#: admin/views/settings.php:220
+#: admin/views/settings.php:228
 msgid ""
 "WPScan keeps a database of known vulnerabilities in WordPress plugins and "
 "themes. A key is optional."
 msgstr ""
 
-#: admin/views/settings.php:222
+#: admin/views/settings.php:230
 msgid ""
 "Without a key: only a limited built-in list of widely used plugins is "
 "checked."
 msgstr ""
 
-#: admin/views/settings.php:223
+#: admin/views/settings.php:231
 msgid ""
 "With a key: each plugin listed on WordPress.org, and the active theme, is "
 "looked up on WPScan by its slug."
 msgstr ""
 
-#: admin/views/settings.php:225
+#: admin/views/settings.php:233
 msgid ""
 "The free key allows 25 requests a day and is licensed for non-commercial "
 "use. If a site has more plugins than the daily limit, the report says how "
 "many could not be checked."
 msgstr ""
 
-#: admin/views/settings.php:232
+#: admin/views/settings.php:240
 msgid "What's the difference between the built-in CVE list and the WPScan API?"
 msgstr ""
 
 #. translators: 1: number of plugins, 2: date the list was last reviewed (YYYY-MM-DD)
-#: admin/views/settings.php:240
+#: admin/views/settings.php:248
 #, php-format
 msgid ""
 "The built-in list covers %1$d widely used plugins and was last reviewed on "
@@ -1065,39 +1071,39 @@ msgid ""
 "database: plugins outside the list are not checked."
 msgstr ""
 
-#: admin/views/settings.php:246
+#: admin/views/settings.php:254
 msgid ""
 "WPScan covers far more plugins and themes and is updated as new "
 "vulnerabilities are published. When a key is set, the built-in list still "
 "runs as well."
 msgstr ""
 
-#: admin/views/settings.php:253
+#: admin/views/settings.php:261
 msgid "How many API requests does each scan use?"
 msgstr ""
 
-#: admin/views/settings.php:257
+#: admin/views/settings.php:265
 msgid ""
 "One request per plugin listed on WordPress.org, plus one for the active "
 "theme (and its parent theme, if any). Results are cached for 24 hours, so a "
 "second scan on the same day uses no extra requests."
 msgstr ""
 
-#: admin/views/settings.php:258
+#: admin/views/settings.php:266
 msgid ""
 "Example: a site with 20 plugins and 2 active themes uses 22 requests on the "
 "first scan of the day, and zero on any subsequent scan that day."
 msgstr ""
 
-#: admin/views/settings.php:264
+#: admin/views/settings.php:272
 msgid "Performance Settings"
 msgstr ""
 
-#: admin/views/settings.php:270
+#: admin/views/settings.php:278
 msgid "What does the scan pace setting do?"
 msgstr ""
 
-#: admin/views/settings.php:274
+#: admin/views/settings.php:282
 msgid ""
 "The scanner works in short steps with pauses between them. The setting is "
 "the share of time spent working: at 20%, each step is followed by a pause "
@@ -1105,55 +1111,55 @@ msgid ""
 "but make the scan slower. It does not measure or cap CPU use."
 msgstr ""
 
-#: admin/views/settings.php:276
+#: admin/views/settings.php:284
 msgid "10–15%: busy shared hosting"
 msgstr ""
 
-#: admin/views/settings.php:277
+#: admin/views/settings.php:285
 msgid "20% (default): most sites"
 msgstr ""
 
-#: admin/views/settings.php:278
+#: admin/views/settings.php:286
 msgid "30–40%: a VPS or managed WordPress hosting, for a faster scan"
 msgstr ""
 
-#: admin/views/settings.php:286
+#: admin/views/settings.php:294
 msgid "What does Time per step do?"
 msgstr ""
 
-#: admin/views/settings.php:290
+#: admin/views/settings.php:298
 msgid ""
 "Each step is one request from this browser tab to your server. This setting "
 "caps how long one step can run before it saves its place and stops."
 msgstr ""
 
-#: admin/views/settings.php:292
+#: admin/views/settings.php:300
 msgid ""
 "1–2 seconds — use on servers with strict PHP max_execution_time (common on "
 "basic shared hosting)"
 msgstr ""
 
-#: admin/views/settings.php:293
+#: admin/views/settings.php:301
 msgid "2 seconds (default) — works on most hosts"
 msgstr ""
 
-#: admin/views/settings.php:294
+#: admin/views/settings.php:302
 msgid ""
 "5–10 seconds — faster scans on permissive or managed hosting environments"
 msgstr ""
 
-#: admin/views/settings.php:302
+#: admin/views/settings.php:310
 msgid "What does \"Skip files larger than\" do?"
 msgstr ""
 
-#: admin/views/settings.php:306
+#: admin/views/settings.php:314
 msgid ""
 "The code checks read PHP files into memory to look for patterns that need a "
 "review (for example eval() on decoded data). Files over this size are "
 "skipped."
 msgstr ""
 
-#: admin/views/settings.php:307
+#: admin/views/settings.php:315
 msgid ""
 "Very large PHP files are mostly bundled libraries or generated code. "
 "Skipping them saves time and memory, but they are then not checked: the "
@@ -1161,60 +1167,60 @@ msgid ""
 "sites."
 msgstr ""
 
-#: admin/views/settings.php:314
+#: admin/views/settings.php:322
 msgid "My scan is very slow or keeps timing out — what can I do?"
 msgstr ""
 
-#: admin/views/settings.php:318
+#: admin/views/settings.php:326
 msgid "Try these in order:"
 msgstr ""
 
-#: admin/views/settings.php:320
+#: admin/views/settings.php:328
 msgid "Reduce Time per step to 1 second to avoid PHP timeouts"
 msgstr ""
 
-#: admin/views/settings.php:321
+#: admin/views/settings.php:329
 msgid "Lower the scan pace to spread the work out"
 msgstr ""
 
-#: admin/views/settings.php:322
+#: admin/views/settings.php:330
 msgid "Reduce \"Skip files larger than\" to 1 MB to scan fewer large files"
 msgstr ""
 
-#: admin/views/settings.php:323
+#: admin/views/settings.php:331
 msgid ""
 "Run the scan during off-peak hours (night-time in your server's timezone)"
 msgstr ""
 
-#: admin/views/settings.php:324
+#: admin/views/settings.php:332
 msgid ""
 "Contact your hosting provider and ask them to increase the PHP "
 "max_execution_time setting"
 msgstr ""
 
-#: admin/views/settings.php:331
+#: admin/views/settings.php:339
 msgid "Privacy &amp; Data"
 msgstr ""
 
-#: admin/views/settings.php:337
+#: admin/views/settings.php:345
 msgid "Is any of my site data sent to external servers?"
 msgstr ""
 
-#: admin/views/settings.php:342
+#: admin/views/settings.php:350
 msgid ""
 "File contents, passwords, user data and scan results are not sent anywhere."
 msgstr ""
 
-#: admin/views/settings.php:349
+#: admin/views/settings.php:357
 msgid "Where are scan results stored?"
 msgstr ""
 
-#: admin/views/settings.php:353
+#: admin/views/settings.php:361
 msgid ""
 "Only administrators can open the report (on multisite, only super admins)."
 msgstr ""
 
-#: admin/views/settings.php:359
+#: admin/views/settings.php:367
 msgid "ShieldScope has no telemetry and no tracking."
 msgstr ""
 
@@ -4207,15 +4213,15 @@ msgid ""
 "This prevents the username from appearing in public bylines and comments."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:91
+#: includes/checks/class-shieldscope-check-vuln-db.php:96
 msgid "Vulnerability Database"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:253
+#: includes/checks/class-shieldscope-check-vuln-db.php:258
 msgid "WPVulnerability could not be reached"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:317
+#: includes/checks/class-shieldscope-check-vuln-db.php:322
 msgid ""
 "Installed plugins were compared with a limited built-in list of known "
 "vulnerabilities. This is not a complete vulnerability scan: a plugin or "
@@ -4224,38 +4230,38 @@ msgid ""
 msgstr ""
 
 #. translators: 1: components checked, 2: components eligible for lookup
-#: includes/checks/class-shieldscope-check-vuln-db.php:321
+#: includes/checks/class-shieldscope-check-vuln-db.php:326
 #, php-format
 msgid "WPScan lookups: %1$d of %2$d WordPress.org plugins and themes checked."
 msgstr ""
 
 #. translators: %s: "limited built-in list (N plugins, last reviewed DATE)"
-#: includes/checks/class-shieldscope-check-vuln-db.php:331
+#: includes/checks/class-shieldscope-check-vuln-db.php:336
 #, php-format
 msgid "Vulnerability check coverage: %s"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:335
+#: includes/checks/class-shieldscope-check-vuln-db.php:340
 msgid ""
 "Keep every plugin and theme updated. For lookups beyond the built-in list, "
 "add a WPScan API key in Settings."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:345
+#: includes/checks/class-shieldscope-check-vuln-db.php:350
 msgid ""
 "only the limited built-in list was checked (WPVulnerability lookups are off "
 "in Settings and there is no WPScan API key)"
 msgstr ""
 
 #. translators: 1: components looked up, 2: components eligible
-#: includes/checks/class-shieldscope-check-vuln-db.php:366
+#: includes/checks/class-shieldscope-check-vuln-db.php:371
 #, php-format
 msgid ""
 "Vulnerability check coverage: WPVulnerability, %1$d of %2$d components "
 "looked up"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:370
+#: includes/checks/class-shieldscope-check-vuln-db.php:375
 msgid ""
 "WordPress core and the installed plugins and themes listed on WordPress.org "
 "were looked up on WPVulnerability, a free database that combines CVE, "
@@ -4265,130 +4271,132 @@ msgid ""
 "that is not yet published is not detected."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:371
+#: includes/checks/class-shieldscope-check-vuln-db.php:376
 msgid ""
 "Keep WordPress, plugins and themes updated. Review custom and premium "
 "plugins with their developers."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:385
-#: includes/checks/class-shieldscope-check-vuln-db.php:430
+#: includes/checks/class-shieldscope-check-vuln-db.php:390
+#: includes/checks/class-shieldscope-check-vuln-db.php:435
 msgid "unknown error"
 msgstr ""
 
 #. translators: 1: components looked up, 2: components eligible
-#: includes/checks/class-shieldscope-check-vuln-db.php:391
+#: includes/checks/class-shieldscope-check-vuln-db.php:396
 #, php-format
 msgid "WPVulnerability lookups: %1$d of %2$d checked"
 msgstr ""
 
 #. translators: 1: components checked, 2: components eligible, 3: reason(s)
-#: includes/checks/class-shieldscope-check-vuln-db.php:401
+#: includes/checks/class-shieldscope-check-vuln-db.php:406
 #, php-format
 msgid ""
 "Vulnerability lookup incomplete: %1$d of %2$d components checked on "
 "WPVulnerability (%3$s)"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:406
+#: includes/checks/class-shieldscope-check-vuln-db.php:411
 msgid ""
 "Some components could not be looked up during this scan. Plugins among them "
 "were compared with the limited built-in list instead (and with WPScan if a "
 "key is set). This does not mean they are safe."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:407
+#: includes/checks/class-shieldscope-check-vuln-db.php:412
 msgid ""
 "Check that the server can make outgoing HTTPS requests to "
 "www.wpvulnerability.net and run the scan again."
 msgstr ""
 
 #. translators: 1: components checked, 2: components eligible
-#: includes/checks/class-shieldscope-check-vuln-db.php:436
+#: includes/checks/class-shieldscope-check-vuln-db.php:441
 #, php-format
 msgid "WPScan lookups: %1$d of %2$d checked"
 msgstr ""
 
 #. translators: 1: components checked, 2: components eligible, 3: reason(s)
-#: includes/checks/class-shieldscope-check-vuln-db.php:446
+#: includes/checks/class-shieldscope-check-vuln-db.php:451
 #, php-format
 msgid "Vulnerability lookup incomplete: %1$d of %2$d components checked (%3$s)"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:451
+#: includes/checks/class-shieldscope-check-vuln-db.php:456
 msgid ""
 "Some plugins or themes could not be looked up on WPScan during this scan, so "
 "they were not checked for known vulnerabilities. This does not mean they are "
 "safe."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:452
+#: includes/checks/class-shieldscope-check-vuln-db.php:457
 msgid ""
 "Check the WPScan API key in Settings and run the scan again later. The free "
 "WPScan plan allows 25 requests per day."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:500
+#. translators: 1: "WPVulnerability" (project name, do not translate), 2: its web address
+#: includes/checks/class-shieldscope-check-vuln-db.php:480
+#, php-format
+msgid "Vulnerability data from %1$s (%2$s)."
+msgstr ""
+
+#: includes/checks/class-shieldscope-check-vuln-db.php:516
 msgid "could not connect to WPVulnerability"
 msgstr ""
 
 #. translators: %d: HTTP status code
-#: includes/checks/class-shieldscope-check-vuln-db.php:507
+#: includes/checks/class-shieldscope-check-vuln-db.php:523
 #, php-format
 msgid "WPVulnerability error, HTTP %d"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:510
+#: includes/checks/class-shieldscope-check-vuln-db.php:526
 msgid "WPVulnerability returned an unreadable response"
 msgstr ""
 
 #. translators: %s: version
-#: includes/checks/class-shieldscope-check-vuln-db.php:678
+#: includes/checks/class-shieldscope-check-vuln-db.php:694
 #, php-format
 msgid "fixed in %s"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:680
+#: includes/checks/class-shieldscope-check-vuln-db.php:696
 msgid "no fix yet"
 msgstr ""
 
 #. translators: %s: CVSS score
-#: includes/checks/class-shieldscope-check-vuln-db.php:684
+#: includes/checks/class-shieldscope-check-vuln-db.php:700
 #, php-format
 msgid "CVSS %s"
 msgstr ""
 
 #. translators: %d: number of further vulnerabilities
 #. translators: %d: number of further affected items
-#: includes/checks/class-shieldscope-check-vuln-db.php:690
+#: includes/checks/class-shieldscope-check-vuln-db.php:706
 #: includes/class-shieldscope-pdf-report.php:353
 #, php-format
 msgid "and %d more"
 msgstr ""
 
 #. translators: 1: component name, 2: installed version, 3: number of vulnerabilities, 4: list
-#: includes/checks/class-shieldscope-check-vuln-db.php:695
+#: includes/checks/class-shieldscope-check-vuln-db.php:711
 #, php-format
 msgid "%1$s %2$s has %3$d known vulnerability: %4$s."
 msgid_plural "%1$s %2$s has %3$d known vulnerabilities: %4$s."
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:702
+#: includes/checks/class-shieldscope-check-vuln-db.php:718
 msgid "At least one is listed as exploited in the wild (CISA KEV)."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:704
-msgid "Source: WPVulnerability."
-msgstr ""
-
-#: includes/checks/class-shieldscope-check-vuln-db.php:707
+#: includes/checks/class-shieldscope-check-vuln-db.php:723
 msgid ""
 "Update WordPress to the latest version (Dashboard → Updates). Every listed "
 "issue is fixed in a later release."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:709
+#: includes/checks/class-shieldscope-check-vuln-db.php:725
 msgid ""
 "At least one issue has no fix yet. Deactivate and remove it until a fixed "
 "version is released, or replace it; update to the latest version for the "
@@ -4396,78 +4404,78 @@ msgid ""
 msgstr ""
 
 #. translators: %s: version
-#: includes/checks/class-shieldscope-check-vuln-db.php:712
+#: includes/checks/class-shieldscope-check-vuln-db.php:728
 #, php-format
 msgid "Update to version %s or later."
 msgstr ""
 
 #. translators: 1: component name, 2: installed version, 3: number of vulnerabilities
-#: includes/checks/class-shieldscope-check-vuln-db.php:719
+#: includes/checks/class-shieldscope-check-vuln-db.php:735
 #, php-format
 msgid "[WPVulnerability] %1$s %2$s: %3$d known vulnerability"
 msgid_plural "[WPVulnerability] %1$s %2$s: %3$d known vulnerabilities"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:761
+#: includes/checks/class-shieldscope-check-vuln-db.php:777
 msgid "WPScan daily request limit reached"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:780
+#: includes/checks/class-shieldscope-check-vuln-db.php:796
 msgid "could not connect to WPScan"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:791
+#: includes/checks/class-shieldscope-check-vuln-db.php:807
 msgid "WPScan returned an unreadable response"
 msgstr ""
 
 #. translators: %d: HTTP status code
-#: includes/checks/class-shieldscope-check-vuln-db.php:809
+#: includes/checks/class-shieldscope-check-vuln-db.php:825
 #, php-format
 msgid "WPScan rejected the API key, HTTP %d"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:819
+#: includes/checks/class-shieldscope-check-vuln-db.php:835
 msgid "WPScan daily request limit reached, HTTP 429"
 msgstr ""
 
 #. translators: %d: HTTP status code
-#: includes/checks/class-shieldscope-check-vuln-db.php:827
+#: includes/checks/class-shieldscope-check-vuln-db.php:843
 #, php-format
 msgid "WPScan error, HTTP %d"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:863
+#: includes/checks/class-shieldscope-check-vuln-db.php:879
 msgid "Unknown vulnerability"
 msgstr ""
 
 #. translators: 1: plugin name, 2: installed version, 3: fix version or 'unknown'
-#: includes/checks/class-shieldscope-check-vuln-db.php:876
+#: includes/checks/class-shieldscope-check-vuln-db.php:892
 #, php-format
 msgid "%1$s version %2$s is affected. %3$s"
 msgstr ""
 
 #. translators: %s: version number
-#: includes/checks/class-shieldscope-check-vuln-db.php:881
+#: includes/checks/class-shieldscope-check-vuln-db.php:897
 #, php-format
 msgid "Fixed in version %s."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:882
+#: includes/checks/class-shieldscope-check-vuln-db.php:898
 msgid "No fix version known — check the plugin/theme page for updates."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:885
+#: includes/checks/class-shieldscope-check-vuln-db.php:901
 msgid "Severity: Unrated (WPScan published no CVSS score for this issue)."
 msgstr ""
 
 #. translators: %s: fix version
-#: includes/checks/class-shieldscope-check-vuln-db.php:891
+#: includes/checks/class-shieldscope-check-vuln-db.php:907
 #, php-format
 msgid "Update to version %s or later immediately."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:894
+#: includes/checks/class-shieldscope-check-vuln-db.php:910
 msgid ""
 "No fix is available yet. Deactivate and remove this plugin/theme until a "
 "patch is released. Contact the developer via the wordpress.org support forum "
@@ -4475,25 +4483,25 @@ msgid ""
 msgstr ""
 
 #. translators: 1: plugin name, 2: CVE ID(s) or vulnerability title
-#: includes/checks/class-shieldscope-check-vuln-db.php:900
+#: includes/checks/class-shieldscope-check-vuln-db.php:916
 #, php-format
 msgid "[WPScan] %1$s — %2$s"
 msgstr ""
 
 #. translators: 1: number of plugins, 2: review date (YYYY-MM-DD)
-#: includes/checks/class-shieldscope-check-vuln-db.php:964
+#: includes/checks/class-shieldscope-check-vuln-db.php:980
 #, php-format
 msgid "limited built-in list (%1$d plugins, last reviewed %2$s)"
 msgstr ""
 
 #. translators: 1: plugin name, 2: vulnerability type
-#: includes/checks/class-shieldscope-check-vuln-db.php:1005
+#: includes/checks/class-shieldscope-check-vuln-db.php:1021
 #, php-format
 msgid "%1$s — %2$s (installed version is vulnerable)"
 msgstr ""
 
 #. translators: 1: plugin name, 2: installed version, 3: fixed version
-#: includes/checks/class-shieldscope-check-vuln-db.php:1011
+#: includes/checks/class-shieldscope-check-vuln-db.php:1027
 #, php-format
 msgid ""
 "%1$s version %2$s is affected by a known security vulnerability. The fix was "
@@ -4501,13 +4509,13 @@ msgid ""
 msgstr ""
 
 #. translators: 1: "limited built-in list (N plugins, last reviewed DATE)", 2: NVD URL
-#: includes/checks/class-shieldscope-check-vuln-db.php:1017
+#: includes/checks/class-shieldscope-check-vuln-db.php:1033
 #, php-format
 msgid "Source: %1$s. Details: %2$s"
 msgstr ""
 
 #. translators: %s: plugin name
-#: includes/checks/class-shieldscope-check-vuln-db.php:1023
+#: includes/checks/class-shieldscope-check-vuln-db.php:1039
 #, php-format
 msgid ""
 "Update %s immediately via Dashboard → Plugins → Updates. If an update is not "
@@ -4515,38 +4523,38 @@ msgid ""
 "forum to report the issue and ask for a timeline."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:1057
+#: includes/checks/class-shieldscope-check-vuln-db.php:1073
 msgid "Unrestricted File Upload leading to RCE"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:1067
+#: includes/checks/class-shieldscope-check-vuln-db.php:1083
 msgid "Unauthenticated Directory Traversal (Arbitrary File Read)"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:1077
-#: includes/checks/class-shieldscope-check-vuln-db.php:1087
+#: includes/checks/class-shieldscope-check-vuln-db.php:1093
+#: includes/checks/class-shieldscope-check-vuln-db.php:1103
 msgid "Unauthenticated Remote Code Execution"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:1097
-#: includes/checks/class-shieldscope-check-vuln-db.php:1156
+#: includes/checks/class-shieldscope-check-vuln-db.php:1113
+#: includes/checks/class-shieldscope-check-vuln-db.php:1172
 msgid "Unauthenticated SQL Injection"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:1107
+#: includes/checks/class-shieldscope-check-vuln-db.php:1123
 msgid "Unauthenticated Privilege Escalation"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:1118
-#: includes/checks/class-shieldscope-check-vuln-db.php:1126
+#: includes/checks/class-shieldscope-check-vuln-db.php:1134
+#: includes/checks/class-shieldscope-check-vuln-db.php:1142
 msgid "Unauthenticated Reflected Cross-Site Scripting"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:1136
+#: includes/checks/class-shieldscope-check-vuln-db.php:1152
 msgid "DOM-based Reflected Cross-Site Scripting"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-vuln-db.php:1146
+#: includes/checks/class-shieldscope-check-vuln-db.php:1162
 msgid "Arbitrary File Manipulation (author+)"
 msgstr ""
 
@@ -4580,61 +4588,77 @@ msgid ""
 "WPScan API key it also sends plugin and theme slugs to wpscan.com."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:105
+#: includes/class-shieldscope-admin.php:106
+msgid ""
+"Known vulnerabilities are looked up on WPVulnerability for WordPress and the "
+"plugins and themes listed on WordPress.org; when a lookup fails, plugins are "
+"compared with a limited built-in list (and WPScan, with an API key)."
+msgstr ""
+
+#: includes/class-shieldscope-admin.php:107
+msgid ""
+"Known-vulnerability results come from a limited built-in list, or WPScan "
+"with an API key (WPVulnerability lookups are off in Settings)."
+msgstr ""
+
+#: includes/class-shieldscope-admin.php:109
 msgid ""
 "ShieldScope checks WordPress configuration, versions, users, file "
 "permissions, server settings and plugin and theme code from inside the site. "
 "Findings labelled \"Needs review\" are pattern matches or heuristics that a "
 "person must confirm by reading the code; they are not confirmed "
-"vulnerabilities. Known-vulnerability results depend on the data source used "
-"(a limited built-in list, or WPScan with an API key). It does not test the "
-"site from outside like an attacker, does not compare files with a database "
-"of known malicious code, and does not monitor the site between scans. A "
-"report with no findings does not mean the site is secure."
+"vulnerabilities."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:140
+#: includes/class-shieldscope-admin.php:111
+msgid ""
+"It does not test the site from outside like an attacker, does not compare "
+"files with a database of known malicious code, and does not monitor the site "
+"between scans. A report with no findings does not mean the site is secure."
+msgstr ""
+
+#: includes/class-shieldscope-admin.php:146
 msgid "(opens in a new tab)"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:142
+#: includes/class-shieldscope-admin.php:148
 msgid "Opens dhirenpatel.me in a new tab"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:156
+#: includes/class-shieldscope-admin.php:162
 msgid "Need a deeper review, or help fixing what ShieldScope found?"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:157
+#: includes/class-shieldscope-admin.php:163
 msgid ""
 "ShieldScope checks the most common security problems automatically. For "
 "anything beyond that, you can contact me, Dhiren Patel, the developer of "
 "ShieldScope."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:159
+#: includes/class-shieldscope-admin.php:165
 msgid "A detailed audit of your site"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:160
+#: includes/class-shieldscope-admin.php:166
 msgid "Fixes for the issues ShieldScope found"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:161
+#: includes/class-shieldscope-admin.php:167
 msgid "Advice on keeping the site secure"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:163
+#: includes/class-shieldscope-admin.php:169
 msgid "Contact the developer"
 msgstr ""
 
 #. translators: %s: web address of the developer's contact page
-#: includes/class-shieldscope-admin.php:185
+#: includes/class-shieldscope-admin.php:191
 #, php-format
 msgid "Detailed audit or help with fixes: %s"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:194
+#: includes/class-shieldscope-admin.php:200
 msgid ""
 "ShieldScope does not change your files, settings, users or content. It "
 "stores only its own data: its settings and scan progress (options), cached "
@@ -4643,139 +4667,139 @@ msgid ""
 "all of it."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:223
-#: includes/class-shieldscope-admin.php:224
+#: includes/class-shieldscope-admin.php:229
+#: includes/class-shieldscope-admin.php:230
 msgid "ShieldScope"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:234
-#: includes/class-shieldscope-admin.php:235
-#: includes/class-shieldscope-admin.php:369
+#: includes/class-shieldscope-admin.php:240
+#: includes/class-shieldscope-admin.php:241
+#: includes/class-shieldscope-admin.php:375
 msgid "Scan"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:243
-#: includes/class-shieldscope-admin.php:244
+#: includes/class-shieldscope-admin.php:249
+#: includes/class-shieldscope-admin.php:250
 msgid "Report"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:252
-#: includes/class-shieldscope-admin.php:253
+#: includes/class-shieldscope-admin.php:258
+#: includes/class-shieldscope-admin.php:259
 msgid "Settings"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:300
+#: includes/class-shieldscope-admin.php:306
 msgid "Starting scan…"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:301
+#: includes/class-shieldscope-admin.php:307
 msgid "Paused (tab not focused). Return to this tab to resume."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:302
+#: includes/class-shieldscope-admin.php:308
 msgid "Resumed. Scanning again."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:303
+#: includes/class-shieldscope-admin.php:309
 #: includes/class-shieldscope-scanner.php:729
 msgid "Scan complete."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:304
+#: includes/class-shieldscope-admin.php:310
 msgid "Scan aborted."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:305
+#: includes/class-shieldscope-admin.php:311
 msgid ""
 "A scan is running. If you leave, it stops until you come back to this page."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:306
+#: includes/class-shieldscope-admin.php:312
 msgid "Could not reach the server. Trying again…"
 msgstr ""
 
 #. translators: 1: findings shown, 2: all findings
-#: includes/class-shieldscope-admin.php:308
+#: includes/class-shieldscope-admin.php:314
 #, php-format
 msgid "Showing %1$d of %2$d findings"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:309
+#: includes/class-shieldscope-admin.php:315
 msgid "Abort this scan? Its findings so far will be discarded."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:310
+#: includes/class-shieldscope-admin.php:316
 msgid ""
 "Could not reach the server after several tries, so this page stopped sending "
 "scan steps. Reload the page to check the scan."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:311
+#: includes/class-shieldscope-admin.php:317
 msgid ""
 "Your session has expired. Reload the page (you may need to log in again); "
 "the scan keeps its place."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:312
+#: includes/class-shieldscope-admin.php:318
 msgid ""
 "The scan has not made progress for over two minutes. WordPress runs "
 "background tasks when the site gets visits; press Resume to continue from "
 "this page."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:323
+#: includes/class-shieldscope-admin.php:329
 msgid "Scan paused"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:324
+#: includes/class-shieldscope-admin.php:330
 msgid ""
 "The scan pauses while this tab is hidden and continues from the same point "
 "when you return. You can turn this off in Settings."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:325
+#: includes/class-shieldscope-admin.php:331
 msgid "Scanning… – ShieldScope"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:326
+#: includes/class-shieldscope-admin.php:332
 msgid "Scan paused – ShieldScope"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:327
+#: includes/class-shieldscope-admin.php:333
 msgid "Scan complete – ShieldScope"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:354
+#: includes/class-shieldscope-admin.php:360
 msgid "ShieldScope scan finished."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:356
+#: includes/class-shieldscope-admin.php:362
 msgid "View the report"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:382
-#: includes/class-shieldscope-admin.php:397
-#: includes/class-shieldscope-admin.php:415
-#: includes/class-shieldscope-admin.php:451
+#: includes/class-shieldscope-admin.php:388
+#: includes/class-shieldscope-admin.php:403
+#: includes/class-shieldscope-admin.php:421
+#: includes/class-shieldscope-admin.php:457
 #: includes/class-shieldscope-export.php:37
 #: includes/class-shieldscope-ignore.php:166
 #: includes/class-shieldscope-pdf-report.php:80
 msgid "Insufficient permissions."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:448
+#: includes/class-shieldscope-admin.php:454
 msgid "Security check failed."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:518
+#: includes/class-shieldscope-admin.php:524
 msgid "Settings saved."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:533
+#: includes/class-shieldscope-admin.php:539
 msgid "Disclaimer"
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:535
+#: includes/class-shieldscope-admin.php:541
 msgid ""
 "Results produced by this plugin are based on automated pattern analysis and "
 "heuristic checks. Each scan module runs independently — findings related to "
@@ -4784,7 +4808,7 @@ msgid ""
 "them directly if a fix is required."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:538
+#: includes/class-shieldscope-admin.php:544
 msgid ""
 "This plugin is intended to help developers and website owners identify "
 "potential security issues. It does not find every vulnerability, and a "
@@ -4792,12 +4816,12 @@ msgid ""
 msgstr ""
 
 #. translators: %s: support link
-#: includes/class-shieldscope-admin.php:545
+#: includes/class-shieldscope-admin.php:551
 #, php-format
 msgid "For any concerns or questions, please %s."
 msgstr ""
 
-#: includes/class-shieldscope-admin.php:546
+#: includes/class-shieldscope-admin.php:552
 msgid "reach out via the support forum"
 msgstr ""
 

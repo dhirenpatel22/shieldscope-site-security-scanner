@@ -39,6 +39,11 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 	const WPV_API = 'https://www.wpvulnerability.net/';
 
 	/**
+	 * WPVulnerability project page, linked in the credit line.
+	 */
+	const WPV_SITE = 'https://www.wpvulnerability.com/';
+
+	/**
 	 * Cache for WPVulnerability answers (seconds).
 	 */
 	const WPV_CACHE_TTL = 12 * HOUR_IN_SECONDS;
@@ -367,7 +372,7 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 				$checked,
 				$eligible
 			),
-			__( 'WordPress core and the installed plugins and themes listed on WordPress.org were looked up on WPVulnerability, a free database that combines CVE, Patchstack, Wordfence, WPScan and other sources (data under CC0 1.0). Only slugs and version numbers were sent. Plugins and themes not listed on WordPress.org (custom or premium) are not looked up, and a vulnerability that is not yet published is not detected.', 'shieldscope-site-security-scanner' ),
+			__( 'WordPress core and the installed plugins and themes listed on WordPress.org were looked up on WPVulnerability, a free database that combines CVE, Patchstack, Wordfence, WPScan and other sources (data under CC0 1.0). Only slugs and version numbers were sent. Plugins and themes not listed on WordPress.org (custom or premium) are not looked up, and a vulnerability that is not yet published is not detected.', 'shieldscope-site-security-scanner' ) . ' ' . self::wpv_credit(),
 			__( 'Keep WordPress, plugins and themes updated. Review custom and premium plugins with their developers.', 'shieldscope-site-security-scanner' ),
 			'',
 			array(
@@ -463,6 +468,17 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 	// -----------------------------------------------------------------------
 	// WPVulnerability API
 	// -----------------------------------------------------------------------
+
+	/**
+	 * Credit line for WPVulnerability data (wording the project suggests),
+	 * added to every finding and statement built from it.
+	 *
+	 * @return string
+	 */
+	public static function wpv_credit() {
+		/* translators: 1: "WPVulnerability" (project name, do not translate), 2: its web address */
+		return sprintf( __( 'Vulnerability data from %1$s (%2$s).', 'shieldscope-site-security-scanner' ), 'WPVulnerability', self::WPV_SITE );
+	}
 
 	/**
 	 * Are WPVulnerability lookups on? On by default; Settings turns them off.
@@ -701,7 +717,7 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 		if ( $kev ) {
 			$desc .= ' ' . __( 'At least one is listed as exploited in the wild (CISA KEV).', 'shieldscope-site-security-scanner' );
 		}
-		$desc .= ' ' . __( 'Source: WPVulnerability.', 'shieldscope-site-security-scanner' );
+		$desc .= ' ' . self::wpv_credit();
 
 		if ( $core ) {
 			$rec = __( 'Update WordPress to the latest version (Dashboard → Updates). Every listed issue is fixed in a later release.', 'shieldscope-site-security-scanner' );

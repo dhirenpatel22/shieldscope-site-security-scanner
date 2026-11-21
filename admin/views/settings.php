@@ -135,6 +135,14 @@ defined( 'ABSPATH' ) || exit;
 								'<strong>www.wpvulnerability.net</strong>'
 							);
 							?>
+							<br>
+							<?php
+							printf(
+								/* translators: %s: link to wpvulnerability.com */
+								esc_html__( 'Vulnerability data from %s.', 'shieldscope-site-security-scanner' ),
+								'<a href="' . esc_url( ShieldScope_Check_Vuln_DB::WPV_SITE ) . '" target="_blank" rel="noopener noreferrer">WPVulnerability</a>'
+							);
+							?>
 						</p>
 					</td>
 				</tr>
