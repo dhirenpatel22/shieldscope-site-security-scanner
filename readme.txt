@@ -3,9 +3,9 @@
 Contributors: dhirenpatel22
 Tags: security audit, site audit, hardening, security checklist, security report
 Requires at least: 5.8
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.3.2
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -178,7 +178,7 @@ It is designed to help site owners and developers find security risks on sites t
 
 == Changelog ==
 
-= 1.4.0 =
+= 2.0.0 =
 * New: Download the report as PDF, CSV or JSON. Paths are shown relative to the WordPress folder; CSV cells cannot run as spreadsheet formulas.
 * New: Background scanning. Close the scan page and the scan carries on through WP-Cron; an admin notice appears when it finishes. A stalled scan is reported.
 * New: Evidence on every code finding (file, line and a snippet) and a Confirmed or Needs review label on every finding. Findings that need review are never Critical.
@@ -242,7 +242,7 @@ It is designed to help site owners and developers find security risks on sites t
 
 == Upgrade Notice ==
 
-= 1.4.0 =
+= 2.0.0 =
 Background scanning, PDF/CSV/JSON reports with evidence and coverage, ignore and history, WordPress.org plugin checks, and more accurate findings. The scan no longer sends login or write requests to your site.
 
 = 1.3.0 =
