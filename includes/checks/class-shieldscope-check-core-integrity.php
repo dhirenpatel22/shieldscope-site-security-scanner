@@ -184,12 +184,7 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 			'https://api.wordpress.org/core/checksums/1.0/'
 		);
 
-		$response = wp_remote_get(
-			$url,
-			array(
-				'timeout' => 15,
-			)
-		);
+		$response = wp_remote_get( $url, self::wporg_request_args( 15 ) );
 
 		if ( is_wp_error( $response ) ) {
 			$this->finding(

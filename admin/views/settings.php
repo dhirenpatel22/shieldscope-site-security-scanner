@@ -133,7 +133,7 @@ defined( 'ABSPATH' ) || exit;
 							<?php
 							printf(
 								/* translators: %s: wpscan.com */
-								esc_html__( 'Optional. When set, the Vulnerability Database check looks up each installed plugin, and the active theme, on %s (it sends only the slug). The free key allows 25 requests a day and is for non-commercial use; check WPScan\'s terms before using it on client sites.', 'shieldscope-site-security-scanner' ),
+								esc_html__( 'Optional. When set, the Vulnerability Database check looks up each plugin listed on WordPress.org, and the active theme, on %s (it sends only the slug). The free key allows 25 requests a day and is for non-commercial use; check WPScan\'s terms before using it on client sites.', 'shieldscope-site-security-scanner' ),
 								'<strong>wpscan.com</strong>'
 							);
 							?>

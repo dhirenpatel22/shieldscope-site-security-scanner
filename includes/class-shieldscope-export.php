@@ -97,7 +97,8 @@ class ShieldScope_Export {
 	 */
 	public static function csv_cell( $value ) {
 		$value = (string) $value;
-		if ( '' !== $value && false !== strpos( "=+-@\t\r", $value[0] ) ) {
+		$first = ltrim( $value, " \n\x0B\0" );
+		if ( '' !== $first && false !== strpos( "=+-@\t\r", $first[0] ) ) {
 			$value = "'" . $value;
 		}
 		return $value;
@@ -112,9 +113,11 @@ class ShieldScope_Export {
 	public static function to_csv( array $report ) {
 		$rows = self::rows( $report );
 		$out  = fopen( 'php://temp', 'r+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- in-memory buffer.
-		fputcsv( $out, array( 'severity', 'confidence', 'check', 'title', 'target', 'line', 'snippet', 'description', 'recommendation', 'ignored' ), ',', '"', '\\' );
+		fputcsv( $out, array( 'severity', 'confidence', 'check', 'title', 'target', 'line', 'snippet', 'description', 'recommendation', 'ignored' ), ',', '"', '' );
 		foreach ( $rows as $row ) {
-			fputcsv( $out, array_map( array( __CLASS__, 'csv_cell' ), array_values( $row ) ), ',', '"', '\\' );
+			// No escape character: every " inside a field is doubled (RFC 4180),
+			// so a backslash in scanned text cannot end the field early (IM2-01).
+			fputcsv( $out, array_map( array( __CLASS__, 'csv_cell' ), array_values( $row ) ), ',', '"', '' );
 		}
 		rewind( $out );
 		$csv = stream_get_contents( $out );

@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: ShieldScope 1.3.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/shieldscope-site-"
 "security-scanner/\n"
-"POT-Creation-Date: 2026-11-21 12:23+0530\n"
+"POT-Creation-Date: 2026-11-21 13:37+0530\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -951,10 +951,10 @@ msgstr ""
 #: admin/views/settings.php:136
 #, php-format
 msgid ""
-"Optional. When set, the Vulnerability Database check looks up each installed "
-"plugin, and the active theme, on %s (it sends only the slug). The free key "
-"allows 25 requests a day and is for non-commercial use; check WPScan's terms "
-"before using it on client sites."
+"Optional. When set, the Vulnerability Database check looks up each plugin "
+"listed on WordPress.org, and the active theme, on %s (it sends only the "
+"slug). The free key allows 25 requests a day and is for non-commercial use; "
+"check WPScan's terms before using it on client sites."
 msgstr ""
 
 #. translators: %s: last four characters of the saved key
@@ -1385,18 +1385,18 @@ msgid ""
 "check_ajax_referer() or wp_verify_nonce() to prevent CSRF."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-base.php:140
+#: includes/checks/class-shieldscope-check-base.php:154
 msgid "plugin and theme code not scanned: Developer review is off in Settings"
 msgstr ""
 
 #. translators: %s: file path
-#: includes/checks/class-shieldscope-check-base.php:413
+#: includes/checks/class-shieldscope-check-base.php:427
 #: includes/checks/class-shieldscope-check-code-patterns.php:226
 #, php-format
 msgid "Could not analyse: %s"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-base.php:414
+#: includes/checks/class-shieldscope-check-base.php:428
 #: includes/checks/class-shieldscope-check-code-patterns.php:227
 msgid ""
 "A pattern check failed on this file (the regular expression engine hit a "
@@ -1404,7 +1404,7 @@ msgid ""
 "cause this, and so can files written to avoid pattern checks."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-base.php:415
+#: includes/checks/class-shieldscope-check-base.php:429
 #: includes/checks/class-shieldscope-check-code-patterns.php:228
 msgid ""
 "Open the file and review it by hand, or compare it with the original plugin "
@@ -1412,17 +1412,17 @@ msgid ""
 msgstr ""
 
 #. translators: 1: number of files, 2: number of folders
-#: includes/checks/class-shieldscope-check-base.php:551
+#: includes/checks/class-shieldscope-check-base.php:565
 #, php-format
 msgid "%1$d file(s) and %2$d folder(s) not scanned"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-base.php:558
+#: includes/checks/class-shieldscope-check-base.php:572
 msgid "Some files were not scanned"
 msgstr ""
 
 #. translators: 1: number of folders, 2: number of symlinked folders, 3: number of files
-#: includes/checks/class-shieldscope-check-base.php:561
+#: includes/checks/class-shieldscope-check-base.php:575
 #, php-format
 msgid ""
 "Folders skipped (vendor, node_modules, .git): %1$d. Symlinked folders not "
@@ -1434,12 +1434,12 @@ msgid "Code Pattern Analysis"
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-code-patterns.php:210
-#: includes/checks/class-shieldscope-check-core-integrity.php:741
+#: includes/checks/class-shieldscope-check-core-integrity.php:736
 msgid "Matches pattern: eval() on encoded data"
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-code-patterns.php:211
-#: includes/checks/class-shieldscope-check-core-integrity.php:742
+#: includes/checks/class-shieldscope-check-core-integrity.php:737
 msgid ""
 "This file applies eval() to the output of a decode or decompress function "
 "(base64_decode, gzinflate, str_rot13 or gzuncompress). Malware often uses "
@@ -1448,7 +1448,7 @@ msgid ""
 msgstr ""
 
 #: includes/checks/class-shieldscope-check-code-patterns.php:212
-#: includes/checks/class-shieldscope-check-core-integrity.php:743
+#: includes/checks/class-shieldscope-check-core-integrity.php:738
 msgid ""
 "Compare the file with the original plugin or theme source. If it does not "
 "belong there, remove it and check the site for other changes."
@@ -1926,25 +1926,25 @@ msgstr ""
 msgid "Could not read $wp_version — skipping core integrity verification."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:197
-#: includes/checks/class-shieldscope-check-core-integrity.php:215
-#: includes/checks/class-shieldscope-check-core-integrity.php:231
+#: includes/checks/class-shieldscope-check-core-integrity.php:192
+#: includes/checks/class-shieldscope-check-core-integrity.php:210
+#: includes/checks/class-shieldscope-check-core-integrity.php:226
 msgid "Core integrity check skipped"
 msgstr ""
 
 #. translators: %s: error message
-#: includes/checks/class-shieldscope-check-core-integrity.php:200
+#: includes/checks/class-shieldscope-check-core-integrity.php:195
 #, php-format
 msgid "Could not reach the WordPress.org checksums API: %s"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:203
+#: includes/checks/class-shieldscope-check-core-integrity.php:198
 msgid ""
 "Ensure outbound HTTPS to api.wordpress.org is allowed, then re-run the scan."
 msgstr ""
 
 #. translators: %d: HTTP status
-#: includes/checks/class-shieldscope-check-core-integrity.php:218
+#: includes/checks/class-shieldscope-check-core-integrity.php:213
 #, php-format
 msgid ""
 "WordPress.org returned HTTP %d with no usable checksum data. This usually "
@@ -1952,16 +1952,16 @@ msgid ""
 "builds)."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:232
+#: includes/checks/class-shieldscope-check-core-integrity.php:227
 msgid "The WordPress.org checksums response was malformed or empty."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:382
+#: includes/checks/class-shieldscope-check-core-integrity.php:377
 msgid "Core files differ from the official WordPress build en masse"
 msgstr ""
 
 #. translators: 1: differing count, 2: total count
-#: includes/checks/class-shieldscope-check-core-integrity.php:385
+#: includes/checks/class-shieldscope-check-core-integrity.php:380
 #, php-format
 msgid ""
 "%1$d of %2$d core files do not match the official WordPress.org checksums. "
@@ -1971,7 +1971,7 @@ msgid ""
 "findings have been suppressed."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:389
+#: includes/checks/class-shieldscope-check-core-integrity.php:384
 msgid ""
 "If this is a local, staging, or Playground environment, this is expected — "
 "re-run the scan on production. On a production site, verify your exact "
@@ -1979,19 +1979,19 @@ msgid ""
 "install now\" to restore official core files."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:403
+#: includes/checks/class-shieldscope-check-core-integrity.php:398
 msgid "Missing WordPress core file"
 msgstr ""
 
 #. translators: %s: relative path
-#: includes/checks/class-shieldscope-check-core-integrity.php:406
+#: includes/checks/class-shieldscope-check-core-integrity.php:401
 #, php-format
 msgid ""
 "The core file %s is listed in the WordPress.org checksums but is not present "
 "on disk. It may have been deleted or the installation is incomplete."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:409
+#: includes/checks/class-shieldscope-check-core-integrity.php:404
 msgid ""
 "Go to Dashboard → Updates and click \"Re-install now\" — this re-downloads "
 "all core files without touching your content, plugins, or wp-config.php. "
@@ -1999,12 +1999,12 @@ msgid ""
 "download/releases and upload just the missing file via FTP."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:418
+#: includes/checks/class-shieldscope-check-core-integrity.php:413
 msgid "Modified WordPress core file"
 msgstr ""
 
 #. translators: 1: path, 2: expected hash, 3: actual hash
-#: includes/checks/class-shieldscope-check-core-integrity.php:421
+#: includes/checks/class-shieldscope-check-core-integrity.php:416
 #, php-format
 msgid ""
 "The core file %1$s does not match the hash published on WordPress.org. "
@@ -2012,7 +2012,7 @@ msgid ""
 "edit (don't do that) or a compromise."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:426
+#: includes/checks/class-shieldscope-check-core-integrity.php:421
 msgid ""
 "Download a clean copy of the same WordPress version from wordpress.org/"
 "download/releases and compare the file. If you see injected or obfuscated "
@@ -2021,42 +2021,42 @@ msgid ""
 "all core files safely."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:440
+#: includes/checks/class-shieldscope-check-core-integrity.php:435
 msgid "Additional core file differences (summarised)"
 msgstr ""
 
 #. translators: %d: count
-#: includes/checks/class-shieldscope-check-core-integrity.php:443
+#: includes/checks/class-shieldscope-check-core-integrity.php:438
 #, php-format
 msgid ""
 "%d further core files differ from the official checksums but were not "
 "individually listed to keep the report readable."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:446
+#: includes/checks/class-shieldscope-check-core-integrity.php:441
 msgid ""
 "Go to Dashboard → Updates and click \"Re-install now\" to restore all "
 "official core files, then re-run the scan."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:466
+#: includes/checks/class-shieldscope-check-core-integrity.php:461
 msgid "WordPress Playground / WebAssembly runtime detected"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:475
+#: includes/checks/class-shieldscope-check-core-integrity.php:470
 msgid "SQLite database integration detected"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:485
+#: includes/checks/class-shieldscope-check-core-integrity.php:480
 msgid "skipped via shieldscope_skip_core_integrity filter"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:557
+#: includes/checks/class-shieldscope-check-core-integrity.php:552
 msgid "Unknown file inside WordPress core directory"
 msgstr ""
 
 #. translators: %s: relative path
-#: includes/checks/class-shieldscope-check-core-integrity.php:560
+#: includes/checks/class-shieldscope-check-core-integrity.php:555
 #, php-format
 msgid ""
 "The file %s is inside a core WordPress directory but is not part of the "
@@ -2064,7 +2064,7 @@ msgid ""
 "backdoors hide."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:563
+#: includes/checks/class-shieldscope-check-core-integrity.php:558
 msgid ""
 "Open the file in a text editor (read-only) and look for eval(), "
 "base64_decode() or obfuscated code, which are common in injected code. If "
@@ -2073,18 +2073,18 @@ msgid ""
 "core files."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:630
+#: includes/checks/class-shieldscope-check-core-integrity.php:625
 msgid ""
 "WordPress root not checked for unknown PHP files: core checksums unavailable"
 msgstr ""
 
 #. translators: %s: file name
-#: includes/checks/class-shieldscope-check-core-integrity.php:641
+#: includes/checks/class-shieldscope-check-core-integrity.php:636
 #, php-format
 msgid "Review: unknown PHP file in the WordPress root: %s"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:642
+#: includes/checks/class-shieldscope-check-core-integrity.php:637
 msgid ""
 "This PHP file sits next to wp-config.php but is not part of WordPress. Some "
 "are legitimate (for example wordfence-waf.php from Wordfence, or a host's "
@@ -2092,58 +2092,58 @@ msgid ""
 "compromise, because it can be requested directly from the web."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:643
+#: includes/checks/class-shieldscope-check-core-integrity.php:638
 msgid ""
 "Find out what added the file. If nobody recognises it, take a backup, remove "
 "it, and check the site for other changes."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:664
+#: includes/checks/class-shieldscope-check-core-integrity.php:659
 msgid "Drop-in in use"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:665
+#: includes/checks/class-shieldscope-check-core-integrity.php:660
 msgid ""
 "Drop-ins are files in wp-content that replace parts of WordPress (caching, "
 "database, maintenance and error pages). They are usually added by a caching "
 "or hosting plugin and do not appear in the Plugins screen."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:666
+#: includes/checks/class-shieldscope-check-core-integrity.php:661
 msgid ""
 "Confirm each drop-in belongs to a plugin or host you use. Remove drop-ins "
 "left behind by plugins you deleted."
 msgstr ""
 
 #. translators: %s: file name
-#: includes/checks/class-shieldscope-check-core-integrity.php:674
+#: includes/checks/class-shieldscope-check-core-integrity.php:669
 #, php-format
 msgid "Review: unknown PHP file in wp-content: %s"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:675
+#: includes/checks/class-shieldscope-check-core-integrity.php:670
 msgid ""
 "WordPress only expects index.php and known drop-ins directly inside wp-"
 "content. Other PHP files there are sometimes left by plugins, and sometimes "
 "planted."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:676
+#: includes/checks/class-shieldscope-check-core-integrity.php:671
 msgid "Find out what added the file and remove it if it is not needed."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:689
+#: includes/checks/class-shieldscope-check-core-integrity.php:684
 msgid "Must-use plugin present"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:690
+#: includes/checks/class-shieldscope-check-core-integrity.php:685
 msgid ""
 "Must-use plugins load on every request and cannot be turned off from the "
 "Plugins screen. Hosts and some plugins add them legitimately; attackers use "
 "them because they are easy to miss."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-core-integrity.php:691
+#: includes/checks/class-shieldscope-check-core-integrity.php:686
 msgid "Confirm each must-use plugin comes from your host or a plugin you use."
 msgstr ""
 
@@ -3871,11 +3871,11 @@ msgstr ""
 msgid "Use wp_safe_redirect() with a fallback URL."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-ssrf.php:215
+#: includes/checks/class-shieldscope-check-ssrf.php:220
 msgid "oEmbed proxy answered a logged-out request"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-ssrf.php:216
+#: includes/checks/class-shieldscope-check-ssrf.php:221
 msgid ""
 "The /wp-json/oembed/1.0/proxy endpoint makes the server fetch a URL and "
 "return the result. WordPress core only allows it for users with the "
@@ -3883,18 +3883,18 @@ msgid ""
 "plugin or filter has probably opened it up."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-ssrf.php:217
+#: includes/checks/class-shieldscope-check-ssrf.php:222
 msgid ""
 "Find the plugin or code that changes the proxy's permission check. If you do "
 "not need the oEmbed REST routes, remove them: "
 "remove_action( 'rest_api_init', 'wp_oembed_register_route' );"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-ssrf.php:226
+#: includes/checks/class-shieldscope-check-ssrf.php:231
 msgid "Pingbacks are allowed on new posts"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-ssrf.php:227
+#: includes/checks/class-shieldscope-check-ssrf.php:232
 msgid ""
 "New posts accept pingbacks through XML-RPC. To check a pingback, WordPress "
 "fetches the source URL the sender supplies, so anyone can make the server "
@@ -3902,7 +3902,7 @@ msgid ""
 "reflection and to probe internal hosts."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-ssrf.php:228
+#: includes/checks/class-shieldscope-check-ssrf.php:233
 msgid ""
 "If you do not use pingbacks, go to Settings → Discussion and clear 'Allow "
 "link notifications from other blogs (pingbacks and trackbacks) on new "
@@ -3910,35 +3910,35 @@ msgid ""
 "pingbacks completely."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-ssrf.php:237
+#: includes/checks/class-shieldscope-check-ssrf.php:242
 msgid "PHP allow_url_fopen is enabled"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-ssrf.php:238
+#: includes/checks/class-shieldscope-check-ssrf.php:243
 msgid ""
 "allow_url_fopen lets file_get_contents() and similar functions fetch remote "
 "URLs. Combined with any path-traversal or injection bug that passes a URL to "
 "file_get_contents(), this becomes an SSRF vector."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-ssrf.php:239
+#: includes/checks/class-shieldscope-check-ssrf.php:244
 msgid ""
 "Set allow_url_fopen = Off in php.ini if your code does not intentionally use "
 "file_get_contents() for HTTP requests (use wp_remote_get() instead)."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-ssrf.php:248
+#: includes/checks/class-shieldscope-check-ssrf.php:253
 msgid "WooCommerce webhooks may be configured — review webhook URLs"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-ssrf.php:249
+#: includes/checks/class-shieldscope-check-ssrf.php:254
 msgid ""
 "WooCommerce supports webhooks that cause the server to make outbound HTTP "
 "requests. A compromised admin account could add a webhook pointing at an "
 "internal service, enabling SSRF."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-ssrf.php:250
+#: includes/checks/class-shieldscope-check-ssrf.php:255
 msgid ""
 "Review active webhooks in WooCommerce → Settings → Advanced → Webhooks. "
 "Ensure only trusted external URLs are configured."
