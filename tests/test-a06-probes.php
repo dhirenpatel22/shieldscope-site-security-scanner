@@ -360,7 +360,7 @@ class Test_A06_Probes extends TestCase {
 
 		$this->run_steps( new ShieldScope_Check_Filesystem( 'scan', $this->logger ), array( 'uploads_php' ) );
 
-		$this->assertSame( $uploads . '/2026/11/shell.php', $this->finding( 'Executable PHP file inside uploads' )['target'] );
+		$this->assertSame( $uploads . '/2026/11/shell.php', $this->finding( 'Review: PHP file inside uploads' )['target'] );
 		$this->assertStringContainsString( 'Symlinked folders not followed: 1.', $this->finding( 'Some files were not scanned' )['description'] );
 	}
 }

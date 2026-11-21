@@ -28,6 +28,8 @@ class Test_S20_WPOrg_Plugin_Status extends TestCase {
 			'custom/custom.php'         => array( 'Name' => 'Custom' ),
 			'single.php'                => array( 'Name' => 'Single file' ),
 		);
+		// WordPress lists these as WordPress.org plugins (IM2-03).
+		$GLOBALS['ss_test_site_transients']['update_plugins'] = (object) array( 'no_update' => array_fill_keys( array_keys( $GLOBALS['ss_test_plugins'] ), (object) array() ) );
 		$this->api = array(
 			'closed-sec' => array( 200, array( 'error' => 'closed', 'closed' => true, 'closed_date' => '2021-01-30', 'reason' => 'security-issue', 'reason_text' => 'Security Issue' ) ),
 			'closed-req' => array( 200, array( 'error' => 'closed', 'closed' => true, 'closed_date' => '2024-05-01', 'reason' => 'author-request', 'reason_text' => 'Author Request' ) ),

@@ -433,6 +433,11 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 			if ( $fixed_in && version_compare( $version, $fixed_in, '>=' ) ) {
 				continue;
 			}
+			// Older than the first affected version: not affected (IM2-13).
+			$introduced_in = isset( $vuln['introduced_in'] ) ? (string) $vuln['introduced_in'] : '';
+			if ( '' !== $introduced_in && version_compare( $version, $introduced_in, '<' ) ) {
+				continue;
+			}
 
 			$vuln_title = isset( $vuln['title'] ) ? $vuln['title'] : __( 'Unknown vulnerability', 'shieldscope-site-security-scanner' );
 			$cve_ids    = array();

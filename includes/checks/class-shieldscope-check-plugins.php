@@ -91,7 +91,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 		foreach ( $updates->response as $plugin_file => $info ) {
 			$data = get_plugin_data( SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $plugin_file, false, false );
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
+				ShieldScope_Logger::SEVERITY_MEDIUM,
 				__( 'Plugin update available', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: 1: name, 2: current, 3: new */
@@ -166,6 +166,37 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 	}
 
 	/**
+	 * Does WordPress itself treat this plugin as a WordPress.org plugin?
+	 *
+	 * A folder name alone is not enough: a custom or commercial plugin can
+	 * share its folder name with an unrelated WordPress.org plugin (IM2-03).
+	 * Like WordPress core, plugins with an Update URI on another host are
+	 * excluded, and the plugin must appear in WordPress's own update data.
+	 *
+	 * @param string $file Plugin file.
+	 * @param array  $data Header data.
+	 * @return bool
+	 */
+	private static function is_wporg_plugin( $file, array $data ) {
+		if ( ! empty( $data['UpdateURI'] ) ) {
+			$host = wp_parse_url( (string) $data['UpdateURI'], PHP_URL_HOST );
+			if ( ! in_array( $host, array( 'wordpress.org', 'w.org' ), true ) ) {
+				return false;
+			}
+		}
+		$updates = get_site_transient( 'update_plugins' );
+		if ( ! is_object( $updates ) ) {
+			return false;
+		}
+		foreach ( array( 'response', 'no_update' ) as $list ) {
+			if ( isset( $updates->$list ) && is_array( $updates->$list ) && isset( $updates->{$list}[ $file ] ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * WordPress.org plugin information endpoint.
 	 */
 	const WPORG_API = 'https://api.wordpress.org/plugins/info/1.2/';
@@ -192,7 +223,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 		$plugins = array();
 		foreach ( (array) get_plugins() as $file => $data ) {
 			$slug = dirname( $file );
-			if ( '.' !== $slug && '' !== $slug ) {
+			if ( '.' !== $slug && '' !== $slug && self::is_wporg_plugin( $file, (array) $data ) ) {
 				$plugins[] = array( $file, $slug, $data );
 			}
 		}
@@ -390,7 +421,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 				continue;
 			}
 
-			$info = $this->wporg_info( $slug );
+			$info = self::is_wporg_plugin( $file, (array) $data ) ? $this->wporg_info( $slug ) : null;
 			$sums = ( is_array( $info ) && ! empty( $info['last_updated'] ) ) ? $this->plugin_checksums( $slug, $data['Version'] ) : null;
 			if ( null === $sums ) {
 				++$cursor['unverified'];

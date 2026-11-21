@@ -45,7 +45,7 @@ class Test_S01_Passive_Access_Checks extends TestCase {
 	}
 
 	public function test_default_login_errors_reveal_usernames() {
-		$this->assertSame( array( 'Login error messages reveal whether a username exists' ), $this->run_step( 'login_errors' ) );
+		$this->assertSame( array( 'Login error messages may reveal whether a username exists' ), $this->run_step( 'login_errors' ) );
 		$this->assertSame( ShieldScope_Logger::SEVERITY_LOW, $this->logger->findings[0]['severity'] );
 		$this->assertStringContainsString( 'no login was attempted', $this->logger->findings[0]['description'] );
 	}

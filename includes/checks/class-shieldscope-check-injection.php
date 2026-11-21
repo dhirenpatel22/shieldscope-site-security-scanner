@@ -505,9 +505,9 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 		// allow_url_include — turns file inclusion bugs into remote code execution.
 		if ( ini_get( 'allow_url_include' ) ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
+				ShieldScope_Logger::SEVERITY_MEDIUM,
 				__( 'PHP allow_url_include is enabled', 'shieldscope-site-security-scanner' ),
-				__( 'allow_url_include lets include/require load code from remote URLs. Any local file inclusion bug becomes remote code execution.', 'shieldscope-site-security-scanner' ),
+				__( 'allow_url_include lets include/require load code from remote URLs, so a file-inclusion bug in any plugin becomes remote code execution. On its own it is not an exploit.', 'shieldscope-site-security-scanner' ),
 				__( 'Set allow_url_include = Off in php.ini.', 'shieldscope-site-security-scanner' ),
 				'php.ini'
 			);

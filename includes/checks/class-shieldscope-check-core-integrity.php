@@ -257,7 +257,8 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 	private function step_verify( array $cursor ) {
 		$cached = get_transient( self::CHECKSUMS_TRANSIENT );
 		if ( ! is_array( $cached ) || empty( $cached['checksums'] ) ) {
-			// No checksums available (fetch step failed). Nothing to verify.
+			// No checksums available (fetch step failed): say so in the coverage (SC2-08).
+			$this->note_partial( __( 'core files not verified: WordPress.org checksums unavailable', 'shieldscope-site-security-scanner' ) );
 			return array( 'continue' => false, 'cursor' => array() );
 		}
 		$checksums = $cached['checksums'];
@@ -512,6 +513,7 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 	private function step_extras( array $cursor ) {
 		$cached = get_transient( self::CHECKSUMS_TRANSIENT );
 		if ( ! is_array( $cached ) || empty( $cached['checksums'] ) ) {
+			$this->note_partial( __( 'core folders not checked for unknown files: WordPress.org checksums unavailable', 'shieldscope-site-security-scanner' ) );
 			return array( 'continue' => false, 'cursor' => array() );
 		}
 
@@ -624,7 +626,7 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 		if ( null === $known ) {
 			$this->note_partial( __( 'WordPress root not checked for unknown PHP files: core checksums unavailable', 'shieldscope-site-security-scanner' ) );
 		}
-		foreach ( self::php_files_in( ABSPATH ) as $file ) {
+		foreach ( $this->php_files_in( ABSPATH ) as $file ) {
 			$name = basename( $file );
 			if ( in_array( $name, array( 'wp-config.php', 'wp-config-sample.php' ), true ) ) {
 				continue;
@@ -648,7 +650,7 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 		$dropins = function_exists( '_get_dropins' ) ? _get_dropins() : array();
-		foreach ( self::php_files_in( $content ) as $file ) {
+		foreach ( $this->php_files_in( $content ) as $file ) {
 			$name = basename( $file );
 			if ( 'index.php' === $name ) {
 				continue;
@@ -677,7 +679,7 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 
 		// 3. Must-use plugins (WordPress loads only the top-level PHP files).
 		$mu = defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : $content . '/mu-plugins';
-		foreach ( self::php_files_in( $mu ) as $file ) {
+		foreach ( $this->php_files_in( $mu ) as $file ) {
 			$name = basename( $file );
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_INFO,
@@ -696,7 +698,7 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 	 * @param string $dir Directory.
 	 * @return string[] Full paths.
 	 */
-	private static function php_files_in( $dir ) {
+	private function php_files_in( $dir ) {
 		if ( ! is_dir( $dir ) ) {
 			return array();
 		}
@@ -708,6 +710,14 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 				$files[] = $full;
 			}
 			if ( count( $files ) >= self::PERSISTENCE_MAX_FILES ) {
+				$this->note_partial(
+					sprintf(
+						/* translators: 1: number of files, 2: folder */
+						__( 'only the first %1$d PHP files in %2$s were checked', 'shieldscope-site-security-scanner' ),
+						self::PERSISTENCE_MAX_FILES,
+						basename( rtrim( $dir, '/\\' ) )
+					)
+				);
 				break;
 			}
 		}
