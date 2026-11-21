@@ -1,4 +1,4 @@
-=== ShieldScope – Security Audit ===
+=== ShieldScope – Site Security Scanner ===
 
 Contributors: dhirenpatel22
 Tags: security audit, site audit, hardening, security checklist, security report
@@ -194,7 +194,7 @@ It is designed to help site owners and developers find security risks on sites t
 * Changed: The scan pace no longer sleeps inside requests; the rest between steps happens between requests.
 * Changed: On multisite only super admins can use ShieldScope; it is also in the Network Admin menu.
 * Changed: The WPScan API key is never shown in the page and can be removed.
-* Changed: Plain wording across the plugin and listing: no "malware scanner" or CPU-limit claims, one privacy statement that lists every outbound request, menu item renamed to "Report", plugin name "ShieldScope – Security Audit".
+* Changed: Plain wording across the plugin and listing: no "malware scanner" or CPU-limit claims, one privacy statement that lists every outbound request, menu item renamed to "Report".
 * Fixed: TLS checks, password-hash formats, "admin" user wording, wp-config.php and sensitive-file probes, end-of-life dates for PHP, MySQL and MariaDB, and the built-in vulnerability list (wrong CVE references removed).
 * Fixed: Five false positives in the code-pattern rules found by testing against WooCommerce, Yoast SEO, Elementor, Jetpack and other popular plugins.
 * Fixed: Pause and Abort now take effect reliably; a step that keeps failing is skipped and reported instead of retrying forever.

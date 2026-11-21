@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       ShieldScope – Security Audit
+ * Plugin Name:       ShieldScope – Site Security Scanner
  * Plugin URI:        https://wordpress.org/plugins/shieldscope-site-security-scanner/
  * Description:       Security audit for WordPress core, plugins, themes, users, files and server settings. Runs from your admin screen in short steps and reports findings by severity.
  * Version:           2.0.0
