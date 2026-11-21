@@ -554,3 +554,12 @@ if ( ! function_exists( 'esc_attr__' ) ) {
 if ( ! function_exists( 'submit_button' ) ) {
 	function submit_button( $text = '' ) { echo '<button>' . $text . '</button>'; } // phpcs:ignore
 }
+if ( ! function_exists( 'selected' ) ) {
+	function selected( $selected, $current = true, $display = true ) {
+		$out = ( (string) $selected === (string) $current ) ? " selected='selected'" : '';
+		if ( $display ) {
+			echo $out; // phpcs:ignore
+		}
+		return $out;
+	}
+}
