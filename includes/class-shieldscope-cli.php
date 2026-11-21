@@ -68,23 +68,73 @@ class ShieldScope_CLI {
 	 */
 	public function scan( $args, $assoc_args ) {
 		$timeout = isset( $assoc_args['timeout'] ) ? max( 10, (int) $assoc_args['timeout'] ) : 1800;
-		$scanner = new ShieldScope_Scanner();
+		$scanner = ( new ShieldScope_Scanner() )->foreground_only();
 		$state   = $scanner->get_state();
+		$format  = isset( $assoc_args['format'] ) ? $assoc_args['format'] : 'table';
 		if ( in_array( $state['status'], array( ShieldScope_Scanner::STATUS_RUNNING, ShieldScope_Scanner::STATUS_PAUSED ), true ) ) {
-			WP_CLI::error( 'A scan is already running or paused. Abort it in the admin first.' );
+			WP_CLI::error( 'A scan is already running or paused. Stop it with: wp shieldscope abort' );
 		}
 
 		$state   = $scanner->start( ! empty( $assoc_args['quick'] ) );
 		$started = microtime( true );
-		WP_CLI::log( 'Scanning (' . $state['total_steps'] . ' steps)…' );
+		self::info( 'Scanning (' . $state['total_steps'] . ' steps)…', $format );
 		while ( ShieldScope_Scanner::STATUS_RUNNING === $state['status'] && ( microtime( true ) - $started ) < $timeout ) {
 			$state = $scanner->run_chunk( false );
+			if ( ! empty( $state['busy'] ) ) {
+				usleep( 250000 ); // Another request holds the lock: wait, do not spin (SC2-04).
+			}
 		}
 		if ( ShieldScope_Scanner::STATUS_COMPLETED !== $state['status'] ) {
 			WP_CLI::error( 'The scan did not finish (status: ' . $state['status'] . ').' );
 		}
-		WP_CLI::log( sprintf( 'Scan finished in %.1f s.', microtime( true ) - $started ) );
+		self::info( sprintf( 'Scan finished in %.1f s.', microtime( true ) - $started ), $format );
 		$this->output( $state['scan_id'], $assoc_args );
+	}
+
+	/**
+	 * Abort a running or paused scan and discard its findings.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp shieldscope abort
+	 *
+	 * @return void
+	 */
+	public function abort() {
+		$scanner = new ShieldScope_Scanner();
+		$state   = $scanner->get_state();
+		if ( ! in_array( $state['status'], array( ShieldScope_Scanner::STATUS_RUNNING, ShieldScope_Scanner::STATUS_PAUSED ), true ) ) {
+			WP_CLI::success( 'No scan is running.' );
+			return;
+		}
+		$scanner->abort();
+		WP_CLI::success( 'Scan aborted.' );
+	}
+
+	/**
+	 * A progress or summary line: on STDERR for json and csv output, so
+	 * redirected output stays valid (IM2-12).
+	 *
+	 * @param string $line   Text.
+	 * @param string $format Output format.
+	 * @return void
+	 */
+	private static function info( $line, $format ) {
+		if ( in_array( $format, array( 'json', 'csv' ), true ) ) {
+			fwrite( STDERR, $line . "\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+			return;
+		}
+		WP_CLI::log( $line );
+	}
+
+	/**
+	 * Remove control characters (terminal escape sequences) from a value.
+	 *
+	 * @param mixed $value Value.
+	 * @return string
+	 */
+	public static function plain( $value ) {
+		return (string) preg_replace( '/[\x00-\x08\x0B-\x1F\x7F]/', '', (string) $value );
 	}
 
 	/**
@@ -139,13 +189,17 @@ class ShieldScope_CLI {
 		} elseif ( 'csv' === $format ) {
 			WP_CLI::line( substr( ShieldScope_Export::to_csv( $report ), 3 ) ); // Without the BOM.
 		} elseif ( 'table' === $format && $rows ) {
-			\WP_CLI\Utils\format_items( 'table', $rows, array( 'severity', 'confidence', 'check', 'title', 'target', 'line' ) );
+			$plain = array();
+			foreach ( $rows as $row ) {
+				$plain[] = array_map( array( __CLASS__, 'plain' ), $row );
+			}
+			\WP_CLI\Utils\format_items( 'table', $plain, array( 'severity', 'confidence', 'check', 'title', 'target', 'line' ) );
 		}
 
 		$counts = self::active_counts( $rows );
-		WP_CLI::log( ShieldScope_PDF_Report::verdict( $counts ) . ' Counts: ' . wp_json_encode( $counts ) );
+		self::info( ShieldScope_PDF_Report::verdict( $counts ) . ' Counts: ' . wp_json_encode( $counts ), $format );
 		if ( null !== $report['coverage'] ) {
-			WP_CLI::log( 'Coverage: ' . ShieldScope_Coverage::summary( $report['coverage'] ) );
+			self::info( 'Coverage: ' . ShieldScope_Coverage::summary( $report['coverage'] ), $format );
 		}
 
 		if ( self::should_fail( $counts, $fail_on ) ) {

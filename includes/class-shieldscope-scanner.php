@@ -234,6 +234,24 @@ class ShieldScope_Scanner {
 	const STALL_SECONDS = 120;
 
 	/**
+	 * When true (WP-CLI), this instance runs the scan itself and does not
+	 * start or queue background chunks (SC2-04).
+	 *
+	 * @var bool
+	 */
+	private $foreground = false;
+
+	/**
+	 * Run in the foreground only: no WP-Cron kick or watchdog.
+	 *
+	 * @return $this
+	 */
+	public function foreground_only() {
+		$this->foreground = true;
+		return $this;
+	}
+
+	/**
 	 * Is background scanning (WP-Cron) on? Default on (S-10).
 	 *
 	 * @return bool
@@ -252,7 +270,7 @@ class ShieldScope_Scanner {
 	 * @return void
 	 */
 	public function kick_background( array $state ) {
-		if ( self::STATUS_RUNNING !== $state['status'] || ! self::background_enabled() ) {
+		if ( $this->foreground || self::STATUS_RUNNING !== $state['status'] || ! self::background_enabled() ) {
 			return;
 		}
 		if ( ! wp_next_scheduled( 'shieldscope_run_scan_chunk' ) ) {
@@ -482,7 +500,7 @@ class ShieldScope_Scanner {
 
 		// Background chain (SC2-02): queue a watchdog first, so a busy or
 		// killed chunk can never end the chain; on success it is moved earlier.
-		if ( $from_cron || self::background_enabled() ) {
+		if ( $from_cron || ( self::background_enabled() && ! $this->foreground ) ) {
 			self::queue_cron( self::lock_timeout() + 5 );
 		}
 
