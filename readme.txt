@@ -115,7 +115,7 @@ The PDF report is built on your server, with no network requests, using Dompdf 3
 4. Click **Start Scan**. You can keep the page open (fastest) or close it; the scan continues in the background.
 5. Open **ShieldScope → Report** to see the results, and use **Download PDF report** to save them.
 
-On multisite, only super admins can run a scan.
+On multisite, only super admins can run a scan, from any site's dashboard or from Network Admin.
 
 == Frequently Asked Questions ==
 

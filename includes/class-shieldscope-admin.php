@@ -119,6 +119,10 @@ class ShieldScope_Admin {
 	 */
 	public function register() {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
+		if ( is_multisite() ) {
+			// Super admins can also open ShieldScope from Network Admin (S-17).
+			add_action( 'network_admin_menu', array( $this, 'register_menu' ) );
+		}
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_notices', array( $this, 'completion_notice' ) );
 		add_action( 'admin_post_' . ShieldScope_PDF_Report::ACTION, array( 'ShieldScope_PDF_Report', 'handle' ) );
