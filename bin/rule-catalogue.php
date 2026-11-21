@@ -160,6 +160,14 @@ function ss_rules( $file ) {
 		}
 		$rules[] = array( $sev, $title );
 	}
+	// Table rows: array( ShieldScope_Logger::SEVERITY_X, __( 'title' ... ).
+	for ( $i = 0; $i < $n - 8; $i++ ) {
+		if ( 'array' === strtolower( $tx( $i ) ) && '(' === $tx( $i + 1 ) && 'ShieldScope_Logger' === $tx( $i + 2 ) && '::' === $tx( $i + 3 )
+			&& 0 === strpos( $tx( $i + 4 ), 'SEVERITY_' ) && ',' === $tx( $i + 5 ) && '__' === $tx( $i + 6 ) && '(' === $tx( $i + 7 )
+			&& is_array( $t[ $i + 8 ] ) && T_CONSTANT_ENCAPSED_STRING === $t[ $i + 8 ][0] ) {
+			$rules[] = array( ss_sev( $tx( $i + 4 ) ), ss_str( $tx( $i + 8 ) ) );
+		}
+	}
 	// The generic sink title is replaced by one row per sink above.
 	$rules = array_values(
 		array_filter(

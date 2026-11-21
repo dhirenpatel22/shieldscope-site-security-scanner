@@ -16,16 +16,29 @@ class SS_S23_Wpdb {
 	public $opt_rows  = array();
 	public $post_rows = array();
 	public $queries   = 0;
+	public $last_sql = array();
+	public function esc_like( $t ) {
+		return addcslashes( $t, '_%\\' );
+	}
 	public function prepare( $sql, ...$args ) {
 		foreach ( $args as $a ) {
-			$sql = preg_replace( '/%d/', (string) (int) $a, $sql, 1 );
+			$sql = preg_replace( '/%[ds]/', is_int( $a ) ? (string) $a : "'" . $a . "'", $sql, 1 );
 		}
 		return $sql;
 	}
 	public function get_results( $sql, $output = null ) {
 		++$this->queries;
+		$this->last_sql[] = $sql;
 		if ( false !== strpos( $sql, 'option_value' ) ) {
-			return $this->opt_rows;
+			preg_match( '/option_id > (\d+)/', $sql, $m );
+			$out = array();
+			foreach ( $this->opt_rows as $i => $row ) {
+				$row += array( 'option_id' => $i + 1 );
+				if ( $row['option_id'] > (int) $m[1] && 0 !== strpos( $row['option_name'], '_transient' ) ) {
+					$out[] = $row;
+				}
+			}
+			return array_slice( $out, 0, 200 );
 		}
 		preg_match( '/ID > (\d+).*LIMIT (\d+)/s', $sql, $m );
 		$out = array();
@@ -103,6 +116,34 @@ class Test_S23_DB_Content extends TestCase {
 		$this->assertSame( 'Review: obfuscated JavaScript in stored content', $this->run_step()[0]['title'] );
 		$GLOBALS['wpdb']->post_rows = array( $this->post( 9, 'Price \\x41 only' ) );
 		$this->assertSame( array(), $this->run_step() );
+	}
+
+	public function test_gtm_noscript_iframe_is_not_hidden_iframe_and_embeds_are_skipped() {
+		$GLOBALS['wpdb']->opt_rows = array(
+			array( 'option_name' => 'hfcm_footer', 'option_value' => '<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-X" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>' ),
+		);
+		$this->assertSame( array(), $this->run_step() );
+		$this->assertStringContainsString( "'oembed_cache'", implode( ' ', $GLOBALS['wpdb']->last_sql ) );
+		$this->assertStringContainsString( "NOT LIKE '\\_transient\\_%'", implode( ' ', $GLOBALS['wpdb']->last_sql ) );
+	}
+
+	public function test_hidden_iframe_regex_is_linear() {
+		$GLOBALS['wpdb']->post_rows = array( $this->post( 1, str_repeat( '<iframe ', 40000 ) ) );
+		$start = microtime( true );
+		$this->run_step();
+		$this->assertLessThan( 2.0, microtime( true ) - $start );
+	}
+
+	public function test_findings_per_rule_are_capped_with_a_summary() {
+		$rows = array();
+		for ( $i = 1; $i <= 70; $i++ ) {
+			$rows[] = $this->post( $i, '<script src="https://platform.twitter.com/widgets.js"></script>' );
+		}
+		$GLOBALS['wpdb']->post_rows = $rows;
+		$findings = $this->run_step();
+		$this->assertCount( 51, $findings );
+		$this->assertSame( 'More items matched: Review: script tag in stored content', $findings[50]['title'] );
+		$this->assertStringContainsString( '70 items matched', $findings[50]['description'] );
 	}
 
 	public function test_evidence_line() {
