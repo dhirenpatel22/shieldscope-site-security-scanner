@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 	<p class="description">
 		<?php
 		printf(
-			/* translators: %s: scan time estimate, for example "about 5 to 20 minutes" */
+			/* translators: %s: scan time estimate, for example "a few minutes" */
 			esc_html__( 'Audit WordPress core, plugins, themes, users, files and server settings. A scan takes %s and works in short steps with pauses between them; it can carry on in the background after you close this page.', 'shieldscope-site-security-scanner' ),
 			esc_html( ShieldScope_Admin::scan_time_estimate() )
 		);
@@ -167,7 +167,7 @@ defined( 'ABSPATH' ) || exit;
 				<p>
 				<?php
 				printf(
-					/* translators: %s: scan time estimate, for example "about 5 to 20 minutes" */
+					/* translators: %s: scan time estimate, for example "a few minutes" */
 					esc_html__( 'A scan usually takes %s, depending on the number of plugins, themes and PHP files. It runs fastest with this page open.', 'shieldscope-site-security-scanner' ),
 					esc_html( ShieldScope_Admin::scan_time_estimate() )
 				);
