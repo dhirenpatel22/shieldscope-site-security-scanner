@@ -122,14 +122,24 @@ class ShieldScope_Admin {
 	public static function render_help_box() {
 		?>
 		<div class="shieldscope-card shieldscope-help-box">
-			<h2><?php esc_html_e( 'Need a deeper review, or help fixing what ShieldScope found?', 'shieldscope-site-security-scanner' ); ?></h2>
-			<p><?php esc_html_e( 'ShieldScope checks the most common security problems automatically. If you want a more detailed audit of your site, or someone to fix the issues it found, you can contact me, Dhiren Patel, the developer of ShieldScope.', 'shieldscope-site-security-scanner' ); ?></p>
-			<p>
-				<a class="button" href="<?php echo esc_url( self::HELP_URL ); ?>" target="_blank" rel="noopener noreferrer">
+			<span class="shieldscope-help-icon" aria-hidden="true"><span class="dashicons dashicons-shield-alt"></span></span>
+			<div class="shieldscope-help-body">
+				<h2><?php esc_html_e( 'Need a deeper review, or help fixing what ShieldScope found?', 'shieldscope-site-security-scanner' ); ?></h2>
+				<p><?php esc_html_e( 'ShieldScope checks the most common security problems automatically. For anything beyond that, you can contact me, Dhiren Patel, the developer of ShieldScope.', 'shieldscope-site-security-scanner' ); ?></p>
+				<ul class="shieldscope-help-points">
+					<li><span class="dashicons dashicons-yes" aria-hidden="true"></span><?php esc_html_e( 'A detailed audit of your site', 'shieldscope-site-security-scanner' ); ?></li>
+					<li><span class="dashicons dashicons-yes" aria-hidden="true"></span><?php esc_html_e( 'Fixes for the issues ShieldScope found', 'shieldscope-site-security-scanner' ); ?></li>
+					<li><span class="dashicons dashicons-yes" aria-hidden="true"></span><?php esc_html_e( 'Advice on keeping the site secure', 'shieldscope-site-security-scanner' ); ?></li>
+				</ul>
+			</div>
+			<div class="shieldscope-help-action">
+				<a class="button button-primary shieldscope-help-button" href="<?php echo esc_url( self::HELP_URL ); ?>" target="_blank" rel="noopener noreferrer">
 					<?php esc_html_e( 'Contact the developer', 'shieldscope-site-security-scanner' ); ?>
+					<span class="dashicons dashicons-external" aria-hidden="true"></span>
 					<span class="screen-reader-text"><?php esc_html_e( '(opens in a new tab)', 'shieldscope-site-security-scanner' ); ?></span>
 				</a>
-			</p>
+				<span class="shieldscope-help-note"><?php esc_html_e( 'Opens dhirenpatel.me in a new tab', 'shieldscope-site-security-scanner' ); ?></span>
+			</div>
 		</div>
 		<?php
 	}
