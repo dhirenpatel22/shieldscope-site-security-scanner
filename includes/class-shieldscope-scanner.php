@@ -540,6 +540,8 @@ class ShieldScope_Scanner {
 			}
 
 			$check->set_deadline( $deadline );
+			// A retry after a killed request does not tokenize files (SC2-01).
+			$check->set_careful( $fails > 0 );
 			$started = microtime( true );
 			try {
 				$result = $check->run_step( $step, (array) $state['cursor'] );

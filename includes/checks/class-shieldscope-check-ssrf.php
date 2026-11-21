@@ -121,7 +121,8 @@ class ShieldScope_Check_SSRF extends ShieldScope_Check_Base {
 		}
 
 		$this->rx_failed = false;
-		$raw             = $this->neutralise_safe_calls( self::code_view( $contents ) );
+		list( $code, $with_strings ) = $this->views( $contents );
+		$raw                         = $this->neutralise_safe_calls( $code );
 		$sg              = '\$_(?:GET|POST|REQUEST|COOKIE)';
 		$note            = __( 'This is a pattern match, not a confirmed vulnerability: read the code to confirm whether request data really chooses the destination.', 'shieldscope-site-security-scanner' );
 
@@ -170,7 +171,6 @@ class ShieldScope_Check_SSRF extends ShieldScope_Check_Base {
 			),
 		);
 
-		$with_strings = self::code_view( $contents, true );
 		foreach ( $rules as $key => $rule ) {
 			// The Location rule needs the header text, which the code view blanks.
 			$view = 'location' === $key ? $with_strings : $raw;

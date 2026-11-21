@@ -736,7 +736,7 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 		if ( ! is_string( $contents ) || '' === $contents ) {
 			return;
 		}
-		$view = self::code_view( $contents, true );
+		list( , $view ) = $this->views( $contents );
 		$at   = $this->rx_offset( '/\beval\s*\(\s*(?:base64_decode|gzinflate|str_rot13|gzuncompress)/i', $view );
 		if ( $at < 0 ) {
 			return;

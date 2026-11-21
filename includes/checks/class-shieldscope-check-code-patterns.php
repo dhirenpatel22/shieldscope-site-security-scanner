@@ -172,7 +172,8 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 	 * @return string
 	 */
 	private function strip_comments( $contents ) {
-		return self::code_view( $contents, true );
+		list( , $with_strings ) = $this->views( $contents );
+		return $with_strings;
 	}
 
 	/**
@@ -245,8 +246,7 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 		// $no_comments keeps strings for the rules that look inside them.
 		// Found by the false-positive corpus (S-25): "system (" inside strings,
 		// "require $_GET" inside a comment, base64 data: URIs.
-		$code        = self::code_view( $contents );
-		$no_comments = $this->strip_comments( $contents );
+		list( $code, $no_comments ) = $this->views( $contents ); // One tokenizer pass (SC2-01).
 
 		// Shell functions: whole-word calls only, not methods, definitions, comments or strings.
 		$shell = '/(?<![$>:])(?<!\w\\\\)(?<!function\s)(?<!new\s)\b(?:shell_exec|passthru|proc_open|popen|system)\s*\(/i';
