@@ -222,6 +222,8 @@ foreach ( (array) $findings as $f ) {
 			</div>
 		<?php endif; ?>
 
+		<?php ShieldScope_Admin::render_help_box(); ?>
+
 		<?php if ( $findings ) : ?>
 			<div class="shieldscope-filter" role="search">
 				<label for="shieldscope-filter-text"><?php esc_html_e( 'Filter findings', 'shieldscope-site-security-scanner' ); ?></label>

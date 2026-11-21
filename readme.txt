@@ -70,6 +70,8 @@ Without a key, installed plugins are checked against a limited built-in list of 
 
 **What ShieldScope changes.** ShieldScope does not change your files, settings, users or content. It stores only its own data: its settings and scan progress (options), cached lookups (transients), a findings table, and scheduled tasks (one daily clean-up, plus short-lived ones while a scan runs). Deleting the plugin removes all of it.
 
+**Need more help?** ShieldScope is free. If you want a more detailed audit of your site, or someone to fix the issues it finds, you can contact the developer at https://www.dhirenpatel.me/contact/. The ShieldScope screens and the PDF footer show this link; nothing is sent unless you click it, and the PDF link can be turned off in Settings.
+
 == Third-Party Services ==
 
 While a scan runs, ShieldScope sends requests to your own site (to check headers, HTTPS and files that should not be public) and to the services below. No data is sent on regular page loads. Requests to WordPress.org identify themselves as ShieldScope and do not include your site address.
@@ -165,10 +167,10 @@ Usually a few minutes with the scan page open, depending on the number of plugin
 
 == Screenshots ==
 
-1. Report: a one-line verdict, counts by severity, the findings to fix first, coverage of the 16 checks, and every finding labelled Confirmed or Needs review. Download as PDF, CSV or JSON.
-2. Scan page: progress and the result of each check; with background scanning on, you can close the page and the scan continues.
-3. PDF report for a client or your records: summary, findings with what to do and the affected items, ignored findings and the method and limits.
-4. Settings: scan pace, time per step, file size limit, background scanning, the optional Developer review code checks and an optional WPScan API key.
+1. Report: a one-line verdict, counts by severity, the findings to fix first, coverage of the 16 checks and the comparison with the previous scan. Every finding is labelled Confirmed or Needs review; download the report as PDF, CSV or JSON.
+2. Scan page: full or quick scan, progress, and the result of each check with the reason when a check only partly completed. With background scanning on, you can close the page and the scan continues.
+3. PDF report for a client or your records: summary, comparison with the previous scan, findings with what to do and the affected items, and the method and limits.
+4. Settings: server-load presets, scan pace, time per step, file size limit and background scanning.
 
 == Disclaimer ==
 
@@ -190,6 +192,7 @@ It is designed to help site owners and developers find security risks on sites t
 * New: PHP files in the WordPress root and wp-content, drop-ins and must-use plugins are listed; post content and options are checked for obfuscated JavaScript, hidden iframes and script tags.
 * New: Quick scan, per-check progress on the scan page, server-load presets, and WP-CLI commands (wp shieldscope scan / report / abort) with an exit status for CI. JSON and CSV output can be redirected to a file.
 * New: Login error messages and plugin REST routes that accept writes without a login are checked again, by reading settings and routes; the scan never logs in or writes.
+* New: A link to the developer's contact page on the ShieldScope screens and in the PDF footer, for a more detailed audit or help with fixes (the PDF link can be turned off in Settings → PDF report).
 * Changed: Injection and SSRF code scans are off by default (Settings → Developer review); code-pattern matches are reported as findings to review; prepared database queries are no longer reported as SQL injection.
 * Changed: The scan pace no longer sleeps inside requests; the rest between steps happens between requests.
 * Changed: On multisite only super admins can use ShieldScope; it is also in the Network Admin menu.

@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 <div class="wrap shieldscope-wrap">
 	<h1><?php esc_html_e( 'ShieldScope: Settings', 'shieldscope-site-security-scanner' ); ?></h1>
 	<?php settings_errors( 'shieldscope_settings' ); ?>
+	<?php ShieldScope_Admin::render_help_box(); ?>
 
 	<form method="post" action="">
 		<?php wp_nonce_field( 'shieldscope_save_settings' ); ?>
@@ -107,6 +108,16 @@ defined( 'ABSPATH' ) || exit;
 							<?php esc_html_e( 'Also scan plugin and theme code for injection and server-side request patterns.', 'shieldscope-site-security-scanner' ); ?>
 						</label>
 						<p class="description"><?php esc_html_e( 'For developers reviewing code. These checks only find patterns to review (Low findings), and well-written plugins can match them, so they are off by default. Scans take longer when this is on.', 'shieldscope-site-security-scanner' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'PDF report', 'shieldscope-site-security-scanner' ); ?></th>
+					<td>
+						<label>
+							<input name="shieldscope_settings[pdf_help_link]" type="checkbox" value="1" <?php checked( ! empty( $settings['pdf_help_link'] ) ); ?> />
+							<?php esc_html_e( 'Show a link to the developer\'s contact page in the PDF footer.', 'shieldscope-site-security-scanner' ); ?>
+						</label>
+						<p class="description"><?php esc_html_e( 'Turn this off if you hand the PDF to your own clients.', 'shieldscope-site-security-scanner' ); ?></p>
 					</td>
 				</tr>
 				<tr>

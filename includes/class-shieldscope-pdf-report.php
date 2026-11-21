@@ -481,17 +481,44 @@ class ShieldScope_PDF_Report {
 
 		$canvas = $dompdf->getCanvas();
 		$font   = $dompdf->getFontMetrics()->getFont( 'DejaVu Sans' );
-		$footer = sprintf(
-			/* translators: 1: ShieldScope version, 2: site address */
-			__( 'ShieldScope %1$s · %2$s · ShieldScope did not change this site.', 'shieldscope-site-security-scanner' ),
-			$report['version'],
-			wp_parse_url( $report['site_url'], PHP_URL_HOST )
-		);
+		$footer = self::footer_text( $report, ShieldScope_Admin::pdf_help_link() );
 		$canvas->page_text( 48, $canvas->get_height() - 36, $footer, $font, 7, array( 0.31, 0.34, 0.37 ) );
+		if ( ShieldScope_Admin::pdf_help_link() ) {
+			// Make the footer line a link to the contact page on every page.
+			$width = $dompdf->getFontMetrics()->getTextWidth( $footer, $font, 7 );
+			$canvas->page_script(
+				function ( $page_number, $page_count, $page_canvas ) use ( $width ) {
+					$page_canvas->add_link( ShieldScope_Admin::HELP_URL, 48, $page_canvas->get_height() - 38, $width, 10 );
+				}
+			);
+		}
 		/* translators: {PAGE_NUM} and {PAGE_COUNT} are filled in by the PDF library; keep them as they are. */
 		$canvas->page_text( $canvas->get_width() - 110, $canvas->get_height() - 36, __( 'Page {PAGE_NUM} of {PAGE_COUNT}', 'shieldscope-site-security-scanner' ), $font, 7, array( 0.31, 0.34, 0.37 ) );
 
 		return (string) $dompdf->output();
+	}
+
+	/**
+	 * Footer line on every page: ShieldScope version, site address and,
+	 * when enabled in Settings, the developer's contact link.
+	 *
+	 * @param array $report     Report data.
+	 * @param bool  $help_link  Include the contact link.
+	 * @return string
+	 */
+	public static function footer_text( array $report, $help_link ) {
+		$host = (string) wp_parse_url( $report['site_url'], PHP_URL_HOST );
+		if ( ! $help_link ) {
+			/* translators: 1: ShieldScope version, 2: site address */
+			return sprintf( __( 'ShieldScope %1$s · %2$s', 'shieldscope-site-security-scanner' ), $report['version'], $host );
+		}
+		return sprintf(
+			/* translators: 1: ShieldScope version, 2: site address, 3: web address of the developer's contact page */
+			__( 'ShieldScope %1$s · %2$s · Detailed audit or help with fixes: %3$s', 'shieldscope-site-security-scanner' ),
+			$report['version'],
+			$host,
+			'dhirenpatel.me/contact'
+		);
 	}
 
 	/**
