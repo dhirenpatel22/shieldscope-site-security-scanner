@@ -143,6 +143,13 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 		$env_reason = $this->detect_nonstandard_environment();
 		if ( '' !== $env_reason ) {
 			delete_transient( self::CHECKSUMS_TRANSIENT );
+			$this->note_partial(
+				sprintf(
+					/* translators: %s: detected environment, for example "SQLite database integration detected" */
+					__( 'core files not compared with WordPress.org: skipped on a non-standard WordPress build (%s)', 'shieldscope-site-security-scanner' ),
+					$env_reason
+				)
+			);
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_INFO,
 				__( 'Core integrity check skipped — non-standard WordPress build', 'shieldscope-site-security-scanner' ),
@@ -258,7 +265,9 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 		$cached = get_transient( self::CHECKSUMS_TRANSIENT );
 		if ( ! is_array( $cached ) || empty( $cached['checksums'] ) ) {
 			// No checksums available (fetch step failed): say so in the coverage (SC2-08).
-			$this->note_partial( __( 'core files not verified: WordPress.org checksums unavailable', 'shieldscope-site-security-scanner' ) );
+			if ( '' === $this->detect_nonstandard_environment() ) {
+				$this->note_partial( __( 'core files not verified: WordPress.org checksums unavailable', 'shieldscope-site-security-scanner' ) );
+			}
 			return array( 'continue' => false, 'cursor' => array() );
 		}
 		$checksums = $cached['checksums'];
@@ -523,7 +532,9 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 	private function step_extras( array $cursor ) {
 		$cached = get_transient( self::CHECKSUMS_TRANSIENT );
 		if ( ! is_array( $cached ) || empty( $cached['checksums'] ) ) {
-			$this->note_partial( __( 'core folders not checked for unknown files: WordPress.org checksums unavailable', 'shieldscope-site-security-scanner' ) );
+			if ( '' === $this->detect_nonstandard_environment() ) {
+				$this->note_partial( __( 'core folders not checked for unknown files: WordPress.org checksums unavailable', 'shieldscope-site-security-scanner' ) );
+			}
 			return array( 'continue' => false, 'cursor' => array() );
 		}
 
@@ -634,7 +645,9 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 		$cached = get_transient( self::CHECKSUMS_TRANSIENT );
 		$known  = is_array( $cached ) && ! empty( $cached['checksums'] ) ? $cached['checksums'] : null;
 		if ( null === $known ) {
-			$this->note_partial( __( 'WordPress root not checked for unknown PHP files: core checksums unavailable', 'shieldscope-site-security-scanner' ) );
+			if ( '' === $this->detect_nonstandard_environment() ) {
+				$this->note_partial( __( 'WordPress root not checked for unknown PHP files: core checksums unavailable', 'shieldscope-site-security-scanner' ) );
+			}
 		}
 		foreach ( $this->php_files_in( ABSPATH ) as $file ) {
 			$name = basename( $file );

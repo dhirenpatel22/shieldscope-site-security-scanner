@@ -77,12 +77,14 @@ class ShieldScope_Admin {
 
 	/**
 	 * The one scan-time estimate used in every screen. Change it here only
-	 * after measuring real scans.
+	 * after measuring real scans. 2026-11-21: 17 s of work on a small site,
+	 * 19 s for 14,365 plugin PHP files; at the default 20% pace about 1.5
+	 * minutes with the page open, more on slow hosting.
 	 *
 	 * @return string
 	 */
 	public static function scan_time_estimate() {
-		return __( 'about 5 to 20 minutes', 'shieldscope-site-security-scanner' );
+		return __( 'a few minutes', 'shieldscope-site-security-scanner' );
 	}
 
 	/**

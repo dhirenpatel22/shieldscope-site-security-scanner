@@ -68,7 +68,7 @@ class Test_A13_Strings extends TestCase {
 	}
 
 	public function test_time_estimate_comes_from_one_place() {
-		$this->assertSame( 'about 5 to 20 minutes', ShieldScope_Admin::scan_time_estimate() );
+		$this->assertSame( 'a few minutes', ShieldScope_Admin::scan_time_estimate() );
 		foreach ( $this->ui_sources() as $file => $source ) {
 			$this->assertDoesNotMatchRegularExpression( '/\d+\s*[–-]\s*\d+ minutes/', $source, $file );
 		}

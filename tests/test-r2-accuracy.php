@@ -131,4 +131,16 @@ class Test_R2_Accuracy extends TestCase {
 		$this->assertCount( 2, $notes );
 		$this->assertStringContainsString( 'checksums unavailable', $notes[0] );
 	}
+
+	public function test_core_integrity_notes_give_the_non_standard_build_reason() {
+		ss_tests_reset_state();
+		add_filter( 'shieldscope_skip_core_integrity', function () { return true; } );
+		$check = new ShieldScope_Check_Core_Integrity( 's', new SS_Fake_Logger() );
+		foreach ( array( 'fetch', 'verify', 'extras', 'persistence' ) as $step ) {
+			$check->run_step( $step );
+		}
+		$notes = $check->take_coverage_notes();
+		ss_tests_reset_state();
+		$this->assertSame( array( 'core files not compared with WordPress.org: skipped on a non-standard WordPress build (skipped via shieldscope_skip_core_integrity filter)' ), $notes );
+	}
 }
