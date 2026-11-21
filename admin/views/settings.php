@@ -21,6 +21,26 @@ defined( 'ABSPATH' ) || exit;
 			<tbody>
 				<tr>
 					<th scope="row">
+						<label for="shieldscope_load_preset"><?php esc_html_e( 'Server load', 'shieldscope-site-security-scanner' ); ?></label>
+					</th>
+					<td>
+						<?php $shieldscope_preset = ShieldScope_Admin::current_preset( $settings ); ?>
+						<select name="shieldscope_settings[load_preset]" id="shieldscope_load_preset">
+							<?php foreach ( ShieldScope_Admin::load_presets() as $shieldscope_key => $shieldscope_p ) : ?>
+								<option value="<?php echo esc_attr( $shieldscope_key ); ?>" <?php selected( $shieldscope_preset, $shieldscope_key ); ?>>
+									<?php
+									/* translators: 1: preset name, 2: scan pace percent, 3: seconds per step */
+									echo esc_html( sprintf( __( '%1$s: %2$d%%, %3$d s per step', 'shieldscope-site-security-scanner' ), $shieldscope_p[0], $shieldscope_p[1], $shieldscope_p[2] ) );
+									?>
+								</option>
+							<?php endforeach; ?>
+							<option value="custom" <?php selected( $shieldscope_preset, 'custom' ); ?>><?php esc_html_e( 'Custom (use the two fields below)', 'shieldscope-site-security-scanner' ); ?></option>
+						</select>
+						<p class="description"><?php esc_html_e( 'Sets the scan pace and time per step together. Choose Custom to set them yourself.', 'shieldscope-site-security-scanner' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
 						<label for="shieldscope_cpu_limit"><?php esc_html_e( 'Scan pace (share of time working)', 'shieldscope-site-security-scanner' ); ?></label>
 					</th>
 					<td>

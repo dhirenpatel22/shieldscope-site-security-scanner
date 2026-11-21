@@ -32,6 +32,34 @@ class ShieldScope_Admin {
 	}
 
 	/**
+	 * Server-load presets (S-15): key => array( label, pace %, seconds per step ).
+	 *
+	 * @return array
+	 */
+	public static function load_presets() {
+		return array(
+			'gentle' => array( __( 'Gentle (busy shared hosting)', 'shieldscope-site-security-scanner' ), 10, 1 ),
+			'normal' => array( __( 'Normal (most sites)', 'shieldscope-site-security-scanner' ), 20, 2 ),
+			'fast'   => array( __( 'Fast (VPS or managed hosting)', 'shieldscope-site-security-scanner' ), 40, 3 ),
+		);
+	}
+
+	/**
+	 * Which preset the current values match, or "custom".
+	 *
+	 * @param array $settings Settings.
+	 * @return string
+	 */
+	public static function current_preset( array $settings ) {
+		foreach ( self::load_presets() as $key => $p ) {
+			if ( (int) $settings['cpu_limit'] === $p[1] && (int) $settings['chunk_time_limit'] === $p[2] ) {
+				return $key;
+			}
+		}
+		return 'custom';
+	}
+
+	/**
 	 * Last four characters of a secret, for display (B-08).
 	 *
 	 * @param string $key Secret.
@@ -361,6 +389,13 @@ class ShieldScope_Admin {
 		}
 		if ( ! empty( $raw['wpscan_api_key_remove'] ) ) {
 			$wpscan_key = '';
+		}
+
+		// A preset sets pace and step time together (S-15); "custom" keeps the fields.
+		$presets = self::load_presets();
+		if ( isset( $raw['load_preset'], $presets[ $raw['load_preset'] ] ) ) {
+			$raw['cpu_limit']        = $presets[ $raw['load_preset'] ][1];
+			$raw['chunk_time_limit'] = $presets[ $raw['load_preset'] ][2];
 		}
 
 		$clean = array(
