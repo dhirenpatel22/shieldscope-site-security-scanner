@@ -48,7 +48,8 @@ class ShieldScope_Export {
 			wp_die( esc_html__( 'There is no completed scan to export. Run a scan first.', 'shieldscope-site-security-scanner' ), '', array( 'response' => 404 ) );
 		}
 
-		$body = 'csv' === $format ? self::to_csv( $report ) : self::to_json( $report );
+		$help = ShieldScope_Admin::report_help_link();
+		$body = 'csv' === $format ? self::to_csv( $report, $help ) : self::to_json( $report, $help );
 		$name = preg_replace( '/\.pdf$/', '.' . $format, ShieldScope_PDF_Report::file_name( $report ) );
 
 		nocache_headers();
@@ -107,10 +108,12 @@ class ShieldScope_Export {
 	/**
 	 * CSV with a header row, UTF-8 with BOM (so spreadsheets read accents).
 	 *
-	 * @param array $report Report data.
+	 * @param array $report    Report data.
+	 * @param bool  $help_link Add the developer's contact line as the last row
+	 *                         (downloads only; WP-CLI output stays plain data).
 	 * @return string
 	 */
-	public static function to_csv( array $report ) {
+	public static function to_csv( array $report, $help_link = false ) {
 		$rows = self::rows( $report );
 		$out  = fopen( 'php://temp', 'r+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- in-memory buffer.
 		fputcsv( $out, array( 'severity', 'confidence', 'check', 'title', 'target', 'line', 'snippet', 'description', 'recommendation', 'ignored' ), ',', '"', '' );
@@ -118,6 +121,9 @@ class ShieldScope_Export {
 			// No escape character: every " inside a field is doubled (RFC 4180),
 			// so a backslash in scanned text cannot end the field early (IM2-01).
 			fputcsv( $out, array_map( array( __CLASS__, 'csv_cell' ), array_values( $row ) ), ',', '"', '' );
+		}
+		if ( $help_link ) {
+			fputcsv( $out, array( self::csv_cell( ShieldScope_Admin::help_line() ) ), ',', '"', '' );
 		}
 		rewind( $out );
 		$csv = stream_get_contents( $out );
@@ -128,23 +134,29 @@ class ShieldScope_Export {
 	/**
 	 * JSON with scan metadata, coverage and findings.
 	 *
-	 * @param array $report Report data.
+	 * @param array $report    Report data.
+	 * @param bool  $help_link Add a "help" entry with the developer's contact
+	 *                         page (downloads only; WP-CLI output stays plain data).
 	 * @return string
 	 */
-	public static function to_json( array $report ) {
-		return (string) wp_json_encode(
-			array(
-				'tool'      => 'ShieldScope',
-				'version'   => $report['version'],
-				'site'      => $report['site_url'],
-				'scan_id'   => $report['scan_id'],
-				'scan_date' => $report['scan_date'],
-				'generated' => $report['generated'],
-				'complete'  => empty( $report['save_failed'] ),
-				'coverage'  => isset( $report['coverage'] ) ? $report['coverage'] : null,
-				'findings'  => self::rows( $report ),
-			),
-			JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+	public static function to_json( array $report, $help_link = false ) {
+		$data = array(
+			'tool'      => 'ShieldScope',
+			'version'   => $report['version'],
+			'site'      => $report['site_url'],
+			'scan_id'   => $report['scan_id'],
+			'scan_date' => $report['scan_date'],
+			'generated' => $report['generated'],
+			'complete'  => empty( $report['save_failed'] ),
+			'coverage'  => isset( $report['coverage'] ) ? $report['coverage'] : null,
+			'findings'  => self::rows( $report ),
 		);
+		if ( $help_link ) {
+			$data['help'] = array(
+				'text' => __( 'Detailed audit or help with fixes', 'shieldscope-site-security-scanner' ),
+				'url'  => ShieldScope_Admin::HELP_URL,
+			);
+		}
+		return (string) wp_json_encode( $data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 	}
 }

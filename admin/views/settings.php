@@ -111,13 +111,13 @@ defined( 'ABSPATH' ) || exit;
 					</td>
 				</tr>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'PDF report', 'shieldscope-site-security-scanner' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'Downloaded reports', 'shieldscope-site-security-scanner' ); ?></th>
 					<td>
 						<label>
-							<input name="shieldscope_settings[pdf_help_link]" type="checkbox" value="1" <?php checked( ! empty( $settings['pdf_help_link'] ) ); ?> />
-							<?php esc_html_e( 'Show a link to the developer\'s contact page in the PDF footer.', 'shieldscope-site-security-scanner' ); ?>
+							<input name="shieldscope_settings[report_help_link]" type="checkbox" value="1" <?php checked( ! empty( $settings['report_help_link'] ) ); ?> />
+							<?php esc_html_e( 'Show a link to the developer\'s contact page in the PDF footer and in CSV and JSON downloads.', 'shieldscope-site-security-scanner' ); ?>
 						</label>
-						<p class="description"><?php esc_html_e( 'Turn this off if you hand the PDF to your own clients.', 'shieldscope-site-security-scanner' ); ?></p>
+						<p class="description"><?php esc_html_e( 'Turn this off if you hand reports to your own clients.', 'shieldscope-site-security-scanner' ); ?></p>
 					</td>
 				</tr>
 				<tr>

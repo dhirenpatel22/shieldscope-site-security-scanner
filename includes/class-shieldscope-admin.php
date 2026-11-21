@@ -135,14 +135,24 @@ class ShieldScope_Admin {
 	}
 
 	/**
-	 * Show the developer's contact link in the PDF footer? On by default;
-	 * Settings → PDF report.
+	 * Show the developer's contact link in downloaded reports (PDF footer,
+	 * last CSV row, JSON "help")? On by default; Settings → Downloaded reports.
 	 *
 	 * @return bool
 	 */
-	public static function pdf_help_link() {
+	public static function report_help_link() {
 		$settings = (array) get_option( 'shieldscope_settings', array() );
-		return ! isset( $settings['pdf_help_link'] ) || ! empty( $settings['pdf_help_link'] );
+		return ! isset( $settings['report_help_link'] ) || ! empty( $settings['report_help_link'] );
+	}
+
+	/**
+	 * The contact line used in the PDF footer and the CSV and JSON downloads.
+	 *
+	 * @return string
+	 */
+	public static function help_line() {
+		/* translators: %s: web address of the developer's contact page */
+		return sprintf( __( 'Detailed audit or help with fixes: %s', 'shieldscope-site-security-scanner' ), self::HELP_URL );
 	}
 
 	/**
@@ -385,7 +395,7 @@ class ShieldScope_Admin {
 				'pause_on_blur'      => 0,
 				'background_scan'    => 1,
 				'developer_review'   => 0,
-				'pdf_help_link'     => 1,
+				'report_help_link'     => 1,
 			)
 		);
 		include SHIELDSCOPE_PLUGIN_DIR . 'admin/views/settings.php';
@@ -465,7 +475,7 @@ class ShieldScope_Admin {
 			'pause_on_blur'      => ! empty( $raw['pause_on_blur'] ) ? 1 : 0,
 			'background_scan'    => ! empty( $raw['background_scan'] ) ? 1 : 0,
 			'developer_review'   => ! empty( $raw['developer_review'] ) ? 1 : 0,
-			'pdf_help_link'     => ! empty( $raw['pdf_help_link'] ) ? 1 : 0,
+			'report_help_link'     => ! empty( $raw['report_help_link'] ) ? 1 : 0,
 			'wpscan_api_key'     => $wpscan_key,
 		);
 		update_option( 'shieldscope_settings', $clean );
