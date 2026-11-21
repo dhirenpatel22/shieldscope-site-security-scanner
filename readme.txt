@@ -1,77 +1,80 @@
 === ShieldScope – Site Security Scanner ===
 
 Contributors: dhirenpatel22
-Tags: security, scanner, malware, hardening, audit
+Tags: security, security audit, security scanner, hardening, security report
 Requires at least: 5.8
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.3.2
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-A thorough WordPress security scanner that checks your entire site for vulnerabilities and misconfigurations — without slowing it down.
+Security audit for WordPress: checks core, plugins, users, files and server settings, with evidence for every finding and a PDF report.
 
 == Description ==
 
-**ShieldScope – Site Security Scanner** runs a deep, read-only security audit across your entire WordPress site and produces a clear report of issues grouped by severity: Critical, High, Medium, Low, and Info.
+**ShieldScope** is a security audit you run from your WordPress admin. It checks how your site is set up, and produces a report grouped by severity (Critical, High, Medium, Low, Info), with a recommendation for every finding. You can download the report as a PDF to keep or hand to a client.
 
-Most security scanners either freeze your admin panel while they run, or quietly hammer your server in the background. ShieldScope does neither. It runs in small, controlled steps with a built-in speed limit — so your site stays fast and responsive the whole time. If you switch to another browser tab, the scan automatically pauses and picks up exactly where it left off when you return.
+ShieldScope is an audit, not a firewall: it does not block attacks, clean infected files or monitor your site between scans.
+
+**How a scan runs.** The scan works in short steps with pauses between them and saves its place after each step. With the scan page open it runs at full pace; you can also close the page and it carries on in the background using WP-Cron, with a notice in the admin when it finishes. WP-Cron runs when the site gets visits, so on a quiet site a closed-page scan can take longer. With the page open a scan usually takes a few minutes, depending on the number of plugins, themes and PHP files.
+
+**What a finding means.** Configuration, version and file checks report facts about your site. The code checks (code patterns, injection, server-side requests) look for patterns in plugin and theme source code; those findings are titled "Matches pattern" or "Review:" and must be confirmed by reading the code. They are not proof of a vulnerability or of malware.
 
 **Here is what ShieldScope checks:**
 
-= WordPress Core Health =
-Checks that your WordPress installation is up to date and securely configured. Flags outdated versions, exposed debug settings, insecure table prefixes, and other common setup mistakes that attackers actively look for.
+= WordPress Core =
+WordPress version and support status, debug settings, HTTPS for the admin, and other common setup mistakes.
 
 = Core File Integrity =
-Verifies that every WordPress core file is exactly as it should be by comparing against official WordPress checksums. Flags any modified or unexpected files inside core WordPress folders — a common sign of a hacked or tampered site.
+Compares WordPress core files with the official WordPress.org checksums for your version and language, and lists modified or unexpected files in the core folders. Also lists PHP files in the WordPress root that are not part of WordPress, drop-ins and other PHP files directly in wp-content, and must-use plugins, which are common places for injected code.
 
 = User Accounts =
-Reviews all administrator accounts for common weaknesses: a default "admin" username, too many admin accounts, weak or outdated password storage, empty passwords, and accounts whose login name is visible to the public.
+Administrator accounts: a user named "admin", the number of administrators, empty passwords and old password hash formats.
 
 = Files & Folders =
-Scans your site's file system for risky permissions, sensitive configuration files left publicly accessible, leftover backup files that should never be on a live server, and unexpected files in folders where only media should live.
+File permissions, configuration and backup files that can be downloaded from the web, PHP files in the uploads folder, and directory listings.
 
-= Plugins =
-Flags plugins with pending security updates, plugins that are installed but inactive (a common attack surface), and plugins that appear to have been abandoned by their developers with no recent maintenance.
+= Plugins and Themes =
+Pending updates, inactive plugins and themes, plugins that WordPress.org has closed (WordPress itself still shows them as up to date), plugins with no release on WordPress.org for over two years, and plugin files that differ from the official WordPress.org release of the installed version.
 
-= Themes =
-Flags themes with pending updates, extra inactive themes that add unnecessary risk, and checks whether your site has a proper active theme configured.
-
-= Malicious Code Patterns =
-Scans plugin and theme files for known malware signatures, hidden backdoors, and dangerous code patterns that attackers commonly plant on compromised WordPress sites.
+= Code Patterns =
+Looks in plugin and theme PHP files for code shapes that need a manual review, such as eval() on decoded data. A match is a pointer for review, not a confirmed infection.
 
 = SSL & HTTPS =
-Checks that your SSL certificate is valid and not about to expire, that your site uses a modern version of HTTPS encryption, that all pages load securely, and that visitors are always redirected from HTTP to HTTPS automatically.
+Certificate validity and expiry, older TLS versions, HTTP to HTTPS redirects and mixed content.
 
 = Security Headers =
-Checks that your site sends the right security instructions to visitors' browsers — protections that help prevent clickjacking, content-type attacks, and referrer leaks. Also checks whether your WordPress version number is being broadcast publicly, which gives attackers a head start.
+Browser security headers (for example Content-Security-Policy and X-Frame-Options) and whether the WordPress version is shown publicly.
 
 = Database Settings =
-Checks database-level security settings: whether open user registration is configured with too many permissions, whether your site URLs are consistent, and whether any administrator accounts were created recently without your knowledge.
+Open registration with a risky default role, site address mismatches, recently created administrators, and post content or options that contain obfuscated JavaScript, hidden iframes or script tags (read on the server, nothing is sent anywhere).
 
-= Injection Vulnerabilities =
-Scans plugin and theme code for common vulnerability patterns including SQL injection, cross-site scripting (XSS), and other code weaknesses that attackers exploit to take control of WordPress sites or steal visitor data.
+= Injection Patterns =
+Optional (Settings → Developer review, off by default). Looks in plugin and theme code for request data reaching risky calls (SQL queries, echo, unserialize and others). Matches are findings to review, mostly Low, to confirm by reading the code.
 
 = Access Control =
-Tests whether parts of your site that should require a login are actually protected. Looks for username leaks through public author pages, missing brute-force login protection, lack of two-factor authentication, and whether admin pages and API endpoints enforce proper access checks.
+Usernames exposed through author pages or login error messages, application passwords, login protection and two-factor authentication, plugin REST routes that accept writes without a login, and AJAX handlers that lack capability checks. These checks read settings, code and registered routes inside WordPress; they do not try to log in or send write requests.
 
 = Server Configuration =
-Checks for server-level security issues: outdated PHP versions that no longer receive security patches, sensitive files accidentally left accessible to the public (such as environment config files or debug logs), and server settings that leak technical information to potential attackers.
+PHP version support status, sensitive files reachable from the web (such as .env or debug logs) and server settings that reveal technical details.
 
-= Server-Side Request Forgery (SSRF) =
-Looks for code patterns in plugins and themes that could allow an attacker to trick your server into making unauthorised requests to other systems — both on the internet and inside your private network.
+= Server-Side Requests (SSRF) =
+WordPress features that make the server send requests, such as pingbacks and the oEmbed proxy. With Developer review on, also code patterns where request data may choose a URL the server fetches.
 
 = Vulnerable & Outdated Components =
-Checks your database software version, WordPress version, and installed plugins against known vulnerability records and end-of-support dates. Flags anything running on software that no longer receives security patches.
+Database and WordPress versions against end-of-support dates.
 
 = Vulnerability Database =
-Cross-references your installed plugins and themes against a known vulnerability database. A free WPScan API key (optional) enables live lookups for every plugin and theme on your site. Without a key, a built-in list of the most commonly exploited plugins is checked automatically — no setup needed.
+Without a key, installed plugins are checked against a limited built-in list of widely used plugins. With an optional WPScan API key, each plugin listed on WordPress.org and the active theme are looked up on WPScan (the free key allows 25 requests a day and is for non-commercial use).
 
-**ShieldScope never makes any changes to your site.** It is strictly read-only. It scans, reports, and recommends — nothing else.
+**What ShieldScope changes.** ShieldScope does not change your files, settings, users or content. It stores only its own data: its settings and scan progress (options), cached lookups (transients), a findings table, and scheduled tasks (one daily clean-up, plus short-lived ones while a scan runs). Deleting the plugin removes all of it.
+
+**Need more help?** ShieldScope is free. If you want a more detailed audit of your site, or someone to fix the issues it finds, you can contact the developer at https://www.dhirenpatel.me/contact/. The ShieldScope screens show this link, and downloaded reports include it (the PDF footer and a closing section, the last row of the CSV and a "help" entry in the JSON). Nothing is sent unless you click it, and Settings → Downloaded reports turns it off in the downloads. WP-CLI output does not include it.
 
 == Third-Party Services ==
 
-This plugin communicates with the following external services **only while a scan is actively running**. No data is sent on regular page loads.
+While a scan runs, ShieldScope sends requests to your own site (to check headers, HTTPS and files that should not be public) and to the services below. No data is sent on regular page loads. Requests to WordPress.org identify themselves as ShieldScope and do not include your site address.
 
 = WordPress.org Core Checksums API =
 
@@ -80,67 +83,133 @@ During the Core Integrity check, the plugin fetches the official file checksums 
 * Service: https://api.wordpress.org/core/checksums/1.0/
 * Privacy policy: https://automattic.com/privacy/
 
+= WordPress.org Plugin Directory API =
+
+During the Plugins check, the plugin asks the WordPress.org plugin directory whether each installed plugin is listed, closed, or long unmaintained. The only data sent is each plugin's folder name (its slug), the same information WordPress sends when it checks for updates. Answers are cached for 12 hours.
+
+* Service: https://api.wordpress.org/plugins/info/1.2/
+* Privacy policy: https://automattic.com/privacy/
+
+= WordPress.org Plugin Checksums =
+
+During the Plugins check, for each plugin listed on WordPress.org, the plugin downloads the official file checksums for the installed version, to find files that were changed after installation. The only data sent is the plugin's folder name and version number. Checksums are cached for a day.
+
+* Service: https://downloads.wordpress.org/plugin-checksums/
+* Privacy policy: https://automattic.com/privacy/
+
 = WPScan Vulnerability Database (optional) =
 
-If you enter a WPScan API key in Settings, the Vulnerability Database check sends the slug and version number of each installed plugin and theme to wpscan.com to retrieve known vulnerability data. This feature is **disabled by default** and requires you to explicitly provide an API key. The free tier allows 25 requests per day; results are cached for 24 hours.
+If you enter a WPScan API key in Settings, the Vulnerability Database check sends the slug of each plugin listed on WordPress.org, and of the active theme (and its parent), to wpscan.com to retrieve known vulnerability data. It is **off by default** and needs an API key you provide. WPScan's free key allows 25 requests a day and is licensed for non-commercial use; results are cached for 24 hours.
 
 * Service: https://wpscan.com/api/v3/
 * Privacy policy: https://automattic.com/privacy/
 * Terms of service: https://wpscan.com/terms/
 
+= Bundled libraries =
+
+The PDF report is built on your server, with no network requests, using Dompdf 3.1.6 (LGPL-2.1) and its dependencies php-font-lib (LGPL-2.1-or-later), php-svg-lib (LGPL-3.0-or-later), masterminds/html5 (MIT) and sabberworm/php-css-parser (MIT), with DejaVu fonts (https://dejavu-fonts.github.io/License.html). They are in the `vendor-prefixed` folder, moved under the ShieldScope\Vendor namespace, with their licence files. Source: https://github.com/dompdf/dompdf
+
 == Installation ==
 
-1. In your WordPress admin, go to **Plugins → Add New** and search for **ShieldScope**, then click **Install Now** and **Activate**.
-2. Alternatively, download the zip and go to **Plugins → Add New → Upload Plugin**.
-3. Once activated, click **ShieldScope** in your admin sidebar.
-4. Optionally adjust settings (scan speed, file size limits, WPScan API key) under **ShieldScope → Settings**, then click **Start Scan**.
-5. When the scan is complete, go to **ShieldScope → Last Report** to see your results.
+1. In your WordPress admin, go to **Plugins → Add New**, search for **ShieldScope**, then click **Install Now** and **Activate**.
+2. Click **ShieldScope** in the admin menu.
+3. Optionally adjust the settings (scan pace, file size limit, WPScan API key) under **ShieldScope → Settings**.
+4. Click **Start Scan**. You can keep the page open (fastest) or close it; the scan continues in the background.
+5. Open **ShieldScope → Report** to see the results, and use **Download PDF report** to save them.
+
+On multisite, only super admins can run a scan, from any site's dashboard or from Network Admin.
 
 == Frequently Asked Questions ==
 
-= Will this slow down my site while it scans? =
+= Will the scan slow down my site? =
 
-No. ShieldScope has a built-in speed limiter. By default it uses no more than 20% of your server's processing capacity, and pauses proportionally between each piece of work. Visitors on your site will not notice the scan running. You can adjust the speed limit further in Settings if needed.
+Visitors should not notice on most hosts. The scan works in short steps with pauses between them; the scan pace setting (default 20%) is the share of time spent working, not a CPU limit. Each step uses one PHP process while it runs, so on small shared hosting run large scans at a quiet time.
 
-= Why does the scan pause when I switch browser tabs? =
+= Do I have to keep the scan page open? =
 
-The scan runs through your browser, so if you leave the tab the scan would either stall or run uncontrolled. ShieldScope pauses automatically when you switch away and resumes the moment you come back — your browser tab title even changes to remind you. You can turn this behaviour off in Settings if you prefer the scan to continue in the background.
+No. With background scanning on (the default), the scan continues using WP-Cron after you close the page, and a notice appears in the admin when it finishes. WP-Cron only runs when the site gets visits or from a server cron job, so on a quiet site keep the page open for the fastest scan. If you turn background scanning off in Settings, the scan runs only while the page is open.
 
-= Does it make any changes to my site? =
+= Does it change my site? =
 
-No. ShieldScope is completely read-only. It scans your site and records findings, but it never modifies your files, changes any settings, or touches user accounts. The only thing it writes is its own scan results and progress — nothing that affects how your site runs.
+No. ShieldScope does not change your files, settings, users or content. It stores only its own settings, scan progress, cached lookups and findings, and removes them when you delete the plugin.
 
-= Where do I find the results after a scan? =
+= Is a finding proof that my site is hacked or vulnerable? =
 
-Go to **ShieldScope → Last Report** in your WordPress admin. Findings are grouped by severity so you can work through the most important issues first.
+Not always. Configuration and version findings are facts. Findings titled "Matches pattern" or "Review:" come from code patterns and must be confirmed by reading the code; well-written plugins can match too. A report with no findings does not mean the site is secure.
+
+= Is this a malware scanner or a firewall? =
+
+No. ShieldScope audits configuration, versions and code patterns. It does not use a malware signature database, clean files, block traffic or monitor the site between scans.
+
+= Can I run it from the command line or CI? =
+
+Yes, with WP-CLI: `wp shieldscope scan` runs a full scan and prints the findings (`--format=table|json|csv|summary`). It exits with status 1 when there is a finding at or above `--fail-on` (default `critical`; ignored findings do not count). `wp shieldscope report` prints the last report and `wp shieldscope abort` stops a running scan. With `--format=json` or `csv`, progress lines go to STDERR, so `wp shieldscope scan --format=json > report.json` gives a valid file.
+
+= Where can I see every rule ShieldScope checks? =
+
+The full rule catalogue, with an ID, severity and the limits of each check, is in docs/rules.md in the plugin's GitHub repository (https://github.com/dhirenpatel22/shieldscope-site-security-scanner/blob/main/docs/rules.md). How false positives are tested is in docs/accuracy.md.
+
+= Where do I find the results? =
+
+Go to **ShieldScope → Report**. Findings are grouped by severity so you can start with the most important ones. **Download PDF report** saves them as a PDF.
 
 = What is the WPScan API key for? =
 
-It enables live vulnerability lookups for every plugin and theme installed on your site, using the WPScan vulnerability database. The free tier gives you 25 lookups per day, and results are cached so the limit is rarely hit. If you do not add a key, ShieldScope still checks your plugins against its built-in list of commonly exploited plugins automatically.
+It lets the Vulnerability Database check look up each plugin listed on WordPress.org, and the active theme, on WPScan. The free key allows 25 requests a day and is licensed for non-commercial use, so check WPScan's terms before using it on client sites. Without a key, only a limited built-in list of widely used plugins is checked.
 
 = Is any of my site data sent to external servers? =
 
-Only during a scan, and only for two specific checks. The Core Integrity check sends your WordPress version number and language code to the official WordPress.org API — no URLs or personal data. The Vulnerability Database check (only if you add a WPScan API key) sends plugin and theme names and version numbers to wpscan.com. Nothing else leaves your server. Full details are in the Third-Party Services section above.
+During a scan ShieldScope contacts api.wordpress.org (it sends your WordPress version and locale, and the folder names of installed plugins), downloads.wordpress.org (plugin folder names and versions, for file checksums) and, only if you add a WPScan API key, wpscan.com (it sends plugin and theme slugs). It also sends requests to your own site. File contents, passwords, user data and scan results are not sent anywhere. Details are in the Third-Party Services section.
 
 = How long does a scan take? =
 
-It depends on how many plugins and themes are installed and how large your file system is. A typical site takes between 5 and 20 minutes. You can leave the tab open and come back — the scan saves its progress and will not restart from scratch.
+Usually a few minutes with the scan page open, depending on the number of plugins, themes and PHP files and the speed of your server. A scan that continues in the background after you close the page can take longer on a quiet site. The scan saves its place after each step, so a paused scan continues where it stopped.
 
 == Screenshots ==
 
-1. Scan dashboard — start, pause, or resume a scan with a live progress bar and real-time status updates.
-2. Security report — findings grouped by severity (Critical through Info) with a plain-English description and a clear action to take for every issue.
-3. Settings page — adjust scan speed, file size limits, tab-pause behaviour, and optionally add a WPScan API key.
+1. Report: a one-line verdict, counts by severity, the findings to fix first, coverage of the 16 checks and the comparison with the previous scan. Every finding is labelled Confirmed or Needs review; download the report as PDF, CSV or JSON.
+2. Scan page: full or quick scan, progress, and the result of each check with the reason when a check only partly completed. With background scanning on, you can close the page and the scan continues.
+3. PDF report for a client or your records: summary, comparison with the previous scan, findings with what to do and the affected items, and the method and limits.
+4. Settings: server-load presets, scan pace, time per step, file size limit and background scanning.
 
 == Disclaimer ==
 
-ShieldScope uses automated analysis to identify potential security issues. Findings should be reviewed before acting on them — particularly for plugins and themes, where a finding may require verification with the plugin or theme developer.
+ShieldScope uses automated checks to point out potential security issues. Review findings before acting on them, particularly for plugins and themes, where a fix may need the plugin or theme developer.
 
-This plugin is designed to help website owners identify security risks on their own sites. It does not guarantee detection of every possible vulnerability.
-
-All scanning is performed locally on your own server. No scan data, site content, or personal information is stored externally or shared with any third party. For questions, please use the support forum.
+It is designed to help site owners and developers find security risks on sites they manage. It does not find every vulnerability. For questions, please use the support forum.
 
 == Changelog ==
+
+= 2.0.0 =
+* New: Download the report as PDF, CSV or JSON. Paths are shown relative to the WordPress folder; CSV cells cannot run as spreadsheet formulas.
+* New: Background scanning. Close the scan page and the scan carries on through WP-Cron; an admin notice appears when it finishes. A stalled scan is reported.
+* New: Evidence on every code finding (file, line and a snippet) and a Confirmed or Needs review label on every finding. Findings that need review are never Critical.
+* New: Coverage. The report says which checks completed in full, partly (and why) or with an error, and lists the checks with no findings.
+* New: Ignore a finding with a reason (accepted risk, false positive, handled by host or CDN, other). Ignored items leave the counts but stay listed in the report and downloads.
+* New: History. The report compares each scan with the previous one: new, fixed and still open.
+* New: Report page with a one-line verdict, a "Fix first" list, findings by severity, a filter, and a "Method and limits" section.
+* New: Plugins closed on WordPress.org and plugins with no release for two years are reported, and plugin files are compared with the official WordPress.org release of the installed version.
+* New: PHP files in the WordPress root and wp-content, drop-ins and must-use plugins are listed; post content and options are checked for obfuscated JavaScript, hidden iframes and script tags.
+* New: Quick scan, per-check progress on the scan page, server-load presets, and WP-CLI commands (wp shieldscope scan / report / abort) with an exit status for CI. JSON and CSV output can be redirected to a file.
+* New: Login error messages and plugin REST routes that accept writes without a login are checked again, by reading settings and routes; the scan never logs in or writes.
+* New: A link to the developer's contact page, for a more detailed audit or help with fixes, on the ShieldScope screens and in downloaded reports (PDF footer and closing section, last CSV row, "help" in the JSON). Settings → Downloaded reports turns it off in the downloads; WP-CLI output never includes it.
+* Changed: Injection and SSRF code scans are off by default (Settings → Developer review); code-pattern matches are reported as findings to review; prepared database queries are no longer reported as SQL injection.
+* Changed: The scan pace no longer sleeps inside requests; the rest between steps happens between requests.
+* Changed: On multisite only super admins can use ShieldScope; it is also in the Network Admin menu.
+* Changed: The WPScan API key is never shown in the page and can be removed.
+* Changed: Requests to WordPress.org identify themselves as ShieldScope and no longer include your site address. The oEmbed proxy check asks for your own home page.
+* Changed: Plain wording across the plugin and listing: no "malware scanner" or CPU-limit claims, one privacy statement that lists every outbound request, menu item renamed to "Report".
+* Fixed: TLS checks, password-hash formats, "admin" user wording, wp-config.php and sensitive-file probes, end-of-life dates for PHP, MySQL and MariaDB, and the built-in vulnerability list (wrong CVE references removed).
+* Fixed: Five false positives in the code-pattern rules found by testing against WooCommerce, Yoast SEO, Elementor, Jetpack and other popular plugins.
+* Fixed: Pause and Abort now take effect reliably; a step that keeps failing is skipped and reported instead of retrying forever.
+* Fixed: The results table is created on network activation and WP-CLI activation, and the last report is no longer deleted after 30 days.
+* Fixed: A background scan keeps going when the page is closed while a step is running, and a long step is never run twice at once. Pause and Resume no longer undo progress saved at the same moment; a stalled scan can be resumed.
+* Fixed: Much lower memory use on very large PHP files; when memory is short, a file is checked as plain text and the coverage notes say so, instead of the check failing.
+* Fixed: Fewer false alarms in the database content check (Google Tag Manager, oEmbed caches, Customizer drafts) and in uploads (empty index.php files). Backup files are rated Critical only when they can be downloaded.
+* Fixed: Counts, the completion notice and history leave out ignored findings, and findings are written in the site language whoever runs the scan.
+* Fixed: Settings keep the scan pace and step time you typed instead of overwriting them with the selected preset.
+* Fixed: Database queries and form input handling pass WordPress Plugin Check.
+* Correction: the 1.2.0 note below said PHP 8.2 reached end of life in December 2025. PHP 8.2 receives security fixes until 31 December 2026.
 
 = 1.3.2 =
 * Fixed: Core file integrity check no longer floods the report with false "modified core file" warnings on WordPress Playground, WordPress Studio, or other SQLite-based installs.
@@ -182,6 +251,9 @@ All scanning is performed locally on your own server. No scan data, site content
 * Initial release.
 
 == Upgrade Notice ==
+
+= 2.0.0 =
+Background scanning, PDF/CSV/JSON reports with evidence and coverage, ignore and history, WordPress.org plugin checks, and more accurate findings. The scan no longer sends login or write requests to your site.
 
 = 1.3.0 =
 Adds SSL/TLS certificate and encryption checks. Improves all recommendation text and redesigns the admin pages.

@@ -19,6 +19,11 @@ class ShieldScope_Logger {
 	const SEVERITY_CRITICAL = 'critical';
 
 	/**
+	 * Option holding the id of the latest scan with a finding that could not be saved.
+	 */
+	const SAVE_FAILED_OPTION = 'shieldscope_save_failed';
+
+	/**
 	 * Get table name.
 	 *
 	 * @return string
@@ -26,6 +31,28 @@ class ShieldScope_Logger {
 	public static function table() {
 		global $wpdb;
 		return $wpdb->prefix . 'shieldscope_findings';
+	}
+
+	/**
+	 * Whether the findings table exists for the current site.
+	 *
+	 * @return bool
+	 */
+	public static function table_exists() {
+		global $wpdb;
+		$table = self::table();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
+	}
+
+	/**
+	 * Whether any finding of a scan could not be saved.
+	 *
+	 * @param string $scan_id Scan identifier.
+	 * @return bool
+	 */
+	public static function save_failed( $scan_id ) {
+		return '' !== (string) $scan_id && get_option( self::SAVE_FAILED_OPTION, '' ) === $scan_id;
 	}
 
 	/**
@@ -101,7 +128,14 @@ class ShieldScope_Logger {
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		$ok = $wpdb->insert( self::table(), $data );
-		return $ok ? (int) $wpdb->insert_id : false;
+		if ( ! $ok ) {
+			// Remember the failure so the report does not present missing rows as a clean result.
+			if ( ! self::save_failed( $data['scan_id'] ) ) {
+				update_option( self::SAVE_FAILED_OPTION, $data['scan_id'], false );
+			}
+			return false;
+		}
+		return (int) $wpdb->insert_id;
 	}
 
 	/**
@@ -153,7 +187,7 @@ class ShieldScope_Logger {
 	}
 
 	/**
-	 * Prune findings older than the given age.
+	 * Prune findings older than the given age, keeping the last completed scan.
 	 *
 	 * @param int $max_age_seconds Age in seconds.
 	 * @return int Rows deleted.
@@ -163,10 +197,13 @@ class ShieldScope_Logger {
 		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is a fixed plugin table name, not user input; sanitised via esc_sql().
 		$table   = esc_sql( self::table() );
 		$cutoff  = gmdate( 'Y-m-d H:i:s', time() - (int) $max_age_seconds );
+		// Keep the last completed scan and the scans in the history (S-08).
+		$keep         = array_values( array_unique( array_merge( array( (string) get_option( 'shieldscope_last_scan', '' ) ), ShieldScope_History::ids() ) ) );
+		$placeholders = implode( ', ', array_fill( 0, count( $keep ), '%s' ) );
 
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $table is a fixed plugin table name escaped via esc_sql(); direct query required for plugin-managed table.
-		$sql = "DELETE FROM {$table} WHERE created_at < %s";
-		$result = (int) $wpdb->query( $wpdb->prepare( $sql, $cutoff ) );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $table is a fixed plugin table name escaped via esc_sql(); $placeholders is only %s markers; direct query required for plugin-managed table.
+		$sql = "DELETE FROM {$table} WHERE created_at < %s AND scan_id NOT IN ({$placeholders})";
+		$result = (int) $wpdb->query( $wpdb->prepare( $sql, array_merge( array( $cutoff ), $keep ) ) );
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		return $result;
 	}

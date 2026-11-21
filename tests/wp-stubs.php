@@ -13,19 +13,29 @@
 // In-memory state stores
 // ---------------------------------------------------------------------------
 
-$GLOBALS['ss_test_options']    = array();
-$GLOBALS['ss_test_transients'] = array();
-$GLOBALS['ss_test_filters']    = array();
-$GLOBALS['ss_test_overrides']  = array(); // callable overrides keyed by function name.
+$GLOBALS['ss_test_options']      = array(); // The "database" options table.
+$GLOBALS['ss_test_option_cache'] = array(); // Per-request object cache in front of it, as in WP.
+$GLOBALS['ss_test_transients']   = array();
+$GLOBALS['ss_test_filters']      = array();
+$GLOBALS['ss_test_overrides']    = array(); // callable overrides keyed by function name.
+$GLOBALS['ss_test_site_transients'] = array(); // get_site_transient() store.
+$GLOBALS['ss_test_plugins']         = array(); // get_plugins() result.
+$GLOBALS['ss_test_theme']           = null;    // wp_get_theme() result for the active theme.
 
 /**
  * Reset all stub state between tests.
  */
 function ss_tests_reset_state() {
-	$GLOBALS['ss_test_options']    = array();
-	$GLOBALS['ss_test_transients'] = array();
-	$GLOBALS['ss_test_filters']    = array();
-	$GLOBALS['ss_test_overrides']  = array();
+	$GLOBALS['ss_test_options']      = array();
+	$GLOBALS['ss_test_option_cache'] = array();
+	$GLOBALS['ss_test_transients']   = array();
+	$GLOBALS['ss_test_filters']      = array();
+	$GLOBALS['ss_test_overrides']    = array();
+	$GLOBALS['ss_test_site_transients'] = array();
+	$GLOBALS['ss_test_plugins']         = array();
+	$GLOBALS['ss_test_theme']           = null;
+	$GLOBALS['ss_test_cron']            = array();
+	$GLOBALS['ss_test_spawned']         = 0;
 	unset( $_SERVER['SERVER_SOFTWARE'] );
 	$GLOBALS['wp_version'] = '6.8.1';
 }
@@ -38,6 +48,24 @@ function ss_tests_reset_state() {
  */
 function ss_tests_override( $fn, $callback ) {
 	$GLOBALS['ss_test_overrides'][ $fn ] = $callback;
+}
+
+/**
+ * Run a callable as if it were a separate HTTP request: it starts with an
+ * empty option cache and its cache is discarded afterwards, so only its
+ * "database" writes are visible to the current request.
+ *
+ * @param callable $callback Work done by the other request.
+ * @return mixed Return value of $callback.
+ */
+function ss_tests_in_other_request( $callback ) {
+	$own_cache                       = $GLOBALS['ss_test_option_cache'];
+	$GLOBALS['ss_test_option_cache'] = array();
+	try {
+		return call_user_func( $callback );
+	} finally {
+		$GLOBALS['ss_test_option_cache'] = $own_cache;
+	}
 }
 
 function ss_tests_maybe_override( $fn, $args ) {
@@ -67,20 +95,38 @@ function wp_unslash( $value ) { return is_array( $value ) ? array_map( 'wp_unsla
 // Options & transients
 // ---------------------------------------------------------------------------
 
+// Like WordPress without a persistent object cache, the first read of an
+// option in a request fills the cache and later reads in that request are
+// served from it, so writes made by other requests are not seen.
 function get_option( $name, $default = false ) {
-	return array_key_exists( $name, $GLOBALS['ss_test_options'] ) ? $GLOBALS['ss_test_options'][ $name ] : $default;
+	if ( array_key_exists( $name, $GLOBALS['ss_test_option_cache'] ) ) {
+		return $GLOBALS['ss_test_option_cache'][ $name ];
+	}
+	if ( ! array_key_exists( $name, $GLOBALS['ss_test_options'] ) ) {
+		return $default;
+	}
+	$GLOBALS['ss_test_option_cache'][ $name ] = $GLOBALS['ss_test_options'][ $name ];
+	return $GLOBALS['ss_test_options'][ $name ];
 }
 function update_option( $name, $value, $autoload = null ) {
-	$GLOBALS['ss_test_options'][ $name ] = $value;
+	$GLOBALS['ss_test_options'][ $name ]      = $value;
+	$GLOBALS['ss_test_option_cache'][ $name ] = $value;
 	return true;
 }
 function add_option( $name, $value = '' ) {
 	if ( array_key_exists( $name, $GLOBALS['ss_test_options'] ) ) { return false; }
-	$GLOBALS['ss_test_options'][ $name ] = $value;
+	$GLOBALS['ss_test_options'][ $name ]      = $value;
+	$GLOBALS['ss_test_option_cache'][ $name ] = $value;
 	return true;
 }
 function delete_option( $name ) {
-	unset( $GLOBALS['ss_test_options'][ $name ] );
+	unset( $GLOBALS['ss_test_options'][ $name ], $GLOBALS['ss_test_option_cache'][ $name ] );
+	return true;
+}
+function wp_cache_delete( $key, $group = '' ) {
+	if ( 'options' === $group ) {
+		unset( $GLOBALS['ss_test_option_cache'][ $key ] );
+	}
 	return true;
 }
 function get_transient( $name ) {
@@ -164,9 +210,22 @@ function wp_verify_nonce( $nonce, $action = -1 ) {
 }
 function add_settings_error( $setting, $code, $message, $type = 'error' ) {}
 function rawurlencode_deep( $value ) { return $value; }
-function wp_next_scheduled( $hook ) { return false; }
+function wp_next_scheduled( $hook ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_next_scheduled', array( $hook ) );
+	return $hit ? $result : false;
+}
 function wp_schedule_event( $ts, $recurrence, $hook ) { return true; }
-function wp_schedule_single_event( $ts, $hook ) { return true; }
+function wp_schedule_single_event( $ts, $hook ) {
+	$GLOBALS['ss_test_cron'][] = array( $ts, $hook );
+	return true;
+}
+function spawn_cron() {
+	$GLOBALS['ss_test_spawned'] = isset( $GLOBALS['ss_test_spawned'] ) ? $GLOBALS['ss_test_spawned'] + 1 : 1;
+}
+function get_current_screen() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_current_screen', array() );
+	return $hit ? $result : null;
+}
 function wp_unschedule_event( $ts, $hook ) { return true; }
 function wp_upload_dir() { return wp_get_upload_dir(); }
 function wp_get_upload_dir() {
@@ -175,4 +234,342 @@ function wp_get_upload_dir() {
 	return array( 'basedir' => SS_TESTS_WP_ROOT . '/wp-content/uploads', 'baseurl' => 'https://example.test/wp-content/uploads' );
 }
 function is_admin() { return false; }
-function is_multisite() { return false; }
+function is_multisite() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'is_multisite', array() );
+	return $hit ? $result : false;
+}
+
+// ---------------------------------------------------------------------------
+// URLs. One source of truth: override 'get_site_url' (and optionally
+// 'get_home_url') to change the scheme or host for a test.
+// ---------------------------------------------------------------------------
+
+function get_site_url() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_site_url', array() );
+	return $hit ? $result : 'https://example.test';
+}
+function get_home_url() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_home_url', array() );
+	return $hit ? $result : get_site_url();
+}
+function home_url( $path = '' ) {
+	$url = rtrim( get_home_url(), '/' );
+	if ( is_string( $path ) && '' !== $path ) {
+		$url .= '/' . ltrim( $path, '/' );
+	}
+	return $url;
+}
+function rest_url( $path = '' ) {
+	return rtrim( get_home_url(), '/' ) . '/wp-json/' . ltrim( (string) $path, '/' );
+}
+function wp_login_url() { return rtrim( get_site_url(), '/' ) . '/wp-login.php'; }
+function get_feed_link( $feed = '' ) { return home_url( '/feed/' ); }
+function wp_parse_url( $url, $component = -1 ) {
+	return parse_url( $url, $component ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
+}
+
+// ---------------------------------------------------------------------------
+// More HTTP API
+// ---------------------------------------------------------------------------
+
+function wp_remote_post( $url, $args = array() ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_remote_post', array( $url, $args ) );
+	return $hit ? $result : new WP_Error( 'no_network', 'Network disabled in tests' );
+}
+function wp_remote_head( $url, $args = array() ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_remote_head', array( $url, $args ) );
+	return $hit ? $result : new WP_Error( 'no_network', 'Network disabled in tests' );
+}
+function wp_remote_retrieve_header( $response, $header ) {
+	return isset( $response['headers'][ $header ] ) ? $response['headers'][ $header ] : '';
+}
+function wp_remote_retrieve_headers( $response ) {
+	return isset( $response['headers'] ) ? $response['headers'] : array();
+}
+class WP_Http_Cookie {
+	public function __construct( $data = array() ) {}
+}
+
+// ---------------------------------------------------------------------------
+// i18n / output helpers
+// ---------------------------------------------------------------------------
+
+function _n( $single, $plural, $number, $domain = 'default' ) { return 1 === (int) $number ? $single : $plural; } // phpcs:ignore
+function esc_html_e( $text, $domain = 'default' ) { echo $text; } // phpcs:ignore
+function esc_attr_e( $text, $domain = 'default' ) { echo $text; } // phpcs:ignore
+function disabled( $disabled, $current = true, $echo = true ) { // phpcs:ignore
+	$out = ( (string) $disabled === (string) $current ) ? " disabled='disabled'" : '';
+	if ( $echo ) {
+		echo $out; // phpcs:ignore
+	}
+	return $out;
+}
+function wp_date( $format, $timestamp = null, $timezone = null ) {
+	return gmdate( $format, null === $timestamp ? time() : $timestamp );
+}
+function remove_action( $hook, $cb, $prio = 10 ) {
+	if ( empty( $GLOBALS['ss_test_filters'][ $hook ] ) ) {
+		return false;
+	}
+	foreach ( $GLOBALS['ss_test_filters'][ $hook ] as $i => $registered ) {
+		if ( $registered === $cb ) {
+			unset( $GLOBALS['ss_test_filters'][ $hook ][ $i ] );
+			return true;
+		}
+	}
+	return false;
+}
+function wp_list_pluck( $list, $field ) {
+	$out = array();
+	foreach ( (array) $list as $item ) {
+		$out[] = is_object( $item ) ? $item->$field : $item[ $field ];
+	}
+	return $out;
+}
+
+// ---------------------------------------------------------------------------
+// Site transients, plugins, themes
+// ---------------------------------------------------------------------------
+
+function get_site_transient( $name ) {
+	return array_key_exists( $name, $GLOBALS['ss_test_site_transients'] ) ? $GLOBALS['ss_test_site_transients'][ $name ] : false;
+}
+function get_plugins() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_plugins', array() );
+	return $hit ? $result : $GLOBALS['ss_test_plugins'];
+}
+function is_plugin_active( $plugin ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'is_plugin_active', array( $plugin ) );
+	return $hit ? $result : false;
+}
+
+/**
+ * Minimal WP_Theme double.
+ */
+class SS_Test_Theme {
+	private $stylesheet;
+	private $headers;
+	public function __construct( $stylesheet, array $headers = array() ) {
+		$this->stylesheet = $stylesheet;
+		$this->headers    = $headers;
+	}
+	public function exists() { return true; }
+	public function get_stylesheet() { return $this->stylesheet; }
+	public function get( $key ) { return isset( $this->headers[ $key ] ) ? $this->headers[ $key ] : false; }
+	public function parent() { return false; }
+}
+
+/**
+ * With a slug, returns a theme named after it; without, the active theme
+ * from $GLOBALS['ss_test_theme'] (null when none is set).
+ */
+function wp_get_theme( $stylesheet = null ) {
+	if ( null !== $stylesheet ) {
+		return new SS_Test_Theme( (string) $stylesheet, array( 'Name' => (string) $stylesheet ) );
+	}
+	return $GLOBALS['ss_test_theme'];
+}
+function wp_get_themes() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_get_themes', array() );
+	return $hit ? $result : array();
+}
+function get_stylesheet() { return 'active-theme'; }
+function get_template() { return 'active-theme'; }
+
+// ---------------------------------------------------------------------------
+// Users, posts, application passwords
+// ---------------------------------------------------------------------------
+
+function get_users( $args = array() ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_users', array( $args ) );
+	return $hit ? $result : array();
+}
+function get_user_by( $field, $value ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_user_by', array( $field, $value ) );
+	return $hit ? $result : false;
+}
+function user_can( $user, $cap ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'user_can', array( $user, $cap ) );
+	return $hit ? (bool) $result : false;
+}
+function wp_delete_post( $post_id = 0, $force = false ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_delete_post', array( $post_id, $force ) );
+	return $hit ? $result : false;
+}
+function wp_is_application_passwords_available() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_is_application_passwords_available', array() );
+	return $hit ? $result : true;
+}
+class WP_Application_Passwords {
+	public static function get_user_application_passwords( $user_id ) {
+		list( $hit, $result ) = ss_tests_maybe_override( 'WP_Application_Passwords::get_user_application_passwords', array( $user_id ) );
+		return $hit ? $result : array();
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Database
+// ---------------------------------------------------------------------------
+
+/**
+ * Inert wpdb double for tests that touch the findings table only in passing.
+ */
+class SS_Test_WPDB {
+	public $prefix  = 'wp_';
+	public $queries = array();
+	public function prepare( $sql ) { return $sql; }
+	public $options = 'wp_options';
+	public function query( $sql ) {
+		$this->queries[] = $sql;
+		// The scan lock row: INSERT IGNORE, renewal UPDATE and release DELETE succeed.
+		return preg_match( '/^\s*(?:INSERT IGNORE|UPDATE|DELETE)\b/', $sql ) ? 1 : 0;
+	}
+	public function get_var( $sql = null ) { return null; }
+	public function get_results( $sql = null, $output = null ) { return array(); }
+	public $insert_id = 0;
+	public function insert( $table, $data ) {
+		++$this->insert_id;
+		return 1;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Site, content, plugin and theme URLs (A-06). Built on get_site_url().
+// ---------------------------------------------------------------------------
+
+function site_url( $path = '' ) {
+	$url = rtrim( get_site_url(), '/' );
+	if ( is_string( $path ) && '' !== $path ) {
+		$url .= '/' . ltrim( $path, '/' );
+	}
+	return $url;
+}
+function content_url( $path = '' ) {
+	$url = rtrim( get_site_url(), '/' ) . '/wp-content';
+	if ( is_string( $path ) && '' !== $path ) {
+		$url .= '/' . ltrim( $path, '/' );
+	}
+	return $url;
+}
+function plugins_url( $path = '', $plugin = '' ) {
+	$url = content_url( '/plugins' );
+	if ( is_string( $plugin ) && '' !== $plugin ) {
+		$url .= '/' . basename( dirname( $plugin ) );
+	}
+	if ( is_string( $path ) && '' !== $path ) {
+		$url .= '/' . ltrim( $path, '/' );
+	}
+	return $url;
+}
+function get_theme_root_uri() { return content_url( '/themes' ); }
+
+// ---------------------------------------------------------------------------
+// Admin menus and request exits (A-14)
+// ---------------------------------------------------------------------------
+
+/**
+ * Thrown by the wp_die() and wp_send_json_error() stubs, which exit in WordPress.
+ */
+class SS_Test_Exit extends Exception {}
+
+function add_menu_page( $page_title, $menu_title, $capability, $menu_slug, $callback = '', $icon_url = '', $position = null ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'add_menu_page', array( $page_title, $menu_title, $capability, $menu_slug ) );
+	return $hit ? $result : 'toplevel_page_' . $menu_slug;
+}
+function add_submenu_page( $parent_slug, $page_title, $menu_title, $capability, $menu_slug, $callback = '', $position = null ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'add_submenu_page', array( $parent_slug, $page_title, $menu_title, $capability, $menu_slug ) );
+	return $hit ? $result : $parent_slug . '_page_' . $menu_slug;
+}
+function wp_die( $message = '' ) {
+	throw new SS_Test_Exit( (string) $message );
+}
+function wp_send_json_error( $data = null, $status_code = null ) {
+	throw new SS_Test_Exit( (string) wp_json_encode( $data ), (int) $status_code );
+}
+
+// ---------------------------------------------------------------------------
+// PDF export (S-06)
+// ---------------------------------------------------------------------------
+
+function get_temp_dir() { return rtrim( sys_get_temp_dir(), '/' ) . '/'; }
+function untrailingslashit( $value ) { return rtrim( (string) $value, '/\\' ); }
+function sanitize_file_name( $name ) { return preg_replace( '/[^A-Za-z0-9._-]/', '', (string) $name ); }
+function get_bloginfo( $show = '' ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'get_bloginfo', array( $show ) );
+	return $hit ? $result : 'Test Site';
+}
+function wp_specialchars_decode( $text, $quote_style = ENT_NOQUOTES ) { return htmlspecialchars_decode( (string) $text, $quote_style ); }
+function admin_url( $path = '' ) { return 'https://example.com/wp-admin/' . ltrim( (string) $path, '/' ); }
+function wp_nonce_url( $url, $action = -1 ) { return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . '_wpnonce=nonce-' . $action; }
+function check_admin_referer( $action = -1 ) {
+	list( $hit, $result ) = ss_tests_maybe_override( 'check_admin_referer', array( $action ) );
+	if ( $hit && false === $result ) {
+		throw new SS_Test_Exit( 'bad nonce', 403 );
+	}
+	return 1;
+}
+function nocache_headers() {}
+
+// ---------------------------------------------------------------------------
+// REST server (S-01)
+// ---------------------------------------------------------------------------
+
+function rest_get_server() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'rest_get_server', array() );
+	return $hit ? $result : null;
+}
+function wp_strip_all_tags( $text ) { return trim( strip_tags( (string) $text ) ); }
+
+// ---------------------------------------------------------------------------
+// Drop-ins (S-21)
+// ---------------------------------------------------------------------------
+
+function _get_dropins() {
+	return array(
+		'advanced-cache.php' => array( 'Advanced caching plugin.', 'WP_CACHE' ),
+		'object-cache.php'   => array( 'External object cache.', true ),
+		'db.php'             => array( 'Custom database class.', true ),
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Ignore forms (S-07)
+// ---------------------------------------------------------------------------
+
+function wp_nonce_field( $action = -1 ) { echo '<input type="hidden" name="_wpnonce" value="nonce-' . $action . '" />'; }
+function sanitize_textarea_field( $str ) { return trim( strip_tags( (string) $str ) ); }
+function wp_get_current_user() {
+	list( $hit, $result ) = ss_tests_maybe_override( 'wp_get_current_user', array() );
+	return $hit ? $result : (object) array( 'ID' => 1, 'user_login' => 'auditor' );
+}
+function wp_safe_redirect( $location ) { throw new SS_Test_Exit( 'redirect:' . $location ); }
+
+// ---------------------------------------------------------------------------
+// Settings page rendering (B-08)
+// ---------------------------------------------------------------------------
+
+function settings_errors( $setting = '' ) {}
+if ( ! function_exists( 'checked' ) ) {
+	function checked( $checked, $current = true, $display = true ) {
+		$out = ( (string) $checked === (string) $current ) ? " checked='checked'" : '';
+		if ( $display ) {
+			echo $out; // phpcs:ignore
+		}
+		return $out;
+	}
+}
+if ( ! function_exists( 'esc_attr__' ) ) {
+	function esc_attr__( $text, $domain = 'default' ) { return $text; }
+}
+if ( ! function_exists( 'submit_button' ) ) {
+	function submit_button( $text = '' ) { echo '<button>' . $text . '</button>'; } // phpcs:ignore
+}
+if ( ! function_exists( 'selected' ) ) {
+	function selected( $selected, $current = true, $display = true ) {
+		$out = ( (string) $selected === (string) $current ) ? " selected='selected'" : '';
+		if ( $display ) {
+			echo $out; // phpcs:ignore
+		}
+		return $out;
+	}
+}

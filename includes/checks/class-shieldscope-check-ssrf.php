@@ -48,6 +48,15 @@ class ShieldScope_Check_SSRF extends ShieldScope_Check_Base {
 		return __( 'Server-Side Request Forgery (SSRF)', 'shieldscope-site-security-scanner' );
 	}
 
+	/**
+	 * Steps a quick scan skips.
+	 *
+	 * @return string[]
+	 */
+	public function get_slow_steps() {
+		return array( 'scan_plugins', 'scan_themes' );
+	}
+
 	/** @return array */
 	public function get_steps() {
 		return array( 'scan_plugins', 'scan_themes', 'wp_features' );
@@ -61,6 +70,10 @@ class ShieldScope_Check_SSRF extends ShieldScope_Check_Base {
 	 * @return array
 	 */
 	public function run_step( $step, array $cursor = array() ) {
+		if ( ( 'scan_plugins' === $step || 'scan_themes' === $step ) && ! self::developer_review_enabled() ) {
+			// Off by default (S-16): pattern-only findings; the note is raised once.
+			return 'scan_plugins' === $step ? $this->skip_code_scan() : array( 'continue' => false, 'cursor' => array() );
+		}
 		if ( 'scan_plugins' === $step ) {
 			return $this->scan_tree( SHIELDSCOPE_WP_PLUGINS_DIR, $cursor );
 		}
@@ -74,7 +87,7 @@ class ShieldScope_Check_SSRF extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Walk a directory tree resumably, 25 files per call.
+	 * Walk a directory tree resumably.
 	 *
 	 * @param string $root   Root directory.
 	 * @param array  $cursor Cursor.
@@ -85,103 +98,92 @@ class ShieldScope_Check_SSRF extends ShieldScope_Check_Base {
 			$root,
 			$cursor,
 			function ( $full ) {
-				$this->scan_file( $full );
+				return $this->scan_file( $full );
 			}
 		);
 	}
 
 	/**
-	 * Inspect one file for SSRF code patterns.
+	 * Inspect one file for request patterns that take a URL or host from
+	 * request data. Every match is a Low "Review" finding: the pattern shows
+	 * where to look, not that the code is exploitable.
 	 *
 	 * @param string $path File path.
-	 * @return void
+	 * @return bool False if the file was skipped (too large or unreadable).
 	 */
 	private function scan_file( $path ) {
-		$size = @filesize( $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-		if ( false === $size || $size > $this->max_file_size || 0 === $size ) {
-			return;
+		$contents = $this->read_scannable_file( $path, $this->max_file_size );
+		if ( false === $contents ) {
+			return false;
 		}
-		$contents = @file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents,WordPress.PHP.NoSilencedErrors.Discouraged
-		if ( false === $contents || '' === $contents ) {
-			return;
-		}
-
-		// WordPress HTTP API with user-controlled URL.
-		if ( preg_match( '/\bwp_remote_(?:get|post|request|head)\s*\([^)]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
-				__( 'SSRF: wp_remote_*() called with user-controlled URL', 'shieldscope-site-security-scanner' ),
-				__( 'The WordPress HTTP API is invoked with a URL derived from user input. An attacker can redirect the server to probe internal services such as cloud metadata endpoints (169.254.169.254), localhost, or other internal hosts.', 'shieldscope-site-security-scanner' ),
-				__( 'Validate URLs with wp_http_validate_url(). Use an explicit allowlist of permitted hosts. Block private/loopback IP ranges via a pre_http_request hook or use wp_safe_remote_get().', 'shieldscope-site-security-scanner' ),
-				$path
-			);
+		if ( '' === $contents ) {
+			return true;
 		}
 
-		// wp_safe_remote_*() with user input — partial mitigation but still exploitable.
-		if ( preg_match( '/\bwp_safe_remote_(?:get|post|request)\s*\([^)]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_MEDIUM,
-				__( 'SSRF (partial mitigation): wp_safe_remote_*() called with user URL', 'shieldscope-site-security-scanner' ),
-				__( 'wp_safe_remote_get/post blocks requests to private IPs but is still vulnerable to DNS rebinding and redirect chains that resolve to internal addresses.', 'shieldscope-site-security-scanner' ),
-				__( 'Apply an explicit allowlist of permitted domains in addition to wp_safe_remote_get(). Validate URLs with wp_http_validate_url() and verify the resolved IP before making the request.', 'shieldscope-site-security-scanner' ),
-				$path
-			);
+		$this->rx_failed = false;
+		list( $code, $with_strings ) = $this->views( $contents );
+		$raw                         = $this->neutralise_safe_calls( $code );
+		$sg              = '\$_(?:GET|POST|REQUEST|COOKIE)';
+		$note            = __( 'This is a pattern match, not a confirmed vulnerability: read the code to confirm whether request data really chooses the destination.', 'shieldscope-site-security-scanner' );
+
+		$rules = array(
+			array(
+				'/\bwp_remote_(?:get|post|request|head)\s*\([^;]*' . $sg . '/i',
+				__( 'Review: user input near wp_remote_*() (possible SSRF)', 'shieldscope-site-security-scanner' ),
+				__( 'Request data appears in a WordPress HTTP API call. If it sets the URL, a visitor can make the server send requests to internal hosts such as cloud metadata endpoints or localhost.', 'shieldscope-site-security-scanner' ),
+				__( 'Use wp_safe_remote_get() and check the host against an allowlist before sending the request.', 'shieldscope-site-security-scanner' ),
+			),
+			array(
+				'/\bwp_safe_remote_(?:get|post|request)\s*\([^;]*' . $sg . '/i',
+				__( 'Review: user input near wp_safe_remote_*()', 'shieldscope-site-security-scanner' ),
+				__( 'wp_safe_remote_*() rejects private and loopback addresses, which covers most server-side request forgery. Redirects and DNS changes can still reach unexpected hosts.', 'shieldscope-site-security-scanner' ),
+				__( 'If the destination comes from the request, also check the host against an allowlist.', 'shieldscope-site-security-scanner' ),
+			),
+			array(
+				'/\bfile_get_contents\s*\([^;]*' . $sg . '/i',
+				__( 'Review: user input near file_get_contents() (possible file read or SSRF)', 'shieldscope-site-security-scanner' ),
+				__( 'Request data appears in a file_get_contents() call. If it sets the path, a visitor could read local files, or make the server fetch URLs when allow_url_fopen is on.', 'shieldscope-site-security-scanner' ),
+				__( 'Map request values to a fixed list of files. For HTTP, use wp_safe_remote_get() with a host allowlist.', 'shieldscope-site-security-scanner' ),
+			),
+			array(
+				'/curl_setopt\s*\([^,;]+,\s*CURLOPT_URL\s*,[^;]*' . $sg . '/i',
+				__( 'Review: user input near cURL CURLOPT_URL (possible SSRF)', 'shieldscope-site-security-scanner' ),
+				__( 'Request data appears where a cURL URL is set. If it sets the URL, a visitor can make the server send requests to internal hosts.', 'shieldscope-site-security-scanner' ),
+				__( 'Check the host against an allowlist and reject private and loopback addresses, or use wp_safe_remote_get().', 'shieldscope-site-security-scanner' ),
+			),
+			array(
+				'/\b(?:fsockopen|stream_socket_client)\s*\([^;]*' . $sg . '/i',
+				__( 'Review: user input near a socket connection', 'shieldscope-site-security-scanner' ),
+				__( 'Request data appears in fsockopen() or stream_socket_client(). If it sets the host, a visitor can make the server open connections to any host.', 'shieldscope-site-security-scanner' ),
+				__( 'Check the host against an allowlist and reject private, loopback and link-local addresses.', 'shieldscope-site-security-scanner' ),
+			),
+			array(
+				'/\bwp_redirect\s*\([^;]*' . $sg . '/i',
+				__( 'Review: user input near wp_redirect() (possible open redirect)', 'shieldscope-site-security-scanner' ),
+				__( 'Request data appears in wp_redirect(). If it sets the destination, the site can be used to send visitors to any site (phishing).', 'shieldscope-site-security-scanner' ),
+				__( 'Use wp_safe_redirect(), or wp_validate_redirect() with a fallback URL.', 'shieldscope-site-security-scanner' ),
+			),
+			'location' => array(
+				'/\bheader\s*\(\s*["\']Location:[^;]*' . $sg . '/i',
+				__( 'Review: user input near a Location header (possible open redirect)', 'shieldscope-site-security-scanner' ),
+				__( 'Request data appears in a Location header. If it sets the destination, the site can be used to send visitors to any site.', 'shieldscope-site-security-scanner' ),
+				__( 'Use wp_safe_redirect() with a fallback URL.', 'shieldscope-site-security-scanner' ),
+			),
+		);
+
+		foreach ( $rules as $key => $rule ) {
+			// The Location rule needs the header text, which the code view blanks.
+			$view = 'location' === $key ? $with_strings : $raw;
+			$at   = $this->rx_offset( $rule[0], $view );
+			if ( $at >= 0 ) {
+				$this->finding( ShieldScope_Logger::SEVERITY_LOW, $rule[1], $rule[2] . ' ' . $note, $rule[3], $path, self::evidence( $contents, $view, $at ) );
+			}
 		}
 
-		// file_get_contents with user-controlled path/URL.
-		if ( preg_match( '/\bfile_get_contents\s*\([^)]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
-				__( 'SSRF / LFI: file_get_contents() called with user-controlled path or URL', 'shieldscope-site-security-scanner' ),
-				__( 'file_get_contents() with user input can read arbitrary local files (LFI) or make outbound HTTP requests (SSRF) if allow_url_fopen is enabled.', 'shieldscope-site-security-scanner' ),
-				__( 'Never pass user input directly to file_get_contents(). Validate paths against an allowlist; use wp_remote_get() with URL validation for HTTP requests.', 'shieldscope-site-security-scanner' ),
-				$path
-			);
+		if ( $this->rx_failed ) {
+			$this->could_not_analyse( $path );
 		}
-
-		// cURL CURLOPT_URL set from user input.
-		if ( preg_match( '/curl_setopt\s*\([^,]+,\s*CURLOPT_URL\s*,[^)]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
-				__( 'SSRF: cURL CURLOPT_URL set from user-controlled input', 'shieldscope-site-security-scanner' ),
-				__( 'Setting CURLOPT_URL from user data enables full SSRF. Attackers can target cloud metadata services, localhost services, or internal network hosts.', 'shieldscope-site-security-scanner' ),
-				__( 'Validate the URL before passing to cURL. Enforce a host allowlist and block private/loopback IP ranges. Prefer wp_remote_get() with proper validation.', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
-
-		// fsockopen / stream_socket_client with user-controlled host.
-		if ( preg_match( '/\b(?:fsockopen|stream_socket_client)\s*\([^)]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
-				__( 'SSRF: socket connection target derived from user input', 'shieldscope-site-security-scanner' ),
-				__( 'fsockopen() or stream_socket_client() with user-supplied data allows attackers to open TCP connections to arbitrary hosts from the server.', 'shieldscope-site-security-scanner' ),
-				__( 'Validate and whitelist the hostname before opening a socket. Block loopback (127.x), link-local (169.254.x), and private IP ranges (10.x, 172.16-31.x, 192.168.x).', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
-
-		// Open redirect via wp_redirect() with user-controlled URL.
-		if ( preg_match( '/\bwp_redirect\s*\([^)]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
-				__( 'Open redirect: wp_redirect() called with user-controlled URL', 'shieldscope-site-security-scanner' ),
-				__( 'Redirecting to a user-supplied URL enables open redirect attacks (phishing, OAuth token theft) and can be chained into SSRF via redirect following.', 'shieldscope-site-security-scanner' ),
-				__( 'Validate redirect destinations against an allowlist. Use wp_safe_redirect() instead of wp_redirect() and always supply a fallback URL.', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
-
-		// header('Location:') with user input — raw PHP redirect.
-		if ( preg_match( '/\bheader\s*\(\s*["\']Location:\s*["\']?\s*\.\s*\$_(?:GET|POST|REQUEST)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
-				__( 'Open redirect: header(Location:) set from user input', 'shieldscope-site-security-scanner' ),
-				__( 'Concatenating user input into a Location redirect header enables open redirect and can be chained to SSRF.', 'shieldscope-site-security-scanner' ),
-				__( 'Use wp_safe_redirect() with an explicit fallback URL. Validate the destination against a trusted-domain allowlist.', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
+		return true;
 	}
 
 	/**
@@ -190,10 +192,13 @@ class ShieldScope_Check_SSRF extends ShieldScope_Check_Base {
 	 * @return void
 	 */
 	private function check_wp_ssrf_features() {
-		// oEmbed proxy endpoint — unauthenticated server-side HTTP fetcher.
+		// oEmbed proxy endpoint. The URL asked for is the site's own home page,
+		// so an open proxy does not contact any third party (IM2-06). Core
+		// answers 401/403 to a logged-out request; 200, or 404 with
+		// oembed_invalid_url, means the request was allowed.
 		$proxy_url = add_query_arg(
 			array(
-				'url'    => 'https://example.com/',
+				'url'    => rawurlencode( home_url( '/' ) ),
 				'format' => 'json',
 			),
 			rest_url( 'oembed/1.0/proxy' )
@@ -207,23 +212,25 @@ class ShieldScope_Check_SSRF extends ShieldScope_Check_Base {
 			)
 		);
 
-		if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) {
+		$code = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+		$open = 200 === $code || ( 404 === $code && false !== strpos( (string) wp_remote_retrieve_body( $response ), 'oembed_invalid_url' ) );
+		if ( $open ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_MEDIUM,
-				__( 'oEmbed REST proxy is publicly accessible — SSRF vector', 'shieldscope-site-security-scanner' ),
-				__( 'The /wp-json/oembed/1.0/proxy endpoint allows unauthenticated users to make the server fetch arbitrary public URLs and receive the response. This can probe internal hosts via DNS rebinding or redirect chains.', 'shieldscope-site-security-scanner' ),
-				__( "Restrict the oEmbed proxy to authenticated requests or disable it: remove_action( 'rest_api_init', 'wp_oembed_register_routes' );", 'shieldscope-site-security-scanner' ),
+				__( 'oEmbed proxy answered a logged-out request', 'shieldscope-site-security-scanner' ),
+				__( 'The /wp-json/oembed/1.0/proxy endpoint makes the server fetch a URL and return the result. WordPress core only allows it for users with the edit_posts capability, but it answered a request sent without a login, so a plugin or filter has probably opened it up.', 'shieldscope-site-security-scanner' ),
+				__( "Find the plugin or code that changes the proxy's permission check. If you do not need the oEmbed REST routes, remove them: remove_action( 'rest_api_init', 'wp_oembed_register_route' );", 'shieldscope-site-security-scanner' ),
 				'/wp-json/oembed/1.0/proxy'
 			);
 		}
 
 		// Pingback — classic SSRF / DDoS reflection vector.
-		if ( apply_filters( 'xmlrpc_enabled', true ) && get_option( 'default_pingback_flag' ) ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- reading WP core filter
+		if ( apply_filters( 'xmlrpc_enabled', true ) && 'open' === get_option( 'default_ping_status' ) ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- reading WP core filter
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_MEDIUM,
-				__( 'Pingback functionality is enabled', 'shieldscope-site-security-scanner' ),
-				__( 'WordPress pingbacks make the server issue outbound HTTP requests to any URL supplied in a pingback call. This is a documented SSRF and DDoS amplification vector.', 'shieldscope-site-security-scanner' ),
-				__( "Disable pingbacks: Settings → Discussion → uncheck 'Allow link notifications from other blogs'. Disabling XML-RPC fully prevents pingback abuse.", 'shieldscope-site-security-scanner' ),
+				ShieldScope_Logger::SEVERITY_LOW,
+				__( 'Pingbacks are allowed on new posts', 'shieldscope-site-security-scanner' ),
+				__( 'New posts accept pingbacks through XML-RPC. To check a pingback, WordPress fetches the source URL the sender supplies, so anyone can make the server send requests to URLs they choose. Pingbacks have been used for DDoS reflection and to probe internal hosts.', 'shieldscope-site-security-scanner' ),
+				__( "If you do not use pingbacks, go to Settings → Discussion and clear 'Allow link notifications from other blogs (pingbacks and trackbacks) on new posts'. Existing posts keep their own setting. Turning off XML-RPC removes pingbacks completely.", 'shieldscope-site-security-scanner' ),
 				'xmlrpc.php'
 			);
 		}

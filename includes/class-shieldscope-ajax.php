@@ -3,7 +3,7 @@
  * AJAX endpoints for the scan UI.
  *
  * All endpoints:
- *   - Require manage_options
+ *   - Require ShieldScope_Admin::required_capability()
  *   - Verify a nonce
  *   - Sanitize every input
  *   - Return JSON via wp_send_json_*
@@ -38,7 +38,7 @@ class ShieldScope_Ajax {
 	 * @return void Exits on failure.
 	 */
 	private function authorize() {
-		if ( ! current_user_can( SHIELDSCOPE_MIN_CAP ) ) {
+		if ( ! current_user_can( ShieldScope_Admin::required_capability() ) ) {
 			wp_send_json_error(
 				array( 'message' => __( 'You do not have permission to do this.', 'shieldscope-site-security-scanner' ) ),
 				403
@@ -61,7 +61,7 @@ class ShieldScope_Ajax {
 	public function handle_start() {
 		$this->authorize();
 		$scanner = new ShieldScope_Scanner();
-		$state   = $scanner->start();
+		$state   = $scanner->start( ! empty( $_POST['quick'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce checked in authorize().
 		wp_send_json_success( $this->envelope( $state, $scanner ) );
 	}
 
@@ -122,6 +122,7 @@ class ShieldScope_Ajax {
 		$this->authorize();
 		$scanner = new ShieldScope_Scanner();
 		$state   = $scanner->get_state();
+		$scanner->kick_background( $state );
 		wp_send_json_success( $this->envelope( $state, $scanner ) );
 	}
 
@@ -133,8 +134,7 @@ class ShieldScope_Ajax {
 	 * @return array
 	 */
 	private function envelope( array $state, ShieldScope_Scanner $scanner ) {
-		$logger  = new ShieldScope_Logger();
-		$summary = ! empty( $state['scan_id'] ) ? $logger->get_summary( $state['scan_id'] ) : array();
+		$summary = ! empty( $state['scan_id'] ) ? ShieldScope_Ignore::active_summary( $state['scan_id'] ) : array();
 
 		return array(
 			'status'       => $state['status'],
@@ -144,6 +144,12 @@ class ShieldScope_Ajax {
 			'message'      => (string) $state['last_message'],
 			'scan_id'      => (string) $state['scan_id'],
 			'summary'      => $summary,
+			'busy'         => ! empty( $state['busy'] ),
+			'rest_ms'      => isset( $state['rest_ms'] ) ? max( 0, (int) $state['rest_ms'] ) : 0,
+			'stalled'      => ShieldScope_Scanner::is_stalled( $state ),
+			'background'   => ShieldScope_Scanner::background_enabled(),
+			'checks'       => $scanner->check_progress( $state ),
+			'save_failed'  => ShieldScope_Logger::save_failed( (string) $state['scan_id'] ),
 		);
 	}
 }

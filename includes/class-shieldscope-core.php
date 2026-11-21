@@ -92,12 +92,13 @@ final class ShieldScope_Core {
 	}
 
 	/**
-	 * Create/upgrade persistent structures when the stored version is stale.
+	 * Create/upgrade persistent structures when the stored version is stale
+	 * or this site's findings table is missing (e.g. network activation).
 	 *
 	 * @return void
 	 */
 	public function maybe_upgrade() {
-		if ( get_option( 'shieldscope_version' ) === SHIELDSCOPE_VERSION ) {
+		if ( get_option( 'shieldscope_version' ) === SHIELDSCOPE_VERSION && ShieldScope_Logger::table_exists() ) {
 			return;
 		}
 		self::on_activate();
@@ -148,7 +149,8 @@ final class ShieldScope_Core {
 					'cpu_limit'          => 20, // percent.
 					'chunk_time_limit'   => 2,  // seconds per chunk.
 					'max_scan_file_size' => 2 * MB_IN_BYTES,
-					'pause_on_blur'      => 1,
+					'pause_on_blur'      => 0,
+					'background_scan'    => 1,
 				)
 			);
 		}

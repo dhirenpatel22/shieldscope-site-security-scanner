@@ -1,0 +1,37 @@
+{
+    "about": "Well-known, well-built plugins pinned for the false-positive corpus (S-25). sha256 is filled in by bin/fp-corpus.php --record on first download and then enforced.",
+    "plugins": {
+        "akismet": {
+            "version": "5.7.2",
+            "sha256": "e76d9ad61b95fb36c99b580e23c23e16a2cf9fd8483baa16d756d47f1994126d"
+        },
+        "classic-editor": {
+            "version": "1.7.0",
+            "sha256": "7cc7799b0b7d820fbb7528dbff8027c736e52513992416cb37279f44d3d9dd77"
+        },
+        "contact-form-7": {
+            "version": "6.2.5",
+            "sha256": "0573098bdfed5bdfbd9f2d04185e4c52bf8dd27776e145699ab8f63cbb62927f"
+        },
+        "elementor": {
+            "version": "4.4.1",
+            "sha256": "dbc14b8d91b8ab5636d35421034e5a78698849c05b0489731611bd0033f13e5b"
+        },
+        "jetpack": {
+            "version": "16.4",
+            "sha256": "7252ef239f6763b6d09bdd5cbbaf6ed52e6e30044e1a48ae8fd10d16b075c9f2"
+        },
+        "woocommerce": {
+            "version": "11.3.0",
+            "sha256": "d9eb1e46df8309eb37b6f7f3fba51480f2a9a00e7feb10b1487592fde39accc6"
+        },
+        "wordpress-seo": {
+            "version": "28.9",
+            "sha256": "1f1af9d3dff70288b37e6edc04e27cff4979b258f62960c0b91c092614bf2301"
+        },
+        "wpforms-lite": {
+            "version": "2.0.5.1",
+            "sha256": "bb43f472001d629f88760bd40237a02c8f70fb0550d2e82ce1d3c666c3d5fec2"
+        }
+    }
+}

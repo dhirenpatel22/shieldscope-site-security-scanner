@@ -20,6 +20,12 @@ $shieldscope_options = array(
 	'shieldscope_settings',
 	'shieldscope_last_scan',
 	'shieldscope_scan_state',
+	'shieldscope_save_failed',
+	'shieldscope_tick_lock',
+	'shieldscope_coverage',
+	'shieldscope_ignored',
+	'shieldscope_last_seen',
+	'shieldscope_scan_history',
 );
 
 /**

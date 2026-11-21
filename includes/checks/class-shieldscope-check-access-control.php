@@ -3,8 +3,8 @@
  * Access control vulnerability checks.
  *
  * Detects missing or inadequate restrictions on authenticated actions:
- * unauthenticated REST API writes, application passwords, author enumeration,
- * unprotected login page, and AJAX handlers lacking nonce or capability checks.
+ * application passwords, author enumeration, unprotected login page, and
+ * AJAX handlers lacking nonce or capability checks.
  *
  * @package ShieldScope
  */
@@ -47,14 +47,23 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 		return __( 'Access Control', 'shieldscope-site-security-scanner' );
 	}
 
+	/**
+	 * Steps a quick scan skips.
+	 *
+	 * @return string[]
+	 */
+	public function get_slow_steps() {
+		return array( 'scan_plugins' );
+	}
+
 	/** @return array */
 	public function get_steps() {
 		return array(
-			'rest_write',
 			'app_passwords',
 			'author_enum',
 			'login_page',
-			'login_error_enum',
+			'login_errors',
+			'rest_routes',
 			'scan_plugins',
 		);
 	}
@@ -68,9 +77,6 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 	 */
 	public function run_step( $step, array $cursor = array() ) {
 		switch ( $step ) {
-			case 'rest_write':
-				$this->check_rest_write();
-				break;
 			case 'app_passwords':
 				$this->check_application_passwords();
 				break;
@@ -80,8 +86,11 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 			case 'login_page':
 				$this->check_login_page();
 				break;
-			case 'login_error_enum':
-				$this->check_login_error_enumeration();
+			case 'login_errors':
+				$this->check_login_errors();
+				break;
+			case 'rest_routes':
+				$this->check_rest_write_routes();
 				break;
 			case 'scan_plugins':
 				return $this->scan_plugins_for_auth( $cursor );
@@ -90,50 +99,124 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Test whether the REST API rejects unauthenticated write requests.
+	 * REST namespaces that belong to WordPress core.
+	 */
+	const CORE_REST_PREFIXES = array( '/wp/', '/oembed/', '/wp-site-health/', '/wp-block-editor/', '/batch/', '/wp-abilities/' );
+
+	/**
+	 * Do failed-login messages reveal whether a username exists?
+	 *
+	 * Passive: runs the site's login_errors filter on WordPress's own
+	 * "wrong password for this username" message, in this request. No login
+	 * is attempted.
 	 *
 	 * @return void
 	 */
-	private function check_rest_write() {
-		$url      = rest_url( 'wp/v2/posts' );
-		$response = wp_remote_post(
-			$url,
-			array(
-				'timeout'   => 5,
-				'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
-				'headers'   => array(
-					'Content-Type' => 'application/json',
-				),
-				'body'      => wp_json_encode(
-					array(
-						'title'   => 'Test',
-						'content' => '',
-						'status'  => 'draft',
-					)
-				),
-			)
+	private function check_login_errors() {
+		$probe   = 'shieldscope-probe-user';
+		$message = sprintf(
+			/* translators: %s: user name (mirrors the WordPress core login error) */
+			__( '<strong>Error:</strong> The password you entered for the username %s is incorrect.', 'shieldscope-site-security-scanner' ),
+			'<strong>' . $probe . '</strong>'
 		);
+		$filtered = (string) apply_filters( 'login_errors', $message ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- reading a core filter.
 
-		if ( is_wp_error( $response ) ) {
+		if ( false === strpos( $filtered, $probe ) ) {
+			return;
+		}
+		$this->finding(
+			ShieldScope_Logger::SEVERITY_LOW,
+			__( 'Login error messages may reveal whether a username exists', 'shieldscope-site-security-scanner' ),
+			__( 'After a failed login, WordPress says whether the username exists ("The password you entered for the username ... is incorrect"). No login_errors filter active during the scan changes that message, so an attacker may be able to confirm usernames before guessing passwords. Some security plugins change the message only on the login page itself; open wp-login.php, try a wrong password and check what it says. Checked by running the login_errors filter on WordPress\'s own message; no login was attempted.', 'shieldscope-site-security-scanner' ),
+			__( 'Use a security or login-protection plugin that shows one generic message for every failed login, or add a login_errors filter that returns a generic message. Limiting login attempts matters more than hiding usernames.', 'shieldscope-site-security-scanner' ),
+			'wp-login.php'
+		);
+	}
+
+	/**
+	 * REST routes added by plugins that accept writes from anyone.
+	 *
+	 * Passive: reads the registered routes and their permission callbacks in
+	 * this request. Reported as Low "Review" findings, one per namespace,
+	 * because public write routes are sometimes intended (forms, webhooks).
+	 *
+	 * @return void
+	 */
+	private function check_rest_write_routes() {
+		if ( ! function_exists( 'rest_get_server' ) ) {
+			return;
+		}
+		$server = rest_get_server();
+		if ( ! is_object( $server ) || ! method_exists( $server, 'get_routes' ) ) {
 			return;
 		}
 
-		$code = wp_remote_retrieve_response_code( $response );
-		if ( in_array( $code, array( 200, 201 ), true ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
-				__( 'REST API allows unauthenticated content creation', 'shieldscope-site-security-scanner' ),
-				__( 'A POST to /wp-json/wp/v2/posts with no credentials returned 200/201. Attackers can create, edit, or delete content without a valid account.', 'shieldscope-site-security-scanner' ),
-				__( 'Audit plugins that modify REST API authentication. Ensure no code removes the authentication callbacks from REST endpoints.', 'shieldscope-site-security-scanner' ),
-				'/wp-json/wp/v2/posts'
-			);
-
-			// Attempt to clean up the accidental draft, best-effort.
-			$body = json_decode( wp_remote_retrieve_body( $response ), true );
-			if ( isset( $body['id'] ) ) {
-				wp_delete_post( (int) $body['id'], true );
+		$by_namespace = array();
+		foreach ( (array) $server->get_routes() as $route => $endpoints ) {
+			if ( self::is_core_route( $route ) ) {
+				continue;
+			}
+			foreach ( (array) $endpoints as $endpoint ) {
+				if ( ! is_array( $endpoint ) ) {
+					continue;
+				}
+				$methods = isset( $endpoint['methods'] ) ? array_keys( array_filter( (array) $endpoint['methods'] ) ) : array();
+				$writes  = array_intersect( array_map( 'strtoupper', $methods ), array( 'POST', 'PUT', 'PATCH', 'DELETE' ) );
+				if ( ! $writes ) {
+					continue;
+				}
+				$cb = array_key_exists( 'permission_callback', $endpoint ) ? $endpoint['permission_callback'] : null;
+				if ( null !== $cb && '__return_true' !== $cb ) {
+					continue;
+				}
+				$namespace                    = self::route_namespace( $route );
+				$by_namespace[ $namespace ][] = implode( '/', $writes ) . ' ' . $route . ( null === $cb ? ' ' . __( '(no permission check)', 'shieldscope-site-security-scanner' ) : ' (__return_true)' );
 			}
 		}
+
+		foreach ( $by_namespace as $namespace => $routes ) {
+			$routes = array_values( array_unique( $routes ) );
+			$shown  = array_slice( $routes, 0, 10 );
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_LOW,
+				/* translators: %s: REST namespace, for example "myplugin/v1" */
+				sprintf( __( 'Review: REST routes in %s accept writes without a login', 'shieldscope-site-security-scanner' ), $namespace ),
+				sprintf(
+					/* translators: 1: number of routes, 2: list of routes */
+					__( '%1$d route(s) accept POST, PUT, PATCH or DELETE requests from anyone: %2$s. This is normal for contact forms or webhooks that check their own input, but a route that changes data without a permission check is a vulnerability. Checked by reading the registered routes; no request was sent.', 'shieldscope-site-security-scanner' ),
+					count( $routes ),
+					implode( '; ', $shown ) . ( count( $routes ) > 10 ? ' …' : '' )
+				),
+				__( 'Check what each route does. If it should not be public, ask the plugin developer to add a permission_callback that checks current_user_can(); if it is meant to be public, confirm it validates input and uses a nonce or signature where it can.', 'shieldscope-site-security-scanner' ),
+				'/wp-json/' . $namespace
+			);
+		}
+	}
+
+	/**
+	 * Is this route in a WordPress core namespace?
+	 *
+	 * @param string $route Route.
+	 * @return bool
+	 */
+	private static function is_core_route( $route ) {
+		foreach ( self::CORE_REST_PREFIXES as $prefix ) {
+			if ( 0 === strpos( $route, $prefix ) ) {
+				return true;
+			}
+		}
+		return '/' === $route;
+	}
+
+	/**
+	 * Namespace part of a route ("/myplugin/v1/items" => "myplugin/v1").
+	 *
+	 * @param string $route Route.
+	 * @return string
+	 */
+	private static function route_namespace( $route ) {
+		$parts = array_values( array_filter( explode( '/', (string) $route ), 'strlen' ) );
+		return implode( '/', array_slice( $parts, 0, 2 ) );
 	}
 
 	/**
@@ -145,7 +228,7 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 		if ( ! function_exists( 'wp_is_application_passwords_available' ) ) {
 			return;
 		}
-		if ( ! wp_is_application_passwords_available() ) {
+		if ( ! wp_is_application_passwords_available() || ! class_exists( 'WP_Application_Passwords' ) ) {
 			return;
 		}
 
@@ -156,6 +239,16 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 				'meta_compare' => 'EXISTS',
 				'number'       => 20,
 				'fields'       => array( 'ID', 'user_login', 'roles' ),
+			)
+		);
+
+		// The meta row stays (as an empty array) after every password is revoked.
+		$users_with_app_pw = array_values(
+			array_filter(
+				(array) $users_with_app_pw,
+				static function ( $u ) {
+					return ! empty( WP_Application_Passwords::get_user_application_passwords( $u->ID ) );
+				}
 			)
 		);
 
@@ -225,14 +318,14 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 
 		if ( in_array( $code, array( 301, 302 ), true ) && false !== strpos( (string) $location, '/author/' ) ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_MEDIUM,
+				ShieldScope_Logger::SEVERITY_LOW,
 				__( 'Username exposed via author archive redirect', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: %s: redirect URL */
 					__( '/?author=1 redirects to %s, leaking a username to unauthenticated visitors and aiding brute-force targeting.', 'shieldscope-site-security-scanner' ),
 					$location
 				),
-				__( 'In Users → All Users, set each author\'s "Display name publicly as" to a first name or nickname that differs from their login. To also block the redirect itself, add to functions.php: add_action(\'template_redirect\', function(){ if(is_author()){ wp_redirect(home_url(\'/\'), 301); exit; } });', 'shieldscope-site-security-scanner' ),
+				__( 'The redirect goes to the author\'s URL slug (user_nicename), which WordPress builds from the login, so changing the display name does not help. Block ?author= requests for logged-out visitors with a security plugin or a web-server rule, or give each account a nicename that differs from its login. Limiting login attempts matters more than hiding usernames.', 'shieldscope-site-security-scanner' ),
 				'/?author=1',
 				array( 'redirect' => $location )
 			);
@@ -324,103 +417,6 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Test whether WordPress login error messages reveal valid usernames.
-	 *
-	 * WordPress default behaviour returns different error messages for
-	 * "username does not exist" vs "incorrect password for <username>".
-	 * This lets attackers confirm whether a username is registered before
-	 * starting a password brute-force — halving their work.
-	 *
-	 * The check submits a login attempt with a known-valid admin username and
-	 * a clearly bogus password, then inspects the error message. If the message
-	 * names the username or says "incorrect password", username enumeration is
-	 * possible via login errors.
-	 *
-	 * @return void
-	 */
-	private function check_login_error_enumeration() {
-		// Get the first administrator username to use as the test subject.
-		$admins = get_users(
-			array(
-				'role'   => 'administrator',
-				'number' => 1,
-				'fields' => 'user_login',
-			)
-		);
-
-		if ( empty( $admins ) ) {
-			return;
-		}
-
-		$username = is_object( $admins[0] ) ? $admins[0]->user_login : (string) $admins[0];
-		if ( '' === $username ) {
-			return;
-		}
-
-		// Use a password that will never match, but looks realistic.
-		$fake_password = 'ShieldScope_test_' . wp_generate_password( 12, false, false ) . '_probe';
-
-		$login_url = wp_login_url();
-		$response  = wp_remote_post(
-			$login_url,
-			array(
-				'timeout'     => 8,
-				'redirection' => 5,
-				'sslverify'   => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound,
-				'body'        => array(
-					'log'       => $username,
-					'pwd'       => $fake_password,
-					'wp-submit' => 'Log In',
-					'testcookie' => '1',
-				),
-				'cookies'     => array(
-					new WP_Http_Cookie(
-						array(
-							'name'  => 'wordpress_test_cookie',
-							'value' => 'WP Cookie check',
-						)
-					),
-				),
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			return;
-		}
-
-		$body = wp_remote_retrieve_body( $response );
-		if ( ! $body ) {
-			return;
-		}
-
-		// WordPress default strings that confirm the username exists:
-		//   "The password you entered for the username <b>xxx</b> is incorrect."
-		//   "incorrect password" (some translations)
-		//   "Error: The password you entered"
-		$username_confirmed = (
-			false !== stripos( $body, 'incorrect password' ) ||
-			false !== stripos( $body, 'the password you entered' ) ||
-			false !== stripos( $body, htmlspecialchars( $username, ENT_QUOTES ) )
-		);
-
-		// If the response contains the exact username or a password-specific
-		// error message, username enumeration via login errors is possible.
-		if ( $username_confirmed ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_LOW,
-				__( 'Login error messages reveal valid usernames', 'shieldscope-site-security-scanner' ),
-				sprintf(
-					/* translators: %s: the admin username used in the test */
-					__( 'The login error response for username "%s" confirms that the account exists by returning a password-specific error. Attackers can exploit this to enumerate valid accounts before brute-forcing passwords.', 'shieldscope-site-security-scanner' ),
-					esc_html( $username )
-				),
-				__( 'Add a filter to return a generic error for both bad usernames and bad passwords: add_filter(\'login_errors\', function(){ return \'Invalid credentials.\'; }); This prevents confirming whether a username exists without affecting the login process.', 'shieldscope-site-security-scanner' ),
-				$login_url
-			);
-		}
-	}
-
-	/**
 	 * Scan plugin PHP files for AJAX handlers without proper authorisation.
 	 *
 	 * @param array $cursor Cursor.
@@ -438,7 +434,7 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Check one file for AJAX / admin-page handlers lacking auth.
+	 * Check one file for AJAX handlers lacking auth.
 	 *
 	 * @param string $path File path.
 	 * @return void
@@ -462,19 +458,19 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 			$has_nonce = (bool) preg_match( '/check_ajax_referer|wp_verify_nonce|check_admin_referer/i', $contents );
 			if ( ! $has_nonce ) {
 				$this->finding(
-					ShieldScope_Logger::SEVERITY_HIGH,
-					__( 'Unauthenticated AJAX handler without nonce verification', 'shieldscope-site-security-scanner' ),
+					ShieldScope_Logger::SEVERITY_LOW,
+					__( 'Review: public AJAX handler with no nonce check in the same file', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %d: number of hooks found */
 						_n(
-							'Found %d wp_ajax_nopriv_ hook in a file with no nonce checks. Unauthenticated AJAX handlers without CSRF protection can be exploited by any visitor.',
-							'Found %d wp_ajax_nopriv_ hooks in a file with no nonce checks. Unauthenticated AJAX handlers without CSRF protection can be exploited by any visitor.',
+							'Found %d wp_ajax_nopriv_ hook in a file that contains no nonce check. This is a file-level pattern match: the check may live in another file, and some public handlers do not need one. Review the handler to confirm.',
+							'Found %d wp_ajax_nopriv_ hooks in a file that contains no nonce check. This is a file-level pattern match: the check may live in another file, and some public handlers do not need one. Review the handlers to confirm.',
 							$nopriv_count,
 							'shieldscope-site-security-scanner'
 						),
 						$nopriv_count
 					),
-					__( 'Add check_ajax_referer() or wp_verify_nonce() to all AJAX handlers, including public ones, to prevent cross-site request forgery.', 'shieldscope-site-security-scanner' ),
+					__( 'If the handler changes data, it should call check_ajax_referer() or wp_verify_nonce() to prevent cross-site request forgery.', 'shieldscope-site-security-scanner' ),
 					$path
 				);
 			}
@@ -489,32 +485,19 @@ class ShieldScope_Check_Access_Control extends ShieldScope_Check_Base {
 			$has_auth = (bool) preg_match( '/current_user_can|check_ajax_referer|wp_verify_nonce|check_admin_referer/i', $contents );
 			if ( ! $has_auth ) {
 				$this->finding(
-					ShieldScope_Logger::SEVERITY_MEDIUM,
-					__( 'Admin AJAX handler may lack capability or nonce check', 'shieldscope-site-security-scanner' ),
+					ShieldScope_Logger::SEVERITY_LOW,
+					__( 'Review: AJAX handler with no capability or nonce check in the same file', 'shieldscope-site-security-scanner' ),
 					sprintf(
 						/* translators: %d: number of hooks found */
 						_n(
-							'Found %d wp_ajax_ hook in a file with no current_user_can() or nonce check. Any logged-in user could trigger privileged actions.',
-							'Found %d wp_ajax_ hooks in a file with no current_user_can() or nonce check. Any logged-in user could trigger privileged actions.',
+							'Found %d wp_ajax_ hook in a file that contains no current_user_can() or nonce check. This is a file-level pattern match: the checks may live in another file. If they are missing, any logged-in user could trigger the action.',
+							'Found %d wp_ajax_ hooks in a file that contains no current_user_can() or nonce check. This is a file-level pattern match: the checks may live in another file. If they are missing, any logged-in user could trigger the actions.',
 							$priv_count,
 							'shieldscope-site-security-scanner'
 						),
 						$priv_count
 					),
 					__( 'Call current_user_can() with the required capability and use check_ajax_referer() or wp_verify_nonce() to prevent CSRF.', 'shieldscope-site-security-scanner' ),
-					$path
-				);
-			}
-		}
-
-		// Admin menu registration without a visible capability check in the callback.
-		if ( preg_match( "/add_(?:menu|submenu)_page\s*\(/i", $contents ) ) {
-			if ( ! preg_match( '/current_user_can\s*\(/i', $contents ) ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_MEDIUM,
-					__( 'Admin page registered without a visible current_user_can() check', 'shieldscope-site-security-scanner' ),
-					__( 'add_menu_page() or add_submenu_page() found without current_user_can() in the page callback. The capability parameter in add_menu_page() only hides the menu item — it does not block direct URL access to the callback.', 'shieldscope-site-security-scanner' ),
-					__( 'Add current_user_can( \'manage_options\' ) (or the required capability) at the top of every admin page callback and call wp_die() if it returns false.', 'shieldscope-site-security-scanner' ),
 					$path
 				);
 			}

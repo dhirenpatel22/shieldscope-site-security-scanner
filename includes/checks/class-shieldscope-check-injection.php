@@ -1,24 +1,23 @@
 <?php
 /**
- * Injection vulnerability detection.
+ * Injection pattern review.
  *
- * Uses a two-phase approach:
+ * Every rule here is a pattern match on source code, not a proof of a
+ * vulnerability. The file is first reduced to a "code view" (comments,
+ * string-literal text and inline HTML removed; interpolated variables kept),
+ * then three phases run:
  *
- * Phase 1 — Direct patterns: single-expression matches (unserialize directly
- *   on superglobal, etc.) that are always risky.
+ * Phase 1 — Direct patterns: user input and a dangerous call in the same
+ *   expression (for example unserialize( $_POST['x'] )). Capped at High.
  *
- * Phase 2 — Intra-file taint tracking: extract variable names that are
- *   assigned from user-controlled sources ($_POST, $_GET, wrapper functions,
- *   etc.) and check whether any of those variable names appear inside
- *   dangerous sinks (unserialize, maybe_unserialize, $wpdb->query, eval,
- *   echo without escaping, shell execution, file inclusion).
+ * Phase 2 — Intra-file taint: variables assigned from raw request data are
+ *   followed to dangerous calls in the same file. Calls that neutralise
+ *   input (absint, intval, sanitize_key, esc_*, isset guards, casts) clear
+ *   the taint, and values passed as $wpdb->prepare() arguments are not
+ *   treated as SQL. Reported as Low "Review" findings.
  *
- * Phase 3 — Co-occurrence heuristics: if a file both reads user input AND
- *   calls maybe_unserialize(), flag it for review (catches multi-method and
- *   multi-step flows like the Formidable Forms PHP object injection class).
- *
- * All findings are heuristic. False positives are possible; the goal is to
- * direct a human reviewer to the suspicious location.
+ * Phase 3 — Co-occurrence: request data or AJAX hooks in the same file as
+ *   maybe_unserialize(), and wp_parse_str() on request data. Low "Review".
  *
  * @package ShieldScope
  */
@@ -36,6 +35,13 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 	 * @var int
 	 */
 	private $max_file_size;
+
+	/**
+	 * The current file with comments removed and strings kept.
+	 *
+	 * @var string
+	 */
+	private $with_strings = '';
 
 	/**
 	 * Constructor.
@@ -61,6 +67,15 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 		return __( 'Injection Vulnerabilities', 'shieldscope-site-security-scanner' );
 	}
 
+	/**
+	 * Steps a quick scan skips.
+	 *
+	 * @return string[]
+	 */
+	public function get_slow_steps() {
+		return array( 'scan_plugins', 'scan_themes' );
+	}
+
 	/** @return array */
 	public function get_steps() {
 		return array( 'scan_plugins', 'scan_themes', 'check_php_settings' );
@@ -74,6 +89,10 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 	 * @return array
 	 */
 	public function run_step( $step, array $cursor = array() ) {
+		if ( ( 'scan_plugins' === $step || 'scan_themes' === $step ) && ! self::developer_review_enabled() ) {
+			// Off by default (S-16): pattern-only findings; the note is raised once.
+			return 'scan_plugins' === $step ? $this->skip_code_scan() : array( 'continue' => false, 'cursor' => array() );
+		}
 		if ( 'scan_plugins' === $step ) {
 			return $this->scan_tree( SHIELDSCOPE_WP_PLUGINS_DIR, $cursor );
 		}
@@ -86,12 +105,8 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 		return array( 'continue' => false, 'cursor' => array() );
 	}
 
-	// -----------------------------------------------------------------------
-	// Directory walker
-	// -----------------------------------------------------------------------
-
 	/**
-	 * Walk a directory tree resumably, 25 PHP files per call.
+	 * Walk a directory tree resumably.
 	 *
 	 * @param string $root   Root directory.
 	 * @param array  $cursor Cursor state.
@@ -102,34 +117,47 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 			$root,
 			$cursor,
 			function ( $full ) {
-				$this->scan_file( $full );
+				return $this->scan_file( $full );
 			}
 		);
 	}
 
-	// -----------------------------------------------------------------------
-	// File scanner — three phases
-	// -----------------------------------------------------------------------
-
 	/**
-	 * Scan one PHP file for injection patterns.
+	 * Scan one PHP file.
 	 *
 	 * @param string $path Absolute path.
-	 * @return void
+	 * @return bool False if the file was skipped (too large or unreadable).
 	 */
 	private function scan_file( $path ) {
-		$size = @filesize( $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-		if ( false === $size || $size > $this->max_file_size || 0 === $size ) {
-			return;
+		$contents = $this->read_scannable_file( $path, $this->max_file_size );
+		if ( false === $contents ) {
+			return false;
 		}
-		$contents = @file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents,WordPress.PHP.NoSilencedErrors.Discouraged
-		if ( false === $contents || '' === $contents ) {
-			return;
+		if ( '' === $contents ) {
+			return true;
 		}
 
-		$this->phase1_direct_patterns( $path, $contents );
-		$this->phase2_taint_tracking( $path, $contents );
-		$this->phase3_cooccurrence( $path, $contents );
+		$this->rx_failed = false;
+		list( $code, $this->with_strings ) = $this->views( $contents );
+		$raw             = $this->neutralise_safe_calls( $code );
+
+		$this->phase1_direct_patterns( $path, $contents, $raw );
+		$this->phase2_taint_tracking( $path, $raw, $contents );
+		$this->phase3_cooccurrence( $path, $contents, $code );
+
+		if ( $this->rx_failed ) {
+			$this->could_not_analyse( $path );
+		}
+		return true;
+	}
+
+	/**
+	 * Sentence appended to every pattern-based description.
+	 *
+	 * @return string
+	 */
+	private function review_note() {
+		return __( 'This is a pattern match, not a confirmed vulnerability: read the code to confirm whether request data really reaches this call.', 'shieldscope-site-security-scanner' );
 	}
 
 	// -----------------------------------------------------------------------
@@ -137,145 +165,115 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Check for injection patterns where user input and the dangerous sink
-	 * appear in the same expression.
+	 * Patterns where raw user input and the dangerous call share one expression.
 	 *
 	 * @param string $path     File path.
-	 * @param string $contents File contents.
+	 * @param string $contents Original source (for patterns that need string contents).
+	 * @param string $raw      Code view with neutralising calls removed.
 	 * @return void
 	 */
-	private function phase1_direct_patterns( $path, $contents ) {
-
-		// PHP Object Injection — unserialize() / maybe_unserialize() directly on superglobal.
-		if ( preg_match( '/\b(?:unserialize|maybe_unserialize)\s*\([^;]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
+	private function phase1_direct_patterns( $path, $contents, $raw ) {
+		$sg    = '\$_(?:GET|POST|REQUEST|COOKIE)';
+		$rules = array(
+			array(
+				'/\b(?:unserialize|maybe_unserialize)\s*\([^;]*' . $sg . '/i',
 				__( 'PHP Object Injection: deserialization of direct user input', 'shieldscope-site-security-scanner' ),
-				__( 'unserialize() or maybe_unserialize() is called directly on a superglobal. An attacker can craft a serialized payload that triggers object instantiation leading to RCE or privilege escalation via gadget chains.', 'shieldscope-site-security-scanner' ),
-				__( 'Never deserialize user-controlled data. Use json_decode() / wp_json_encode() for data interchange. If deserialization is unavoidable, use allowed_classes to restrict instantiable classes.', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
-
-		// Variable variable injection: $$_GET / $$_POST.
-		if ( preg_match( '/\$\$_(?:GET|POST|REQUEST|COOKIE)\[/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
+				__( 'unserialize() or maybe_unserialize() appears to be called directly on request data. A crafted serialized payload can instantiate objects and, with a suitable gadget chain, lead to code execution.', 'shieldscope-site-security-scanner' ),
+				__( 'Do not deserialize request data. Use json_decode() for data interchange. If deserialization is unavoidable, pass allowed_classes => false.', 'shieldscope-site-security-scanner' ),
+			),
+			array(
+				'/\$\$_(?:GET|POST|REQUEST|COOKIE)\[/i',
 				__( 'Variable variable injection from user input', 'shieldscope-site-security-scanner' ),
-				__( 'Using $$_GET or $$_POST creates variable names from user input, letting attackers overwrite any variable in scope.', 'shieldscope-site-security-scanner' ),
-				__( 'Remove variable variables on user-controlled names. Access keys explicitly using a strict allowlist.', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
-
-		// Mass variable injection via extract() on superglobals.
-		if ( preg_match( '/\bextract\s*\(\s*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
+				__( 'Using $$_GET or $$_POST creates variable names from request data, which lets a visitor overwrite variables in scope.', 'shieldscope-site-security-scanner' ),
+				__( 'Remove variable variables on request data. Read keys explicitly against an allowlist.', 'shieldscope-site-security-scanner' ),
+			),
+			array(
+				'/\bextract\s*\(\s*' . $sg . '/i',
 				__( 'Mass variable extraction from user input', 'shieldscope-site-security-scanner' ),
-				__( 'extract($_POST) injects attacker-controlled keys into the current variable scope, enabling overwrite attacks.', 'shieldscope-site-security-scanner' ),
-				__( "Remove extract() on user input. Access keys explicitly: \$foo = sanitize_text_field( \$_POST['foo'] ?? '' );", 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
-
-		// Code injection — create_function() is eval() in disguise, removed in PHP 8.
-		if ( preg_match( '/\bcreate_function\s*\(/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
-				__( 'Deprecated create_function() — potential code injection', 'shieldscope-site-security-scanner' ),
-				__( 'create_function() is essentially eval() and was removed in PHP 8. If user input reaches its arguments it enables arbitrary code execution.', 'shieldscope-site-security-scanner' ),
-				__( 'Replace with a proper closure (anonymous function).', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
-
-		// Code injection — preg_replace() with /e modifier (removed in PHP 7.0).
-		if ( preg_match( '/preg_replace\s*\(\s*["\'][^"\']*\/e[imsuUxAJD]*["\'][^,]*,/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
-				__( 'preg_replace() /e modifier — code injection', 'shieldscope-site-security-scanner' ),
-				__( 'The /e modifier executes the replacement string as PHP code. This is a critical RCE vector, removed in PHP 7.0.', 'shieldscope-site-security-scanner' ),
-				__( 'Replace with preg_replace_callback() and a safe callback.', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
-
-		// Code injection — call_user_func() with user-controlled callable.
-		if ( preg_match( '/\bcall_user_func(?:_array)?\s*\([^;]*\$_(?:GET|POST|REQUEST)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
+				__( 'extract() on request data injects visitor-chosen keys into the current variable scope.', 'shieldscope-site-security-scanner' ),
+				__( "Remove extract() on request data. Read keys explicitly: \$foo = sanitize_text_field( wp_unslash( \$_POST['foo'] ?? '' ) );", 'shieldscope-site-security-scanner' ),
+			),
+			array(
+				'/\bcall_user_func(?:_array)?\s*\([^;]*' . $sg . '/i',
 				__( 'call_user_func() with user-controlled callable', 'shieldscope-site-security-scanner' ),
-				__( 'Passing user input as the function name to call_user_func() lets attackers invoke any PHP function including exec(), system(), eval().', 'shieldscope-site-security-scanner' ),
-				__( 'Validate the callable against a strict allowlist before calling.', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
-
-		// SQL injection — sprintf() in $wpdb query with superglobal.
-		if ( preg_match( '/\$wpdb\s*->\s*(?:query|get_(?:row|results|var|col))\s*\(\s*(?:sprintf|vsprintf)\s*\([^;]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
+				__( 'Request data appears in a call_user_func() call. If it selects the function name, a visitor can call any PHP function.', 'shieldscope-site-security-scanner' ),
+				__( 'Check the callable against a strict allowlist before calling it.', 'shieldscope-site-security-scanner' ),
+			),
+			array(
+				'/\$wpdb\s*->\s*(?:query|get_(?:row|results|var|col))\s*\(\s*(?:sprintf|vsprintf)\s*\([^;]*' . $sg . '/i',
 				__( 'SQL injection: sprintf() building $wpdb query with user input', 'shieldscope-site-security-scanner' ),
-				__( 'sprintf() with user input inside a $wpdb query is SQL injection — sprintf() does not escape SQL values.', 'shieldscope-site-security-scanner' ),
+				__( 'sprintf() with request data inside a $wpdb query does not escape SQL values.', 'shieldscope-site-security-scanner' ),
 				// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment,WordPress.WP.I18n.UnorderedPlaceholdersText -- %s/%d/%f are code examples in the advice text, not sprintf() arguments.
 				__( 'Use $wpdb->prepare() with %s / %d / %f placeholders.', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
-
-		// SQL injection — string interpolation of superglobal in $wpdb query.
-		if ( preg_match( '/\$wpdb\s*->\s*(?:query|get_(?:row|results|var|col))\s*\(\s*"[^"]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
+			),
+			array(
+				'/\$wpdb\s*->\s*(?:query|get_(?:row|results|var|col))\s*\(\s*"[^"]*' . $sg . '/i',
 				__( 'SQL injection: superglobal interpolated in $wpdb query string', 'shieldscope-site-security-scanner' ),
-				__( 'A superglobal is directly interpolated into a $wpdb query — this is textbook SQL injection.', 'shieldscope-site-security-scanner' ),
-				__( 'Use $wpdb->prepare() — never interpolate user data into SQL.', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
-
-		// XSS — printf() / vprintf() with superglobal.
-		if ( preg_match( '/\b(?:printf|vprintf)\s*\([^;]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
+				__( 'A superglobal appears to be interpolated directly into a $wpdb query string.', 'shieldscope-site-security-scanner' ),
+				__( 'Use $wpdb->prepare(); never interpolate request data into SQL.', 'shieldscope-site-security-scanner' ),
+			),
+			array(
+				'/\b(?:printf|vprintf)\s*\([^;]*' . $sg . '/i',
 				__( 'XSS: printf() echoing unescaped user input', 'shieldscope-site-security-scanner' ),
-				__( 'printf() / vprintf() with user-supplied arguments outputs raw HTML — reflected XSS.', 'shieldscope-site-security-scanner' ),
-				__( 'Escape with esc_html(), esc_attr(), or esc_url() before passing to printf().', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
-
-		// XSS — string interpolation of superglobal inside echo.
-		if ( preg_match( '/echo\s+"[^"]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
+				__( 'printf() or vprintf() appears to output request data without an escaping function.', 'shieldscope-site-security-scanner' ),
+				__( 'Escape with esc_html(), esc_attr() or esc_url() before passing values to printf().', 'shieldscope-site-security-scanner' ),
+			),
+			array(
+				'/\becho\s+"[^"]*' . $sg . '/i',
 				__( 'XSS: superglobal interpolated inside echoed string', 'shieldscope-site-security-scanner' ),
-				__( 'Interpolating a superglobal directly inside a double-quoted echo string is reflected XSS.', 'shieldscope-site-security-scanner' ),
-				__( 'Wrap in esc_html(), esc_attr(), or esc_url() depending on context.', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		}
-
-		// LDAP injection.
-		if ( preg_match( '/\b(?:ldap_search|ldap_list|ldap_read)\s*\([^;]*\$_(?:GET|POST|REQUEST)/i', $contents ) ) {
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
+				__( 'A superglobal appears to be interpolated inside an echoed double-quoted string.', 'shieldscope-site-security-scanner' ),
+				__( 'Escape with esc_html(), esc_attr() or esc_url(), depending on the output context.', 'shieldscope-site-security-scanner' ),
+			),
+			array(
+				'/\b(?:ldap_search|ldap_list|ldap_read)\s*\([^;]*\$_(?:GET|POST|REQUEST)/i',
 				__( 'LDAP injection: LDAP query function called with user input', 'shieldscope-site-security-scanner' ),
-				__( 'Passing unsanitised user input to LDAP functions allows query manipulation.', 'shieldscope-site-security-scanner' ),
+				__( 'Request data appears in an LDAP query call, which allows the query to be changed.', 'shieldscope-site-security-scanner' ),
 				__( 'Escape with ldap_escape() (LDAP_ESCAPE_FILTER or LDAP_ESCAPE_DN).', 'shieldscope-site-security-scanner' ),
-				$path
-			);
+			),
+			array(
+				'/\b(?:simplexml_load_string|DOMDocument\s*->\s*loadXML)\s*\([^;]*\$_(?:GET|POST|REQUEST)/i',
+				__( 'XXE risk: SimpleXML parsing user-supplied XML', 'shieldscope-site-security-scanner' ),
+				__( 'Request data appears to be parsed as XML. If entity substitution is enabled, a crafted document can read local files or make the server send requests.', 'shieldscope-site-security-scanner' ),
+				__( 'Do not pass LIBXML_NOENT or LIBXML_DTDLOAD when parsing untrusted XML (libxml 2.9 and later do not load external entities by default). Reject documents that contain a DOCTYPE.', 'shieldscope-site-security-scanner' ),
+			),
+		);
+
+		foreach ( $rules as $rule ) {
+			$at = $this->rx_offset( $rule[0], $raw );
+			if ( $at >= 0 ) {
+				$this->finding(
+					ShieldScope_Logger::SEVERITY_HIGH,
+					$rule[1],
+					$rule[2] . ' ' . $this->review_note(),
+					$rule[3],
+					$path,
+					array( 'confidence' => self::CONFIDENCE_REVIEW ) + self::evidence( $contents, $raw, $at )
+				);
+			}
 		}
 
-		// XXE — SimpleXML with user-supplied XML string.
-		if ( preg_match( '/\bsimplexml_load_string\s*\([^;]*\$_(?:GET|POST|REQUEST)/i', $contents ) ) {
+		// Patterns that are risky whatever the input (removed from current PHP).
+		$at = $this->rx_offset( '/\bcreate_function\s*\(/i', $raw );
+		if ( $at >= 0 ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
-				__( 'XXE risk: SimpleXML parsing user-supplied XML', 'shieldscope-site-security-scanner' ),
-				__( 'Parsing attacker-controlled XML without disabling external entities can expose local files or enable SSRF.', 'shieldscope-site-security-scanner' ),
-				__( 'Use libxml_disable_entity_loader(true) and LIBXML_NONET | LIBXML_NOENT flags.', 'shieldscope-site-security-scanner' ),
-				$path
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'Deprecated create_function() — potential code injection', 'shieldscope-site-security-scanner' ),
+				__( 'create_function() works like eval() and was removed in PHP 8. If request data reaches its arguments it allows code execution; on PHP 8 the call is a fatal error.', 'shieldscope-site-security-scanner' ),
+				__( 'Replace it with an anonymous function (closure).', 'shieldscope-site-security-scanner' ),
+				$path,
+				self::evidence( $contents, $raw, $at )
+			);
+		}
+		$no_comments = $this->with_strings;
+		$at = $this->rx_offset( '/preg_replace\s*\(\s*["\'][^"\']*\/e[imsuUxAJD]*["\'][^,]*,/i', $no_comments );
+		if ( $at >= 0 ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				__( 'preg_replace() /e modifier — code injection', 'shieldscope-site-security-scanner' ),
+				__( 'The /e modifier runs the replacement as PHP code. It was removed in PHP 7.0, so on current PHP the call fails; on old PHP it is a code-execution risk.', 'shieldscope-site-security-scanner' ),
+				__( 'Replace with preg_replace_callback().', 'shieldscope-site-security-scanner' ),
+				$path,
+				self::evidence( $contents, $no_comments, $at )
 			);
 		}
 	}
@@ -285,230 +283,127 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Extract variable names that are assigned from user-controlled sources,
-	 * then check whether those names appear as arguments to dangerous sinks.
-	 *
-	 * This catches multi-line patterns like:
-	 *   $values = $_POST['item_meta'];
-	 *   ...
-	 *   maybe_unserialize( $values[$id] );
+	 * Follow variables assigned from raw request data to dangerous calls.
 	 *
 	 * @param string $path     File path.
-	 * @param string $contents File contents.
+	 * @param string $raw      Code view with neutralising calls removed.
+	 * @param string $contents Original source (for evidence).
 	 * @return void
 	 */
-	private function phase2_taint_tracking( $path, $contents ) {
-		$tainted = $this->extract_tainted_vars( $contents );
+	private function phase2_taint_tracking( $path, $raw, $contents ) {
+		$tainted = $this->extract_tainted_vars( $raw );
 		if ( empty( $tainted ) ) {
 			return;
 		}
 
+		// Values passed as $wpdb->prepare() arguments are bound as placeholders:
+		// keep only the query-string argument for the SQL rule.
+		$sql_view = $this->rx_replace(
+			'/\$wpdb\s*->\s*prepare\s*(\((?:[^()]++|(?1))*\))/i',
+			function ( $m ) {
+				$first = self::first_argument( substr( $m[1], 1, -1 ) );
+				return '$wpdb->prepare(' . $first . ')' . str_repeat( "\n", substr_count( $m[0], "\n" ) - substr_count( $first, "\n" ) );
+			},
+			$raw
+		);
+
+		$sinks = array(
+			'unserialize'    => array( '/\b(?:unserialize|maybe_unserialize)\s*\([^;]*\$%s\b/i', __( 'unserialize()', 'shieldscope-site-security-scanner' ), __( 'Deserializing request data can instantiate objects (PHP object injection).', 'shieldscope-site-security-scanner' ), __( 'Use json_decode() instead, or pass allowed_classes => false.', 'shieldscope-site-security-scanner' ) ),
+			'sql'            => array( '/\$wpdb\s*->\s*(?:query|get_(?:row|results|var|col))\s*\([^;]*\$%s\b/i', __( 'a $wpdb query', 'shieldscope-site-security-scanner' ), __( 'The variable appears in the SQL text of a $wpdb query rather than as a $wpdb->prepare() argument.', 'shieldscope-site-security-scanner' ), __( 'Pass the value as a $wpdb->prepare() argument with a typed placeholder, or cast it with absint() first.', 'shieldscope-site-security-scanner' ) ),
+			'eval'           => array( '/\beval\s*\([^;]*\$%s\b/i', __( 'eval()', 'shieldscope-site-security-scanner' ), __( 'Request data reaching eval() would be code execution.', 'shieldscope-site-security-scanner' ), __( 'Remove eval(); plugin code almost never needs it.', 'shieldscope-site-security-scanner' ) ),
+			'shell'          => array( '/(?<![$>:])\b(?:shell_exec|exec|system|passthru|proc_open|popen)\s*\([^;]*\$%s\b/i', __( 'a shell function', 'shieldscope-site-security-scanner' ), __( 'Request data reaching a shell function would allow OS command execution.', 'shieldscope-site-security-scanner' ), __( 'Do not pass request data to shell functions. If unavoidable, use escapeshellarg() and a strict allowlist.', 'shieldscope-site-security-scanner' ) ),
+			'include'        => array( '/\b(?:include|require)(?:_once)?\s*\(?\s*\$%s\b/i', __( 'include/require', 'shieldscope-site-security-scanner' ), __( 'A file path chosen by request data allows local file inclusion.', 'shieldscope-site-security-scanner' ), __( 'Map request values to a fixed list of files; never build an include path from request data.', 'shieldscope-site-security-scanner' ) ),
+			'echo'           => array( '/\becho\s+\$%s\b(?!\s*\))/i', __( 'echo', 'shieldscope-site-security-scanner' ), __( 'Echoing request data without escaping is cross-site scripting.', 'shieldscope-site-security-scanner' ), __( 'Escape with esc_html(), esc_attr() or esc_url(), depending on the output context.', 'shieldscope-site-security-scanner' ) ),
+			'call_user_func' => array( '/\bcall_user_func(?:_array)?\s*\(\s*\$%s\b/i', __( 'call_user_func()', 'shieldscope-site-security-scanner' ), __( 'A callable chosen by request data can call any PHP function.', 'shieldscope-site-security-scanner' ), __( 'Check the callable against a strict allowlist before calling it.', 'shieldscope-site-security-scanner' ) ),
+		);
+
 		foreach ( $tainted as $var ) {
-			$v = preg_quote( $var, '/' );
-
-			// Deserialization of tainted variable.
-			if ( preg_match( '/\b(?:unserialize|maybe_unserialize)\s*\([^;]*\$' . $v . '\b/i', $contents ) ) {
+			$quoted = preg_quote( $var, '/' );
+			foreach ( $sinks as $key => $sink ) {
+				$subject = 'sql' === $key ? $sql_view : $raw;
+				$at      = $this->rx_offset( sprintf( $sink[0], $quoted ), $subject );
+				if ( $at < 0 ) {
+					continue;
+				}
 				$this->finding(
-					ShieldScope_Logger::SEVERITY_CRITICAL,
+					ShieldScope_Logger::SEVERITY_LOW,
+					/* translators: 1: dangerous call, for example "eval()"; 2: PHP variable name */
+					sprintf( __( 'Review: user input near %1$s (%2$s)', 'shieldscope-site-security-scanner' ), $sink[1], '$' . $var ),
 					sprintf(
-						/* translators: %s: PHP variable name */
-						__( 'PHP Object Injection: $%s from user input reaches unserialize()/maybe_unserialize()', 'shieldscope-site-security-scanner' ),
-						$var
+						/* translators: 1: PHP variable name, 2: dangerous call, 3: why it matters, 4: review note */
+						__( '%1$s is assigned from request data and later appears in %2$s in the same file. %3$s %4$s', 'shieldscope-site-security-scanner' ),
+						'$' . $var,
+						$sink[1],
+						$sink[2],
+						$this->review_note()
 					),
-					sprintf(
-						/* translators: %s: PHP variable name */
-						__( '$%s is derived from user-controlled input (superglobal or sanitized wrapper) and is later passed to unserialize() or maybe_unserialize(). This enables PHP object injection — attackers can trigger arbitrary class instantiation via gadget chains.', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					__( 'Never deserialize user data. Replace with json_decode(). If deserialization is unavoidable, restrict classes with the allowed_classes option.', 'shieldscope-site-security-scanner' ),
+					$sink[3],
 					$path,
-					array( 'tainted_var' => '$' . $var )
-				);
-			}
-
-			// SQL injection via tainted variable in $wpdb query.
-			if ( preg_match( '/\$wpdb\s*->\s*(?:query|get_(?:row|results|var|col))\s*\([^;]*\$' . $v . '\b/i', $contents ) ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_CRITICAL,
-					sprintf(
-						/* translators: %s: PHP variable name */
-						__( 'SQL Injection: $%s from user input used in $wpdb query', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					sprintf(
-						/* translators: %s: PHP variable name */
-						__( '$%s is derived from user input and appears inside a $wpdb query method call. If this is string concatenation rather than a $wpdb->prepare() placeholder, it is SQL injection.', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					// phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment,WordPress.WP.I18n.UnorderedPlaceholdersText -- %s/%d/%f are code examples; %s placeholder is for a PHP variable name.
-					sprintf(
-						/* translators: %s: PHP variable name (e.g. "userInput") */
-						__( 'Use $wpdb->prepare() with typed placeholders (%%s, %%d, %%f). Verify no string concatenation of $%s reaches the SQL string.', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					$path,
-					array( 'tainted_var' => '$' . $var )
-				);
-			}
-
-			// eval() on tainted variable.
-			if ( preg_match( '/\beval\s*\([^;]*\$' . $v . '\b/i', $contents ) ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_CRITICAL,
-					sprintf(
-						/* translators: %s: PHP variable name */
-						__( 'Code Injection: $%s from user input passed to eval()', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					sprintf(
-						/* translators: %s: PHP variable name */
-						__( '$%s originates from user input and reaches eval(). This is direct remote code execution.', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					__( 'Remove eval() entirely. There is almost never a legitimate use for eval() in plugin code.', 'shieldscope-site-security-scanner' ),
-					$path,
-					array( 'tainted_var' => '$' . $var )
-				);
-			}
-
-			// Shell execution of tainted variable.
-			if ( preg_match( '/\b(?:shell_exec|exec|system|passthru|proc_open|popen)\s*\([^;]*\$' . $v . '\b/i', $contents ) ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_CRITICAL,
-					sprintf(
-						/* translators: %s: PHP variable name */
-						__( 'Command Injection: $%s from user input in shell execution function', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					sprintf(
-						/* translators: %s: PHP variable name */
-						__( '$%s is from user input and reaches a shell execution function. Attackers can run arbitrary OS commands on the server.', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					__( 'Never pass user input to shell functions. If unavoidable, use escapeshellarg() and escapeshellcmd() and validate against a strict allowlist.', 'shieldscope-site-security-scanner' ),
-					$path,
-					array( 'tainted_var' => '$' . $var )
-				);
-			}
-
-			// File inclusion from tainted variable.
-			if ( preg_match( '/\b(?:include|require)(?:_once)?\s*\(?\s*\$' . $v . '\b/i', $contents ) ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_CRITICAL,
-					sprintf(
-						/* translators: %s: PHP variable name */
-						__( 'File Inclusion: $%s from user input in include/require', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					sprintf(
-						/* translators: %s: PHP variable name */
-						__( '$%s originates from user input and is used in a file inclusion statement. This enables local or remote file inclusion attacks.', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					__( 'Validate file paths against an explicit allowlist. Never include files whose name is user-controlled.', 'shieldscope-site-security-scanner' ),
-					$path,
-					array( 'tainted_var' => '$' . $var )
-				);
-			}
-
-			// XSS — echo of tainted variable without an escaping function.
-			// Allow: esc_html($var), esc_attr($var), esc_url($var), wp_kses($var,...), intval($var), absint($var).
-			// Detect: echo $var (bare), echo "$var", echo $var . "something".
-			if ( preg_match( '/\becho\s+\$' . $v . '\b(?!\s*\))/i', $contents ) ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_HIGH,
-					sprintf(
-						/* translators: %s: PHP variable name */
-						__( 'XSS: $%s from user input echoed without escaping', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					sprintf(
-						/* translators: %s: PHP variable name */
-						__( '$%s is derived from user input and is directly echoed without an escaping function. This is a stored or reflected XSS vulnerability.', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					__( 'Wrap in esc_html() for HTML context, esc_attr() for attribute context, or esc_url() for URL context before echoing.', 'shieldscope-site-security-scanner' ),
-					$path,
-					array( 'tainted_var' => '$' . $var )
-				);
-			}
-
-			// call_user_func with tainted callable.
-			if ( preg_match( '/\bcall_user_func(?:_array)?\s*\(\s*\$' . $v . '\b/i', $contents ) ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_CRITICAL,
-					sprintf(
-						/* translators: %s: PHP variable name */
-						__( 'Code Injection: $%s from user input used as callable in call_user_func()', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					sprintf(
-						/* translators: %s: PHP variable name */
-						__( '$%s is from user input and is the first argument to call_user_func(), allowing attackers to invoke any PHP function.', 'shieldscope-site-security-scanner' ),
-						$var
-					),
-					__( 'Validate the callable against a strict allowlist before calling.', 'shieldscope-site-security-scanner' ),
-					$path,
-					array( 'tainted_var' => '$' . $var )
+					array(
+						'tainted_var' => '$' . $var,
+						'confidence'  => self::CONFIDENCE_REVIEW,
+					) + self::evidence( $contents, $subject, $at )
 				);
 			}
 		}
 	}
 
 	/**
-	 * Extract names of variables that are assigned from user-controlled data.
+	 * First top-level argument of an argument list.
 	 *
-	 * Covers:
-	 *  - Direct assignment: $var = $_POST['key']
-	 *  - Sanitized assignment: $var = sanitize_text_field($_POST['key'])
-	 *  - wp_unslash wrapper: $var = wp_unslash($_POST['key'])
-	 *  - Ternary/isset guard: $var = isset($_POST['k']) ? $_POST['k'] : ''
-	 *  - wp_parse_str output array: wp_parse_str($_POST['q'], $var)
-	 *  - get_param / get_post_param wrappers (common plugin pattern)
-	 *
-	 * @param string $contents File contents.
-	 * @return array List of tainted variable names (no $ prefix).
+	 * @param string $args Text between the call's parentheses.
+	 * @return string
 	 */
-	private function extract_tainted_vars( $contents ) {
-		$tainted = array();
-
-		$assignment_patterns = array(
-			// $var = $_POST['k'] / $var = $_GET['k'] etc.
-			'/\$(\w+)\s*=\s*\$_(?:GET|POST|REQUEST|COOKIE)\s*(?:\[[^\]]*\])?/i',
-			// $var = wp_unslash($_POST['k'])
-			'/\$(\w+)\s*=\s*wp_unslash\s*\(\s*\$_(?:GET|POST|REQUEST|COOKIE)/i',
-			// $var = sanitize_*(  $_POST['k'] ) — sanitized but still user-controlled
-			'/\$(\w+)\s*=\s*sanitize_\w+\s*\(\s*\$_(?:GET|POST|REQUEST|COOKIE)/i',
-			'/\$(\w+)\s*=\s*absint\s*\(\s*\$_(?:GET|POST|REQUEST|COOKIE)/i',
-			'/\$(\w+)\s*=\s*intval\s*\(\s*\$_(?:GET|POST|REQUEST|COOKIE)/i',
-			// $var = isset($_POST['k']) ? $_POST['k'] : 'default'
-			'/\$(\w+)\s*=\s*(?:isset\s*\(\s*)?\$_(?:GET|POST|REQUEST|COOKIE)\s*\[[^\]]*\]\s*\)?\s*\?/i',
-			// wp_parse_str( $_POST['q'], $output ) — $output becomes tainted
-			'/wp_parse_str\s*\([^,]*\$_(?:GET|POST|REQUEST|COOKIE)[^,]*,\s*\$(\w+)/i',
-			// $var = FrmAppHelper::get_param(...) — Formidable Forms pattern
-			// More broadly: any helper that contains "get_param" or "get_post_param"
-			'/\$(\w+)\s*=\s*\w+::get_(?:post_)?param\s*\(/i',
-			// $var = filter_input(INPUT_POST/GET, ...)
-			'/\$(\w+)\s*=\s*filter_input\s*\(\s*INPUT_(?:POST|GET|REQUEST|COOKIE)/i',
-		);
-
-		foreach ( $assignment_patterns as $pattern ) {
-			if ( preg_match_all( $pattern, $contents, $matches ) ) {
-				$tainted = array_merge( $tainted, $matches[1] );
+	private static function first_argument( $args ) {
+		$depth = 0;
+		$len   = strlen( $args );
+		for ( $i = 0; $i < $len; $i++ ) {
+			$c = $args[ $i ];
+			if ( '(' === $c || '[' === $c || '{' === $c ) {
+				$depth++;
+			} elseif ( ')' === $c || ']' === $c || '}' === $c ) {
+				$depth--;
+			} elseif ( ',' === $c && 0 === $depth ) {
+				return substr( $args, 0, $i );
 			}
 		}
+		return $args;
+	}
 
-		// Also track arrays that are populated with user input via []= or array_push.
-		// $arr[] = $_POST['key']  => taint $arr
-		if ( preg_match_all( '/\$(\w+)\s*\[\s*[^\]]*\]\s*=\s*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents, $m ) ) {
-			$tainted = array_merge( $tainted, $m[1] );
-		}
+	/**
+	 * Names of variables assigned from raw request data.
+	 *
+	 * Works on the neutralised code view, so values passed through absint(),
+	 * intval(), sanitize_key(), esc_*() or guarded by isset() are not tainted.
+	 * sanitize_text_field() and wp_unslash() do not clear taint: their output
+	 * is still free text.
+	 *
+	 * @param string $raw Code view with neutralising calls removed.
+	 * @return string[] Variable names without the $ prefix.
+	 */
+	private function extract_tainted_vars( $raw ) {
+		$sg      = '\$_(?:GET|POST|REQUEST|COOKIE)\b';
+		$tainted = array();
 
-		// Skip single-character variable names — too many false positives.
+		// $var = <expression containing raw request data>; only those
+		// assignments are collected, so a file with many statements does not
+		// build a huge match list (SC2-01).
+		$tainted = array_merge(
+			$tainted,
+			$this->rx_all( '/\$(\w+)\s*=(?![=>])[^;]*?(?:' . $sg . '|\b\w+::get_(?:post_)?param\s*\(|\bfilter_input\s*\(\s*INPUT_(?:POST|GET|REQUEST|COOKIE))[^;]*;/i', $raw )
+		);
+
+		// wp_parse_str( $_POST['q'], $output ) — $output becomes tainted.
+		$tainted = array_merge( $tainted, $this->rx_all( '/wp_parse_str\s*\([^,;]*' . $sg . '[^,;]*,\s*\$(\w+)/i', $raw ) );
+
+		// $arr[] = $_POST['key'] — $arr becomes tainted.
+		$tainted = array_merge( $tainted, $this->rx_all( '/\$(\w+)\s*\[[^\]]*\]\s*=\s*' . $sg . '/i', $raw ) );
+
 		$tainted = array_filter(
 			$tainted,
-			function ( $v ) {
-				return strlen( $v ) > 1;
+			static function ( $v ) {
+				// Superglobals themselves and one-letter names are too noisy.
+				return strlen( $v ) > 1 && 0 !== strpos( $v, '_' );
 			}
 		);
 
@@ -516,73 +411,75 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 	}
 
 	// -----------------------------------------------------------------------
-	// Phase 3 — Co-occurrence heuristics (catches multi-method / multi-file flows)
+	// Phase 3 — Co-occurrence heuristics
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Flag suspicious combinations that indicate injection risk even when the
-	 * direct data flow is split across methods or files.
-	 *
-	 * This catches the "Formidable Forms class" of vulnerabilities where:
-	 *   - An AJAX handler accepts $_POST data and passes it to a model
-	 *   - A different method in the same file calls maybe_unserialize() on
-	 *     what looks like field/form values
+	 * Flag combinations worth a manual look when the data flow is split across
+	 * functions or files.
 	 *
 	 * @param string $path     File path.
-	 * @param string $contents File contents.
+	 * @param string $contents Original source (hook names are string literals).
+	 * @param string $code     Code view.
 	 * @return void
 	 */
-	private function phase3_cooccurrence( $path, $contents ) {
-		$has_user_input        = (bool) preg_match( '/\$_(?:GET|POST|REQUEST|COOKIE)\[/i', $contents );
-		$has_nopriv_ajax       = (bool) preg_match( "/add_action\s*\(\s*['\"]wp_ajax_nopriv_/i", $contents );
-		$has_any_ajax          = (bool) preg_match( "/add_action\s*\(\s*['\"]wp_ajax_/i", $contents );
-		$has_maybe_unserialize = (bool) preg_match( '/\bmaybe_unserialize\s*\(/i', $contents );
-		$has_unserialize       = (bool) preg_match( '/\bunserialize\s*\(/i', $contents );
+	private function phase3_cooccurrence( $path, $contents, $code ) {
+		$no_comments           = $this->with_strings;
+		$has_user_input        = $this->rx_match( '/\$_(?:GET|POST|REQUEST|COOKIE)\s*\[/i', $code );
+		$has_nopriv_ajax       = $this->rx_match( "/add_action\s*\(\s*['\"]wp_ajax_nopriv_/i", $no_comments );
+		$has_any_ajax          = $this->rx_match( "/add_action\s*\(\s*['\"]wp_ajax_/i", $no_comments );
+		$has_maybe_unserialize = $this->rx_match( '/\bmaybe_unserialize\s*\(/i', $code );
+		$has_unserialize       = $this->rx_match( '/\bunserialize\s*\(/i', $code );
 
-		// Exclude calls that are obviously on DB results — these are typically safe.
-		// Pattern: maybe_unserialize($wpdb->...) or maybe_unserialize(get_option(...)) etc.
-		$safe_deserialize_context = (bool) preg_match(
+		// Calls on stored data (database, options, meta) are the normal use.
+		$safe_deserialize_context = $this->rx_match(
 			'/\b(?:maybe_unserialize|unserialize)\s*\(\s*(?:\$wpdb\s*->|get_option\s*\(|get_transient\s*\(|get_post_meta\s*\(|get_user_meta\s*\(|get_term_meta\s*\()/i',
-			$contents
+			$code
 		);
 
-		// --- Unauthenticated AJAX + deserialization ---
+		$unser_at = $this->rx_offset( '/\b(?:maybe_)?unserialize\s*\(/i', $code );
+		$unser_ev = self::evidence( $contents, $code, $unser_at );
+
+		$advice = __( 'Trace each maybe_unserialize() call in this file. Confirm its argument comes from stored data (database, options, meta) and never from request data, and that AJAX handlers check a nonce and a capability.', 'shieldscope-site-security-scanner' );
+
 		if ( $has_nopriv_ajax && ( $has_maybe_unserialize || $has_unserialize ) ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
-				__( 'Unauthenticated AJAX handler co-located with deserialization — PHP Object Injection risk', 'shieldscope-site-security-scanner' ),
-				__( 'This file registers a wp_ajax_nopriv_ AJAX action (accessible to unauthenticated visitors) AND calls unserialize() or maybe_unserialize(). If request data flows into the deserialization call without a separate authentication gate, this is an unauthenticated PHP object injection vulnerability.', 'shieldscope-site-security-scanner' ),
-				__( 'Trace the data flow from the nopriv AJAX handler to every unserialize/maybe_unserialize call. Ensure all paths require proper authentication and never pass user-controlled data to deserialization functions.', 'shieldscope-site-security-scanner' ),
-				$path
+				ShieldScope_Logger::SEVERITY_LOW,
+				__( 'Review: user input near maybe_unserialize() in a file with an unauthenticated AJAX action', 'shieldscope-site-security-scanner' ),
+				__( 'This file registers a wp_ajax_nopriv_ action (reachable by logged-out visitors) and also deserializes data. If request data reaches the deserialization call, that would be PHP object injection.', 'shieldscope-site-security-scanner' ) . ' ' . $this->review_note(),
+				$advice,
+				$path,
+				$unser_ev
 			);
 		} elseif ( $has_user_input && $has_maybe_unserialize && ! $safe_deserialize_context ) {
-			// User input read + maybe_unserialize on a non-trivially-safe value.
-			$this->finding(
-				ShieldScope_Logger::SEVERITY_MEDIUM,
-				__( 'User input and maybe_unserialize() co-located — review for PHP Object Injection', 'shieldscope-site-security-scanner' ),
-				__( 'This file reads user-supplied data via a superglobal AND calls maybe_unserialize() on a variable. If user input flows (directly or via intermediate variables) to the deserialization call, this is a PHP object injection vulnerability. This pattern matches vulnerabilities such as CVE-2023-3681 (Formidable Forms) and similar plugin bugs.', 'shieldscope-site-security-scanner' ),
-				__( 'Audit every call to maybe_unserialize() in this file. Confirm each argument originates from a trusted source (database result, get_option, etc.) and never from $_POST, $_GET, or related wrappers.', 'shieldscope-site-security-scanner' ),
-				$path
-			);
-		} elseif ( $has_any_ajax && $has_maybe_unserialize && ! $safe_deserialize_context ) {
-			// Authenticated AJAX + deserialization — lower severity but worth flagging.
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_LOW,
-				__( 'AJAX handler and maybe_unserialize() co-located — verify no privilege escalation path', 'shieldscope-site-security-scanner' ),
-				__( 'This file registers an AJAX hook and calls maybe_unserialize(). If a subscriber-level user can reach a code path that calls maybe_unserialize() on their own input, this is a PHP object injection bug even without direct admin access.', 'shieldscope-site-security-scanner' ),
-				__( 'Verify the deserialization call is on DB-retrieved data only, and that the AJAX handler performs proper capability checks.', 'shieldscope-site-security-scanner' ),
-				$path
+				__( 'Review: user input near maybe_unserialize()', 'shieldscope-site-security-scanner' ),
+				__( 'This file reads request data and also calls maybe_unserialize() on a value that is not obviously stored data. If request data reaches that call, it would be PHP object injection.', 'shieldscope-site-security-scanner' ) . ' ' . $this->review_note(),
+				$advice,
+				$path,
+				$unser_ev
+			);
+		} elseif ( $has_any_ajax && $has_maybe_unserialize && ! $safe_deserialize_context ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_LOW,
+				__( 'Review: user input near maybe_unserialize() in a file with an AJAX action', 'shieldscope-site-security-scanner' ),
+				__( 'This file registers an AJAX action and calls maybe_unserialize(). If a logged-in user with few permissions can send data that reaches the call, it would be PHP object injection.', 'shieldscope-site-security-scanner' ) . ' ' . $this->review_note(),
+				$advice,
+				$path,
+				$unser_ev
 			);
 		}
 
-		// --- wp_parse_str mass assignment ---
-		if ( preg_match( '/\bwp_parse_str\s*\([^,]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $contents ) ) {
+		$parse_at = $this->rx_offset( '/\bwp_parse_str\s*\([^,;]*\$_(?:GET|POST|REQUEST|COOKIE)/i', $code );
+		if ( $parse_at >= 0 ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_MEDIUM,
-				__( 'wp_parse_str() on user input — potential mass assignment', 'shieldscope-site-security-scanner' ),
-				__( 'wp_parse_str() parses a query string into named variables. When called on user input it can populate arbitrary variable names, similar to extract() or parse_str().', 'shieldscope-site-security-scanner' ),
-				__( 'Validate the resulting array against an allowlist of expected keys. Do not use the output variables without sanitising each one individually.', 'shieldscope-site-security-scanner' ),
-				$path
+				ShieldScope_Logger::SEVERITY_LOW,
+				__( 'Review: user input near wp_parse_str()', 'shieldscope-site-security-scanner' ),
+				__( 'wp_parse_str() turns a query string into an array of visitor-chosen keys. Code that uses those keys without checking them can be steered by the request.', 'shieldscope-site-security-scanner' ) . ' ' . $this->review_note(),
+				__( 'Read only the keys you expect from the resulting array and sanitise each one.', 'shieldscope-site-security-scanner' ),
+				$path,
+				self::evidence( $contents, $code, $parse_at )
 			);
 		}
 	}
@@ -597,8 +494,7 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 	 * @return void
 	 */
 	private function check_php_settings() {
-		// register_globals turns every request var into a global — removed in PHP 5.4
-		// but some legacy hosts re-enable it via user.ini.
+		// register_globals was removed in PHP 5.4; kept for very old hosts.
 		if ( ini_get( 'register_globals' ) ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_CRITICAL,
@@ -612,9 +508,9 @@ class ShieldScope_Check_Injection extends ShieldScope_Check_Base {
 		// allow_url_include — turns file inclusion bugs into remote code execution.
 		if ( ini_get( 'allow_url_include' ) ) {
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_CRITICAL,
+				ShieldScope_Logger::SEVERITY_MEDIUM,
 				__( 'PHP allow_url_include is enabled', 'shieldscope-site-security-scanner' ),
-				__( 'allow_url_include lets include/require load code from remote URLs. Any local file inclusion bug becomes remote code execution.', 'shieldscope-site-security-scanner' ),
+				__( 'allow_url_include lets include/require load code from remote URLs, so a file-inclusion bug in any plugin becomes remote code execution. On its own it is not an exploit.', 'shieldscope-site-security-scanner' ),
 				__( 'Set allow_url_include = Off in php.ini.', 'shieldscope-site-security-scanner' ),
 				'php.ini'
 			);

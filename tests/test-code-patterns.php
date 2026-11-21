@@ -37,7 +37,7 @@ class Test_Code_Patterns extends TestCase {
 		} while ( ! empty( $result['continue'] ) );
 	}
 
-	public function test_obfuscated_eval_backdoor_is_flagged_critical() {
+	public function test_obfuscated_eval_backdoor_is_flagged_high() {
 		$dir = SHIELDSCOPE_WP_PLUGINS_DIR . '/bad-plugin';
 		mkdir( $dir, 0777, true );
 		// Built by concatenation so this test file itself never contains the signature.
@@ -47,9 +47,9 @@ class Test_Code_Patterns extends TestCase {
 		$check = new ShieldScope_Check_Code_Patterns( 'scan_t', $this->logger );
 		$this->run_to_completion( $check, 'scan_plugins' );
 
-		$critical = $this->logger->of_severity( ShieldScope_Logger::SEVERITY_CRITICAL );
-		$this->assertNotEmpty( $critical, 'eval(base64_decode()) must be flagged as critical.' );
-		$this->assertStringContainsString( 'backdoor', $critical[0]['description'] . $critical[0]['title'] );
+		$high = $this->logger->of_severity( ShieldScope_Logger::SEVERITY_HIGH );
+		$this->assertNotEmpty( $high, 'eval(base64_decode()) must be flagged as high (a pattern match, not confirmed).' );
+		$this->assertStringContainsString( 'eval()', $high[0]['title'] );
 	}
 
 	public function test_clean_plugin_produces_no_findings() {
@@ -73,7 +73,8 @@ class Test_Code_Patterns extends TestCase {
 		$check = new ShieldScope_Check_Code_Patterns( 'scan_t', $this->logger );
 		$this->run_to_completion( $check, 'scan_plugins' );
 
-		$this->assertCount( 0, $this->logger->findings, 'Files above max_scan_file_size must not be read.' );
+		$this->assertCount( 1, $this->logger->findings, 'Files above max_scan_file_size must not be read.' );
+		$this->assertSame( ShieldScope_Logger::SEVERITY_INFO, $this->logger->findings[0]['severity'], 'Only the skipped-files note is expected.' );
 	}
 
 	public function test_php_shell_in_uploads_is_flagged_critical() {
@@ -89,9 +90,12 @@ class Test_Code_Patterns extends TestCase {
 			$cursor = $result['cursor'];
 		} while ( ! empty( $result['continue'] ) );
 
-		$critical = $this->logger->of_severity( ShieldScope_Logger::SEVERITY_CRITICAL );
-		$this->assertCount( 1, $critical );
-		$this->assertStringContainsString( 'shell.php', $critical[0]['target'] );
+		// IM2-04: a PHP file in uploads is a High finding to review, never Critical.
+		$this->assertSame( array(), $this->logger->of_severity( ShieldScope_Logger::SEVERITY_CRITICAL ) );
+		$high = $this->logger->of_severity( ShieldScope_Logger::SEVERITY_HIGH );
+		$this->assertCount( 1, $high );
+		$this->assertStringContainsString( 'shell.php', $high[0]['target'] );
+		$this->assertSame( 'review', $high[0]['context']['confidence'] );
 	}
 
 	public function test_uploads_with_no_php_files_is_clean() {

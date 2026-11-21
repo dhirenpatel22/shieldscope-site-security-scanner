@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       ShieldScope – Site Security Scanner
  * Plugin URI:        https://wordpress.org/plugins/shieldscope-site-security-scanner/
- * Description:       Comprehensive background security scanner for WordPress core, themes, plugins, filesystem, database, users and code patterns. CPU-throttled and non-blocking.
- * Version:           1.3.2
+ * Description:       Security audit for WordPress core, plugins, themes, users, files and server settings. Runs from your admin screen in short steps and reports findings by severity.
+ * Version:           2.0.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Dhiren Patel
@@ -26,13 +26,14 @@ if ( defined( 'SHIELDSCOPE_VERSION' ) ) {
 }
 
 // Plugin constants.
-define( 'SHIELDSCOPE_VERSION', '1.3.2' );
+define( 'SHIELDSCOPE_VERSION', '2.0.0' );
 define( 'SHIELDSCOPE_PLUGIN_FILE', __FILE__ );
 define( 'SHIELDSCOPE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SHIELDSCOPE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SHIELDSCOPE_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 define( 'SHIELDSCOPE_WP_PLUGINS_DIR', WP_PLUGIN_DIR );
 define( 'SHIELDSCOPE_WP_CONTENT_DIR', WP_CONTENT_DIR );
+// Single-site capability. On multisite ShieldScope_Admin::required_capability() requires manage_network_options.
 define( 'SHIELDSCOPE_MIN_CAP', 'manage_options' );
 define( 'SHIELDSCOPE_SLUG', 'shieldscope' );
 
@@ -84,5 +85,9 @@ function shieldscope_bootstrap() {
 	// Text domain is loaded automatically by WordPress when the plugin is hosted
 	// on wordpress.org — no manual load_plugin_textdomain() call needed (WP 4.6+).
 	ShieldScope_Core::instance()->init();
+
+	if ( defined( 'WP_CLI' ) && WP_CLI ) {
+		WP_CLI::add_command( 'shieldscope', 'ShieldScope_CLI' );
+	}
 }
 add_action( 'plugins_loaded', 'shieldscope_bootstrap' );

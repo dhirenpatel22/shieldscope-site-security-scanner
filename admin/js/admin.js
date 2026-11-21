@@ -1,14 +1,14 @@
 /**
- * Site Security Audit — admin controller.
+ * ShieldScope — admin controller.
  *
  * Implements:
  *  - Start / pause / resume / abort buttons
- *  - A tick loop that sends AJAX "chunk" requests while the scan is running
- *    AND the tab is focused and visible
- *  - Auto-pause on blur / visibilitychange (matches server-side settings)
- *  - beforeunload warning while a scan is in progress
+ *  - A tick loop that sends AJAX "chunk" requests while the scan is running;
+ *    with background scanning on, WP-Cron also runs chunks when the tab is closed
+ *  - Optional pause on blur / visibilitychange (only when background scanning is off)
+ *  - Per-check progress list, stalled-scan and error messages
  *
- * @package Site_Security_Audit
+ * @package ShieldScope
  */
 
 ( function ( $ ) {
@@ -27,8 +27,13 @@
 	var tickTimer = null;
 	var pollTimer = null;
 	var inFlight  = false;
+	var nextTickAt = 0; // Date.now() before which no tick is sent (server-requested rest).
 	var lastStatus = $panel.data( 'status' ) || 'idle';
 	var awaitingResume = false; // user-intent flag: scan should continue once tab refocused.
+	var failures   = 0; // consecutive failed tick requests.
+	var MAX_FAILURES = 5;
+	var $bar       = $( '#shieldscope-progress-bar' );
+	var $checks    = $( '#shieldscope-check-list' );
 
 	var $status    = $( '#shieldscope-status-text' );
 	var $msg       = $( '#shieldscope-message' );
@@ -66,6 +71,7 @@
 	}
 
 	function setButtons( status ) {
+		$( '#shieldscope-btn-quick' ).prop( 'disabled', 'running' === status || 'paused' === status );
 		switch ( status ) {
 			case 'running':
 				$btnStart.prop( 'disabled', true );
@@ -103,7 +109,16 @@
 		var pct = parseInt( data.progress, 10 ) || 0;
 		$fill.css( 'width', pct + '%' );
 		$pct.text( pct + '%' );
-		$steps.text( ( data.done_steps || 0 ) + ' of ' + ( data.total_steps || 0 ) + ' checks' );
+		$bar.attr( 'aria-valuenow', pct );
+		$steps.text(
+			cfg.i18n.stepsOf
+				.replace( '%1$d', data.done_steps || 0 )
+				.replace( '%2$d', data.total_steps || 0 )
+		);
+		if ( data.stalled ) {
+			$msg.text( cfg.i18n.stalled );
+		}
+		renderChecks( data.checks );
 
 		if ( data.summary ) {
 			$summary.removeClass( 'shieldscope-hidden' );
@@ -129,22 +144,47 @@
 		}
 
 		setButtons( lastStatus );
+		// A stalled scan can be continued from this page (SC2-10).
+		if ( 'running' === lastStatus && data.stalled ) {
+			$btnResume.prop( 'disabled', false );
+		}
 	}
 
-	function ajax( action ) {
+	function renderChecks( checks ) {
+		if ( ! $checks.length || ! checks || ! checks.length ) {
+			return;
+		}
+		$checks.empty();
+		checks.forEach( function ( c ) {
+			var $li = $( '<li>' ).addClass( 'is-' + c.status );
+			$( '<span class="shieldscope-check-name">' ).text( c.label ).appendTo( $li );
+			$( '<span class="shieldscope-check-status">' ).text( ( cfg.i18n.checkStatus && cfg.i18n.checkStatus[ c.status ] ) || c.status ).appendTo( $li );
+			if ( c.notes && c.notes.length ) {
+				$( '<span class="shieldscope-check-notes">' ).text( c.notes.join( '; ' ) ).appendTo( $li );
+			}
+			$checks.append( $li );
+		} );
+		$checks.closest( '.shieldscope-checks-card' ).removeClass( 'shieldscope-hidden' );
+	}
+
+	function ajax( action, extra ) {
 		return $.ajax( {
 			url: cfg.ajaxUrl,
 			method: 'POST',
 			dataType: 'json',
-			data: {
+			data: $.extend( {
 				action: 'shieldscope_' + action,
 				_wpnonce: cfg.nonce
-			}
+			}, extra || {} )
 		} );
 	}
 
 	function tick() {
 		if ( inFlight ) {
+			return;
+		}
+		// Rest the server asked for after the last chunk (scan pace).
+		if ( Date.now() < nextTickAt ) {
 			return;
 		}
 		// Only run work chunks while the tab is visible and focused.
@@ -158,7 +198,9 @@
 		inFlight = true;
 		ajax( 'tick' )
 			.done( function ( resp ) {
+				failures = 0;
 				if ( resp && resp.success ) {
+					nextTickAt = Date.now() + Math.min( 30000, Math.max( 0, parseInt( resp.data.rest_ms, 10 ) || 0 ) );
 					updateUI( resp.data );
 					if ( 'completed' === resp.data.status ) {
 						$msg.text( cfg.i18n.finished );
@@ -168,7 +210,20 @@
 					}
 				}
 			} )
-			.fail( function () {
+			.fail( function ( xhr ) {
+				failures++;
+				if ( xhr && 403 === xhr.status ) {
+					$msg.text( cfg.i18n.expired );
+					stopLoops();
+					return;
+				}
+				if ( failures >= MAX_FAILURES ) {
+					$msg.text( cfg.i18n.gaveUp );
+					stopTicks();
+					return;
+				}
+				// Back off a little more after each failure.
+				nextTickAt = Date.now() + failures * 3000;
 				$msg.text( cfg.i18n.error );
 			} )
 			.always( function () {
@@ -185,6 +240,9 @@
 			.done( function ( resp ) {
 				if ( resp && resp.success ) {
 					updateUI( resp.data );
+					if ( 'completed' === resp.data.status || 'aborted' === resp.data.status ) {
+						stopLoops();
+					}
 				}
 			} )
 			.always( function () {
@@ -196,6 +254,13 @@
 		stopLoops();
 		tickTimer = window.setInterval( tick, cfg.tickInterval );
 		pollTimer = window.setInterval( poll, cfg.pollInterval );
+	}
+
+	function stopTicks() {
+		if ( tickTimer ) {
+			window.clearInterval( tickTimer );
+			tickTimer = null;
+		}
 	}
 
 	function stopLoops() {
@@ -223,16 +288,36 @@
 
 	// --- Button handlers --- .
 
-	$btnStart.on( 'click', function () {
+	var $btnQuick = $( '#shieldscope-btn-quick' );
+
+	function startScan( quick ) {
 		$btnStart.prop( 'disabled', true );
+		$btnQuick.prop( 'disabled', true );
 		$msg.text( cfg.i18n.starting );
-		ajax( 'start' ).done( function ( resp ) {
-			if ( resp && resp.success ) {
-				updateUI( resp.data );
-				awaitingResume = true;
-				startLoops();
-			}
-		} );
+		ajax( 'start', quick ? { quick: 1 } : {} )
+			.done( function ( resp ) {
+				if ( resp && resp.success ) {
+					failures = 0;
+					updateUI( resp.data );
+					awaitingResume = true;
+					startLoops();
+				} else {
+					$btnStart.prop( 'disabled', false );
+					$btnQuick.prop( 'disabled', false );
+				}
+			} )
+			.fail( function ( xhr ) {
+				$msg.text( xhr && 403 === xhr.status ? cfg.i18n.expired : cfg.i18n.error );
+				$btnStart.prop( 'disabled', false );
+				$btnQuick.prop( 'disabled', false );
+			} );
+	}
+
+	$btnStart.on( 'click', function () {
+		startScan( false );
+	} );
+	$btnQuick.on( 'click', function () {
+		startScan( true );
 	} );
 
 	$btnPause.on( 'click', function () {
@@ -247,6 +332,8 @@
 	$btnResume.on( 'click', function () {
 		ajax( 'resume' ).done( function ( resp ) {
 			if ( resp && resp.success ) {
+				failures   = 0;
+				nextTickAt = 0;
 				updateUI( resp.data );
 				awaitingResume = true;
 				startLoops();
@@ -255,7 +342,7 @@
 	} );
 
 	$btnAbort.on( 'click', function () {
-		if ( ! window.confirm( 'Abort this scan? Partial findings will be discarded.' ) ) {
+		if ( ! window.confirm( cfg.i18n.confirmAbort ) ) {
 			return;
 		}
 		ajax( 'abort' ).done( function ( resp ) {
@@ -328,7 +415,8 @@
 
 	// Warn on leave while running.
 	window.addEventListener( 'beforeunload', function ( e ) {
-		if ( 'running' === lastStatus || 'paused' === lastStatus ) {
+		// With background scanning the scan carries on without this page.
+		if ( ! cfg.background && ( 'running' === lastStatus || 'paused' === lastStatus ) ) {
 			e.preventDefault();
 			e.returnValue = cfg.i18n.leaveWarn;
 			return cfg.i18n.leaveWarn;
@@ -353,52 +441,56 @@
 	}
 } )( jQuery );
 
-// ── Report page: severity tab switching ───────────────────────────────────
-// Runs on every plugin admin page; bails immediately if the tab nav is absent
-// (i.e. on pages other than the report page).
+// ── Report page: filter findings (S-09) ──────────────────────────────────
 ( function () {
 	'use strict';
 
-	var nav = document.querySelector( '.shieldscope-tab-nav' );
-	if ( ! nav ) {
+	var input  = document.getElementById( 'shieldscope-filter-text' );
+	var review = document.getElementById( 'shieldscope-filter-review' );
+	var count  = document.getElementById( 'shieldscope-filter-count' );
+	if ( ! input || ! review ) {
 		return;
 	}
+	var items    = Array.prototype.slice.call( document.querySelectorAll( '.shieldscope-sev-section .shieldscope-finding' ) );
+	var sections = Array.prototype.slice.call( document.querySelectorAll( '.shieldscope-sev-section' ) );
+	var labels   = ( window.ShieldScope && window.ShieldScope.i18n ) || {};
 
-	function activateTab( tabKey ) {
-		nav.querySelectorAll( '.shieldscope-tab-btn' ).forEach( function ( btn ) {
-			var isThis = btn.dataset.tab === tabKey;
-			btn.classList.toggle( 'is-active', isThis );
-			btn.setAttribute( 'aria-selected', isThis ? 'true' : 'false' );
+	function apply() {
+		var q     = input.value.trim().toLowerCase();
+		var shown = 0;
+		items.forEach( function ( el ) {
+			var ok = ( ! q || el.textContent.toLowerCase().indexOf( q ) !== -1 ) &&
+				( ! review.checked || el.querySelector( '.shieldscope-confidence.is-review' ) );
+			el.hidden = ! ok;
+			if ( ok ) {
+				shown++;
+			}
 		} );
-		document.querySelectorAll( '.shieldscope-tab-panel' ).forEach( function ( panel ) {
-			panel.classList.toggle( 'is-active', panel.id === 'shieldscope-tab-' + tabKey );
+		sections.forEach( function ( sec ) {
+			sec.hidden = ! sec.querySelector( '.shieldscope-finding:not([hidden])' );
 		} );
+		count.textContent = ( q || review.checked ) && labels.filterCount
+			? labels.filterCount.replace( '%1$d', shown ).replace( '%2$d', items.length )
+			: '';
 	}
 
-	// Tab button clicks.
-	nav.addEventListener( 'click', function ( e ) {
-		var btn = e.target.closest( '.shieldscope-tab-btn' );
-		if ( ! btn || btn.disabled ) {
-			return;
-		}
-		activateTab( btn.dataset.tab );
-	} );
+	input.addEventListener( 'input', apply );
+	review.addEventListener( 'change', apply );
+} )();
 
-	// Summary grid tiles: click jumps to the matching tab and scrolls to it.
-	document.querySelectorAll( '.shieldscope-summary-grid li[data-tab]' ).forEach( function ( tile ) {
-		tile.addEventListener( 'click', function () {
-			activateTab( tile.dataset.tab );
-			var tabsEl = document.querySelector( '.shieldscope-tabs' );
-			if ( tabsEl ) {
-				tabsEl.scrollIntoView( { behavior: 'smooth', block: 'start' } );
-			}
-		} );
-		// Keyboard support for the role="button" tiles.
-		tile.addEventListener( 'keydown', function ( e ) {
-			if ( 'Enter' === e.key || ' ' === e.key ) {
-				e.preventDefault();
-				tile.click();
-			}
-		} );
+// ── Settings page: editing pace or step time switches the preset to Custom (SC2-06).
+( function () {
+	'use strict';
+	var preset = document.getElementById( 'shieldscope_load_preset' );
+	if ( ! preset ) {
+		return;
+	}
+	[ 'shieldscope_cpu_limit', 'shieldscope_chunk_time' ].forEach( function ( id ) {
+		var field = document.getElementById( id );
+		if ( field ) {
+			field.addEventListener( 'input', function () {
+				preset.value = 'custom';
+			} );
+		}
 	} );
 } )();

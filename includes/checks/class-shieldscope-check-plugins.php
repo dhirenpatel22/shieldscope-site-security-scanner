@@ -31,12 +31,21 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 	}
 
 	/**
+	 * Steps a quick scan skips.
+	 *
+	 * @return string[]
+	 */
+	public function get_slow_steps() {
+		return array( 'abandoned', 'checksums' );
+	}
+
+	/**
 	 * Steps.
 	 *
 	 * @return array
 	 */
 	public function get_steps() {
-		return array( 'updates', 'inactive', 'unknown_source', 'abandoned' );
+		return array( 'updates', 'inactive', 'unknown_source', 'abandoned', 'checksums' );
 	}
 
 	/**
@@ -62,8 +71,9 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 				$this->check_unknown_source();
 				break;
 			case 'abandoned':
-				$this->check_abandoned();
-				break;
+				return $this->check_abandoned( $cursor );
+			case 'checksums':
+				return $this->check_checksums( $cursor );
 		}
 		return array( 'continue' => false, 'cursor' => array() );
 	}
@@ -81,7 +91,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 		foreach ( $updates->response as $plugin_file => $info ) {
 			$data = get_plugin_data( SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $plugin_file, false, false );
 			$this->finding(
-				ShieldScope_Logger::SEVERITY_HIGH,
+				ShieldScope_Logger::SEVERITY_MEDIUM,
 				__( 'Plugin update available', 'shieldscope-site-security-scanner' ),
 				sprintf(
 					/* translators: 1: name, 2: current, 3: new */
@@ -147,7 +157,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 						__( 'Plugin "%s" declares neither a PluginURI nor an UpdateURI. If this is not a custom plugin, verify it came from a trusted source.', 'shieldscope-site-security-scanner' ),
 						$data['Name']
 					),
-					__( 'Search wordpress.org/plugins to verify this plugin is legitimate. If it\'s a custom-built plugin, this warning can be ignored. If it came from a "free premium plugin" site, treat it as potentially nulled (pirated software with malware injected) and delete it — replace with the official version from the original developer.', 'shieldscope-site-security-scanner' ),
+					__( 'Search wordpress.org/plugins to verify this plugin is legitimate. If it\'s a custom-built plugin, this warning can be ignored. If it came from a "free premium plugin" site, treat it as a possibly nulled (pirated) copy, which often carries injected code, and delete it — replace with the official version from the original developer.', 'shieldscope-site-security-scanner' ),
 					'plugin:' . $file,
 					array( 'plugin_name' => $data['Name'] )
 				);
@@ -156,33 +166,474 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Plugins that have not been updated in a long time (abandoned heuristic).
+	 * Does WordPress itself treat this plugin as a WordPress.org plugin?
 	 *
-	 * @return void
+	 * A folder name alone is not enough: a custom or commercial plugin can
+	 * share its folder name with an unrelated WordPress.org plugin (IM2-03).
+	 * Like WordPress core, plugins with an Update URI on another host are
+	 * excluded, and the plugin must appear in WordPress's own update data.
+	 *
+	 * @param string $file Plugin file.
+	 * @param array  $data Header data.
+	 * @return bool
 	 */
-	private function check_abandoned() {
-		$plugins = get_plugins();
-		foreach ( $plugins as $file => $data ) {
-			$full_path = SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $file;
-			if ( ! file_exists( $full_path ) ) {
-				continue;
-			}
-			$mtime = filemtime( $full_path );
-			if ( $mtime && ( time() - $mtime ) > ( 2 * YEAR_IN_SECONDS ) ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_MEDIUM,
-					__( 'Plugin appears abandoned', 'shieldscope-site-security-scanner' ),
-					sprintf(
-						/* translators: 1: name, 2: date */
-						__( 'Plugin "%1$s" has not been updated on disk since %2$s. Unmaintained plugins accumulate unfixed vulnerabilities.', 'shieldscope-site-security-scanner' ),
-						$data['Name'],
-						gmdate( 'Y-m-d', $mtime )
-					),
-					__( 'Check wordpress.org/plugins for this plugin — if it shows "not tested with the latest 3 major releases" it is likely abandoned. Consider replacing it with a maintained alternative. If you need to keep it, contact the plugin developer via the wordpress.org support forum to ask about continued maintenance.', 'shieldscope-site-security-scanner' ),
-					'plugin:' . $file,
-					array( 'plugin_name' => $data['Name'] )
-				);
+	private static function is_wporg_plugin( $file, array $data ) {
+		if ( ! empty( $data['UpdateURI'] ) ) {
+			$host = wp_parse_url( (string) $data['UpdateURI'], PHP_URL_HOST );
+			if ( ! in_array( $host, array( 'wordpress.org', 'w.org' ), true ) ) {
+				return false;
 			}
 		}
+		$updates = get_site_transient( 'update_plugins' );
+		if ( ! is_object( $updates ) ) {
+			return false;
+		}
+		foreach ( array( 'response', 'no_update' ) as $list ) {
+			if ( isset( $updates->$list ) && is_array( $updates->$list ) && isset( $updates->{$list}[ $file ] ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * WordPress.org plugin information endpoint.
+	 */
+	const WPORG_API = 'https://api.wordpress.org/plugins/info/1.2/';
+
+	/**
+	 * How long a WordPress.org lookup is cached.
+	 */
+	const WPORG_CACHE_TTL = 12 * HOUR_IN_SECONDS;
+
+	/**
+	 * Closed and long-unmaintained plugins, from WordPress.org (B-10, S-20).
+	 *
+	 * For each installed plugin in a folder, asks the WordPress.org plugin
+	 * directory (sending only the folder name) whether it is listed, closed,
+	 * and when it was last updated. WordPress itself shows a closed plugin as
+	 * up to date, so this is the only place the closure is visible. Plugins
+	 * that are not listed (custom or commercial) are skipped. Resumable:
+	 * the cursor holds the position and counts.
+	 *
+	 * @param array $cursor Cursor.
+	 * @return array
+	 */
+	private function check_abandoned( array $cursor = array() ) {
+		$plugins = array();
+		foreach ( (array) get_plugins() as $file => $data ) {
+			$slug = dirname( $file );
+			if ( '.' !== $slug && '' !== $slug && self::is_wporg_plugin( $file, (array) $data ) ) {
+				$plugins[] = array( $file, $slug, $data );
+			}
+		}
+		$cursor += array(
+			'i'      => 0,
+			'failed' => 0,
+		);
+
+		$done = 0;
+		while ( $cursor['i'] < count( $plugins ) ) {
+			if ( $done > 0 && $this->out_of_time() ) {
+				return array( 'continue' => true, 'cursor' => $cursor );
+			}
+			list( $file, $slug, $data ) = $plugins[ $cursor['i'] ];
+			++$cursor['i'];
+			++$done;
+
+			$info = $this->wporg_info( $slug );
+			if ( null === $info ) {
+				++$cursor['failed'];
+				continue;
+			}
+			$this->report_wporg_status( $file, $data, $info );
+		}
+
+		if ( $cursor['failed'] > 0 ) {
+			$this->note_partial(
+				sprintf(
+					/* translators: %d: number of plugins */
+					__( '%d plugin(s) could not be looked up on WordPress.org', 'shieldscope-site-security-scanner' ),
+					$cursor['failed']
+				)
+			);
+		}
+		return array( 'continue' => false, 'cursor' => array() );
+	}
+
+	/**
+	 * Findings for one plugin from its WordPress.org information.
+	 *
+	 * @param string $file Plugin file.
+	 * @param array  $data Plugin header data.
+	 * @param array  $info Decoded API response.
+	 * @return void
+	 */
+	private function report_wporg_status( $file, array $data, array $info ) {
+		$name = isset( $data['Name'] ) ? $data['Name'] : $file;
+		$ctx  = array( 'plugin_name' => $name );
+
+		if ( ! empty( $info['closed'] ) || ( isset( $info['error'] ) && 'closed' === $info['error'] ) ) {
+			$security = isset( $info['reason'] ) && 'security-issue' === $info['reason'];
+			$reason   = isset( $info['reason_text'] ) ? (string) $info['reason_text'] : __( 'not given', 'shieldscope-site-security-scanner' );
+			$date     = isset( $info['closed_date'] ) ? (string) $info['closed_date'] : __( 'unknown date', 'shieldscope-site-security-scanner' );
+			$this->finding(
+				$security ? ShieldScope_Logger::SEVERITY_HIGH : ShieldScope_Logger::SEVERITY_MEDIUM,
+				/* translators: %s: plugin name */
+				sprintf( __( 'Plugin closed on WordPress.org: %s', 'shieldscope-site-security-scanner' ), $name ),
+				sprintf(
+					/* translators: 1: plugin name, 2: date, 3: reason */
+					__( 'WordPress.org closed "%1$s" on %2$s (reason: %3$s). A closed plugin gets no updates, and WordPress still shows it as up to date. A closure for a security issue usually means a known, unfixed vulnerability.', 'shieldscope-site-security-scanner' ),
+					$name,
+					$date,
+					$reason
+				),
+				__( 'Replace the plugin with a maintained alternative and delete it. If you must keep it for now, check the plugin\'s page and support forum on WordPress.org for the reason and any fix.', 'shieldscope-site-security-scanner' ),
+				'plugin:' . $file,
+				$ctx + array(
+					'closed_date' => $date,
+					'reason'      => isset( $info['reason'] ) ? (string) $info['reason'] : '',
+				)
+			);
+			return;
+		}
+
+		if ( empty( $info['last_updated'] ) ) {
+			return; // Not listed on WordPress.org (custom or commercial plugin).
+		}
+		$updated = strtotime( (string) $info['last_updated'] );
+		if ( $updated && ( time() - $updated ) > 2 * YEAR_IN_SECONDS ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				/* translators: %s: plugin name */
+				sprintf( __( 'Plugin not updated on WordPress.org for over 2 years: %s', 'shieldscope-site-security-scanner' ), $name ),
+				sprintf(
+					/* translators: 1: plugin name, 2: date */
+					__( 'The last release of "%1$s" on WordPress.org was on %2$s. Plugins without updates do not get fixes for newly found vulnerabilities and may break with new WordPress or PHP versions.', 'shieldscope-site-security-scanner' ),
+					$name,
+					gmdate( 'Y-m-d', $updated )
+				),
+				__( 'Check the plugin\'s support forum for signs of maintenance and look for a maintained alternative. If you keep it, review it whenever WordPress or PHP is updated.', 'shieldscope-site-security-scanner' ),
+				'plugin:' . $file,
+				$ctx + array( 'last_updated' => gmdate( 'Y-m-d', $updated ) )
+			);
+		}
+	}
+
+	/**
+	 * WordPress.org plugin information for a slug, cached. Null when the
+	 * lookup failed (the result is not cached then).
+	 *
+	 * @param string $slug Plugin folder name.
+	 * @return array|null
+	 */
+	private function wporg_info( $slug ) {
+		$key    = 'shieldscope_wporg_' . md5( $slug );
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) ) {
+			return empty( $cached['lookup_failed'] ) ? $cached : null;
+		}
+
+		$url      = add_query_arg(
+			array(
+				'action'  => 'plugin_information',
+				'request' => array(
+					'slug'   => $slug,
+					'fields' => array(
+						'sections'     => 0,
+						'description'  => 0,
+						'screenshots'  => 0,
+						'banners'      => 0,
+						'icons'        => 0,
+						'contributors' => 0,
+						'ratings'      => 0,
+						'versions'     => 0,
+						'tags'         => 0,
+					),
+				),
+			),
+			self::WPORG_API
+		);
+		$response = wp_remote_get( $url, self::wporg_request_args( 10 ) );
+		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			// 404 is "not listed": the API answers {"error":"Plugin not found."}.
+			if ( ! is_wp_error( $response ) && 404 === (int) wp_remote_retrieve_response_code( $response ) ) {
+				$info = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+				if ( is_array( $info ) && isset( $info['error'] ) ) {
+					set_transient( $key, $info, self::WPORG_CACHE_TTL );
+					return $info;
+				}
+			}
+			set_transient( $key, array( 'lookup_failed' => true ), 15 * MINUTE_IN_SECONDS ); // Do not retry in every step (SC2-03).
+			return null;
+		}
+		$info = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $info ) ) {
+			set_transient( $key, array( 'lookup_failed' => true ), 15 * MINUTE_IN_SECONDS ); // Do not retry in every step (SC2-03).
+			return null;
+		}
+		$keep = array_intersect_key( $info, array_flip( array( 'slug', 'version', 'last_updated', 'error', 'closed', 'closed_date', 'reason', 'reason_text' ) ) );
+		set_transient( $key, $keep, self::WPORG_CACHE_TTL );
+		return $keep;
+	}
+
+	/**
+	 * WordPress.org plugin checksums endpoint (slug, version).
+	 */
+	const CHECKSUMS_URL = 'https://downloads.wordpress.org/plugin-checksums/%s/%s.json';
+
+	/**
+	 * Files hashed per call before the time budget is checked.
+	 */
+	const CHECKSUM_BATCH = 200;
+
+	/**
+	 * Compare plugin files with the WordPress.org checksums for the
+	 * installed version (S-22). Only plugins listed on WordPress.org can
+	 * be verified; the rest are counted in a coverage note.
+	 *
+	 * Cursor: i (plugin index), offset (position in its checksum list),
+	 * modified (relative paths found so far for this plugin), and counts.
+	 *
+	 * @param array $cursor Cursor.
+	 * @return array
+	 */
+	private function check_checksums( array $cursor = array() ) {
+		$plugins = array();
+		foreach ( (array) get_plugins() as $file => $data ) {
+			$slug = dirname( $file );
+			if ( '.' !== $slug && '' !== $slug && ! empty( $data['Version'] ) ) {
+				$plugins[] = array( $file, $slug, $data );
+			}
+		}
+		$cursor += array(
+			'i'          => 0,
+			'offset'     => 0,
+			'modified'   => array(),
+			'unverified' => 0,
+			'verified'   => 0,
+		);
+
+		$calls = 0;
+		while ( $cursor['i'] < count( $plugins ) ) {
+			list( $file, $slug, $data ) = $plugins[ $cursor['i'] ];
+
+			// Each plugin may need two remote calls: stop at the budget (SC2-03).
+			if ( $calls > 0 && $this->out_of_time() ) {
+				return array( 'continue' => true, 'cursor' => $cursor );
+			}
+			++$calls;
+
+			// ShieldScope does not audit its own folder (as the file walkers).
+			if ( defined( 'SHIELDSCOPE_PLUGIN_DIR' ) && basename( rtrim( SHIELDSCOPE_PLUGIN_DIR, '/\\' ) ) === $slug ) {
+				$cursor = array_merge( $cursor, array( 'i' => $cursor['i'] + 1, 'offset' => 0, 'modified' => array() ) );
+				continue;
+			}
+
+			$info = self::is_wporg_plugin( $file, (array) $data ) ? $this->wporg_info( $slug ) : null;
+			$sums = ( is_array( $info ) && ! empty( $info['last_updated'] ) ) ? $this->plugin_checksums( $slug, $data['Version'] ) : null;
+			if ( null === $sums ) {
+				++$cursor['unverified'];
+				$cursor = array_merge( $cursor, array( 'i' => $cursor['i'] + 1, 'offset' => 0, 'modified' => array() ) );
+				continue;
+			}
+
+			$dir   = SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $slug;
+			$paths = array_keys( $sums );
+			sort( $paths );
+			$done = 0;
+			while ( $cursor['offset'] < count( $paths ) ) {
+				if ( $done >= self::CHECKSUM_BATCH && $this->out_of_time() ) {
+					return array( 'continue' => true, 'cursor' => $cursor );
+				}
+				$rel  = $paths[ $cursor['offset'] ];
+				$full = $dir . '/' . $rel;
+				++$cursor['offset'];
+				++$done;
+				if ( ! is_file( $full ) ) {
+					continue; // Missing files are not a security concern.
+				}
+				$expected = (array) ( isset( $sums[ $rel ]['sha256'] ) ? $sums[ $rel ]['sha256'] : array() );
+				$actual   = hash_file( 'sha256', $full );
+				if ( $expected && ! in_array( $actual, $expected, true ) ) {
+					$cursor['modified'][] = $rel;
+				}
+			}
+
+			$this->report_plugin_checksums( $file, $slug, $data, $paths, $cursor['modified'], $dir );
+			++$cursor['verified'];
+			$cursor = array_merge( $cursor, array( 'i' => $cursor['i'] + 1, 'offset' => 0, 'modified' => array() ) );
+			if ( $this->out_of_time() && $cursor['i'] < count( $plugins ) ) {
+				return array( 'continue' => true, 'cursor' => $cursor );
+			}
+		}
+
+		if ( $cursor['unverified'] > 0 ) {
+			$this->note_partial(
+				sprintf(
+					/* translators: %d: number of plugins */
+					__( '%d plugin(s) not verified against WordPress.org checksums (not listed there, or no checksums for the installed version)', 'shieldscope-site-security-scanner' ),
+					$cursor['unverified']
+				)
+			);
+		}
+		return array( 'continue' => false, 'cursor' => array() );
+	}
+
+	/**
+	 * Findings for one verified plugin.
+	 *
+	 * @param string   $file     Plugin file.
+	 * @param string   $slug     Folder.
+	 * @param array    $data     Header data.
+	 * @param string[] $paths    Files in the official release.
+	 * @param string[] $modified Files that differ.
+	 * @param string   $dir      Plugin directory.
+	 * @return void
+	 */
+	private function report_plugin_checksums( $file, $slug, array $data, array $paths, array $modified, $dir ) {
+		$name = isset( $data['Name'] ) ? $data['Name'] : $slug;
+		$ctx  = array( 'plugin_name' => $name );
+
+		// Many differences: probably not the official release, report once.
+		if ( count( $modified ) > max( 10, (int) ( 0.25 * count( $paths ) ) ) ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				/* translators: %s: plugin name */
+				sprintf( __( 'Most files of %s differ from WordPress.org', 'shieldscope-site-security-scanner' ), $name ),
+				sprintf(
+					/* translators: 1: number of files, 2: plugin version */
+					__( '%1$d files differ from the WordPress.org release of version %2$s. The installed copy is probably not the official release (a different build or a modified copy), so individual files were not listed.', 'shieldscope-site-security-scanner' ),
+					count( $modified ),
+					$data['Version']
+				),
+				__( 'Reinstall the plugin from WordPress.org (Plugins → deactivate, delete, reinstall), or confirm where this copy came from.', 'shieldscope-site-security-scanner' ),
+				'plugin:' . $file,
+				$ctx
+			);
+			$modified = array();
+		}
+
+		foreach ( $modified as $rel ) {
+			$php = (bool) preg_match( '/\.(php|phtml|phar|inc)$/i', $rel );
+			$this->finding(
+				$php ? ShieldScope_Logger::SEVERITY_HIGH : ShieldScope_Logger::SEVERITY_LOW,
+				/* translators: %s: plugin name */
+				sprintf( __( 'Plugin file differs from the WordPress.org release: %s', 'shieldscope-site-security-scanner' ), $name ),
+				$php
+					? __( 'This PHP file is not identical to the same file in the official release of the installed version. Someone changed it after installation: a local edit, or injected code.', 'shieldscope-site-security-scanner' )
+					: __( 'This file is not identical to the same file in the official release of the installed version.', 'shieldscope-site-security-scanner' ),
+				__( 'Compare the file with the official release. If nobody on your team edited it, reinstall the plugin from WordPress.org and check the site for other changes.', 'shieldscope-site-security-scanner' ),
+				SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $slug . '/' . $rel,
+				$ctx
+			);
+		}
+
+		// PHP files that are not part of the release.
+		$known      = array_flip( $paths );
+		$unexpected = array_values(
+			array_filter(
+				self::php_files_under( $dir ),
+				static function ( $rel ) use ( $known ) {
+					return ! isset( $known[ $rel ] );
+				}
+			)
+		);
+		if ( count( $unexpected ) > 10 ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				/* translators: %s: plugin name */
+				sprintf( __( 'Review: many PHP files not in the WordPress.org release: %s', 'shieldscope-site-security-scanner' ), $name ),
+				sprintf(
+					/* translators: 1: number of files, 2: plugin version, 3: example paths */
+					__( '%1$d PHP files in this plugin folder are not part of the WordPress.org release of version %2$s, for example: %3$s. The installed copy is probably a different build (for example a development or premium version); individual files were not listed.', 'shieldscope-site-security-scanner' ),
+					count( $unexpected ),
+					$data['Version'],
+					implode( ', ', array_slice( $unexpected, 0, 5 ) )
+				),
+				__( 'Confirm where this copy came from, or reinstall the plugin from WordPress.org.', 'shieldscope-site-security-scanner' ),
+				'plugin:' . $file,
+				$ctx
+			);
+			$unexpected = array();
+		}
+		foreach ( $unexpected as $rel ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				/* translators: %s: plugin name */
+				sprintf( __( 'Review: PHP file not in the WordPress.org release: %s', 'shieldscope-site-security-scanner' ), $name ),
+				__( 'This PHP file is inside the plugin folder but is not part of the official release of the installed version. Some plugins write cache or configuration files; a file nobody recognises can be a planted backdoor.', 'shieldscope-site-security-scanner' ),
+				__( 'Find out what created the file. If it is not needed, remove it, or reinstall the plugin from WordPress.org.', 'shieldscope-site-security-scanner' ),
+				SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $slug . '/' . $rel,
+				$ctx
+			);
+		}
+	}
+
+	/**
+	 * PHP files under a directory, relative paths (symlinks not followed, capped).
+	 *
+	 * @param string $dir Directory.
+	 * @return string[]
+	 */
+	private static function php_files_under( $dir ) {
+		$out   = array();
+		$stack = array( '' );
+		while ( $stack && count( $out ) < 20000 ) {
+			$rel     = array_pop( $stack );
+			$entries = @scandir( $dir . ( '' === $rel ? '' : '/' . $rel ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			foreach ( (array) $entries as $entry ) {
+				if ( '.' === $entry || '..' === $entry ) {
+					continue;
+				}
+				$child = '' === $rel ? $entry : $rel . '/' . $entry;
+				$full  = $dir . '/' . $child;
+				if ( is_dir( $full ) ) {
+					if ( ! is_link( $full ) ) {
+						$stack[] = $child;
+					}
+				} elseif ( preg_match( '/\.(php|phtml|phar)$/i', $entry ) ) {
+					$out[] = $child;
+				}
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Checksums for a plugin version, cached for a day. Null when not available.
+	 *
+	 * @param string $slug    Slug.
+	 * @param string $version Version.
+	 * @return array|null relative path => { md5, sha256 }.
+	 */
+	private function plugin_checksums( $slug, $version ) {
+		$key    = 'shieldscope_psum_' . md5( $slug . '|' . $version );
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) ) {
+			return empty( $cached ) ? null : $cached;
+		}
+		$response = wp_remote_get( sprintf( self::CHECKSUMS_URL, rawurlencode( $slug ), rawurlencode( $version ) ), self::wporg_request_args( 15 ) );
+		if ( is_wp_error( $response ) ) {
+			set_transient( $key, array(), 15 * MINUTE_IN_SECONDS ); // Do not retry in every step (SC2-03).
+			return null;
+		}
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		if ( 404 === $code ) {
+			set_transient( $key, array(), DAY_IN_SECONDS ); // No checksums for this version.
+			return null;
+		}
+		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		if ( 200 !== $code || ! is_array( $body ) || empty( $body['files'] ) || ! is_array( $body['files'] ) ) {
+			return null;
+		}
+		$files = array();
+		foreach ( $body['files'] as $rel => $hashes ) {
+			if ( isset( $hashes['sha256'] ) ) {
+				$files[ (string) $rel ] = array( 'sha256' => $hashes['sha256'] );
+			}
+		}
+		set_transient( $key, $files, DAY_IN_SECONDS );
+		return $files;
 	}
 }
