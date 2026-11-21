@@ -81,6 +81,12 @@ class Test_S05_Report_Structure extends TestCase {
 		$this->assertStringNotContainsString( '>security_config<', $html );
 	}
 
+	public function test_filter_controls_render_with_findings() {
+		$html = $this->render( array( $this->row( 'low', 'Low A' ) ) );
+		$this->assertStringContainsString( 'id="shieldscope-filter-text"', $html );
+		$this->assertStringContainsString( 'id="shieldscope-filter-review"', $html );
+	}
+
 	public function test_description_html_is_escaped() {
 		$html = $this->render( array( $this->row( 'low', 'Low A' ) ) );
 		$this->assertStringNotContainsString( '<b>bold</b>', $html );

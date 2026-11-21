@@ -190,6 +190,8 @@ class ShieldScope_Admin {
 					'aborted'      => __( 'Scan aborted.', 'shieldscope-site-security-scanner' ),
 					'leaveWarn'    => __( 'A scan is running. If you leave, it stops until you come back to this page.', 'shieldscope-site-security-scanner' ),
 					'error'        => __( 'Could not reach the server. Trying again…', 'shieldscope-site-security-scanner' ),
+					/* translators: 1: findings shown, 2: all findings */
+					'filterCount'  => __( 'Showing %1$d of %2$d findings', 'shieldscope-site-security-scanner' ),
 					'confirmAbort' => __( 'Abort this scan? Its findings so far will be discarded.', 'shieldscope-site-security-scanner' ),
 					'gaveUp'       => __( 'Could not reach the server after several tries, so this page stopped sending scan steps. Reload the page to check the scan.', 'shieldscope-site-security-scanner' ),
 					'expired'      => __( 'Your session has expired. Reload the page (you may need to log in again); the scan keeps its place.', 'shieldscope-site-security-scanner' ),
