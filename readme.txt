@@ -179,14 +179,26 @@ It is designed to help site owners and developers find security risks on sites t
 == Changelog ==
 
 = 1.4.0 =
-* New: Download the report as a PDF, built on your server.
-* Changed: Code-pattern, injection and SSRF matches are reported as findings to review (mostly Low) instead of confirmed vulnerabilities; prepared database queries are no longer reported as SQL injection.
-* Changed: The scan no longer sends a failed login or a write request to your site; those access-control checks were removed.
+* New: Download the report as PDF, CSV or JSON. Paths are shown relative to the WordPress folder; CSV cells cannot run as spreadsheet formulas.
+* New: Background scanning. Close the scan page and the scan carries on through WP-Cron; an admin notice appears when it finishes. A stalled scan is reported.
+* New: Evidence on every code finding (file, line and a snippet) and a Confirmed or Needs review label on every finding. Findings that need review are never Critical.
+* New: Coverage. The report says which checks completed in full, partly (and why) or with an error, and lists the checks with no findings.
+* New: Ignore a finding with a reason (accepted risk, false positive, handled by host or CDN, other). Ignored items leave the counts but stay listed in the report and downloads.
+* New: History. The report compares each scan with the previous one: new, fixed and still open.
+* New: Report page with a one-line verdict, a "Fix first" list, findings by severity, a filter, and a "Method and limits" section.
+* New: Plugins closed on WordPress.org and plugins with no release for two years are reported, and plugin files are compared with the official WordPress.org release of the installed version.
+* New: PHP files in the WordPress root and wp-content, drop-ins and must-use plugins are listed; post content and options are checked for obfuscated JavaScript, hidden iframes and script tags.
+* New: Quick scan, per-check progress on the scan page, server-load presets, and WP-CLI commands (wp shieldscope scan / report) with an exit status for CI.
+* New: Login error messages and plugin REST routes that accept writes without a login are checked again, by reading settings and routes; the scan never logs in or writes.
+* Changed: Injection and SSRF code scans are off by default (Settings → Developer review); code-pattern matches are reported as findings to review; prepared database queries are no longer reported as SQL injection.
+* Changed: The scan pace no longer sleeps inside requests; the rest between steps happens between requests.
+* Changed: On multisite only super admins can use ShieldScope; it is also in the Network Admin menu.
+* Changed: The WPScan API key is never shown in the page and can be removed.
+* Changed: Plain wording across the plugin and listing: no "malware scanner" or CPU-limit claims, one privacy statement that lists every outbound request, menu item renamed to "Report", plugin name "ShieldScope – WordPress Security Audit".
 * Fixed: TLS checks, password-hash formats, "admin" user wording, wp-config.php and sensitive-file probes, end-of-life dates for PHP, MySQL and MariaDB, and the built-in vulnerability list (wrong CVE references removed).
+* Fixed: Five false positives in the code-pattern rules found by testing against WooCommerce, Yoast SEO, Elementor, Jetpack and other popular plugins.
 * Fixed: Pause and Abort now take effect reliably; a step that keeps failing is skipped and reported instead of retrying forever.
 * Fixed: The results table is created on network activation and WP-CLI activation, and the last report is no longer deleted after 30 days.
-* Changed: On multisite only super admins can use ShieldScope.
-* Changed: Plain wording across the plugin: no "malware scanner" or CPU-limit claims, one privacy statement that lists every outbound request, menu item renamed to "Report".
 * Correction: the 1.2.0 note below said PHP 8.2 reached end of life in December 2025. PHP 8.2 receives security fixes until 31 December 2026.
 
 = 1.3.2 =
@@ -231,7 +243,7 @@ It is designed to help site owners and developers find security risks on sites t
 == Upgrade Notice ==
 
 = 1.4.0 =
-Adds PDF download of the report and makes findings more accurate: code-pattern matches are labelled for review, and the scan no longer sends login or write requests to your site.
+Background scanning, PDF/CSV/JSON reports with evidence and coverage, ignore and history, WordPress.org plugin checks, and more accurate findings. The scan no longer sends login or write requests to your site.
 
 = 1.3.0 =
 Adds SSL/TLS certificate and encryption checks. Improves all recommendation text and redesigns the admin pages.
