@@ -82,6 +82,9 @@ foreach ( (array) $findings as $f ) {
 				?>
 			</p>
 		</div>
+	<?php endif; ?>
+	<?php if ( empty( $last_scan ) || ( empty( $findings ) && empty( $shieldscope_ignored ) ) ) : ?>
+		<?php ShieldScope_Admin::render_help_box(); ?>
 	<?php else : ?>
 		<?php if ( ShieldScope_Logger::save_failed( $last_scan ) ) : ?>
 			<div class="notice notice-error">

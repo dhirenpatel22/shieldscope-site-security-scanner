@@ -120,21 +120,22 @@ class ShieldScope_Admin {
 	 * @return void
 	 */
 	public static function render_help_box() {
+		$help = self::help_content();
 		?>
 		<div class="shieldscope-card shieldscope-help-box">
 			<span class="shieldscope-help-icon" aria-hidden="true"><span class="dashicons dashicons-shield-alt"></span></span>
 			<div class="shieldscope-help-body">
-				<h2><?php esc_html_e( 'Need a deeper review, or help fixing what ShieldScope found?', 'shieldscope-site-security-scanner' ); ?></h2>
-				<p><?php esc_html_e( 'ShieldScope checks the most common security problems automatically. For anything beyond that, you can contact me, Dhiren Patel, the developer of ShieldScope.', 'shieldscope-site-security-scanner' ); ?></p>
+				<h2><?php echo esc_html( $help['heading'] ); ?></h2>
+				<p><?php echo esc_html( $help['text'] ); ?></p>
 				<ul class="shieldscope-help-points">
-					<li><span class="dashicons dashicons-yes" aria-hidden="true"></span><?php esc_html_e( 'A detailed audit of your site', 'shieldscope-site-security-scanner' ); ?></li>
-					<li><span class="dashicons dashicons-yes" aria-hidden="true"></span><?php esc_html_e( 'Fixes for the issues ShieldScope found', 'shieldscope-site-security-scanner' ); ?></li>
-					<li><span class="dashicons dashicons-yes" aria-hidden="true"></span><?php esc_html_e( 'Advice on keeping the site secure', 'shieldscope-site-security-scanner' ); ?></li>
+					<?php foreach ( $help['points'] as $shieldscope_point ) : ?>
+						<li><span class="dashicons dashicons-yes" aria-hidden="true"></span><?php echo esc_html( $shieldscope_point ); ?></li>
+					<?php endforeach; ?>
 				</ul>
 			</div>
 			<div class="shieldscope-help-action">
 				<a class="button button-primary shieldscope-help-button" href="<?php echo esc_url( self::HELP_URL ); ?>" target="_blank" rel="noopener noreferrer">
-					<?php esc_html_e( 'Contact the developer', 'shieldscope-site-security-scanner' ); ?>
+					<?php echo esc_html( $help['button'] ); ?>
 					<span class="dashicons dashicons-external" aria-hidden="true"></span>
 					<span class="screen-reader-text"><?php esc_html_e( '(opens in a new tab)', 'shieldscope-site-security-scanner' ); ?></span>
 				</a>
@@ -145,8 +146,27 @@ class ShieldScope_Admin {
 	}
 
 	/**
-	 * Show the developer's contact link in downloaded reports (PDF footer,
-	 * last CSV row, JSON "help")? On by default; Settings → Downloaded reports.
+	 * Text of the developer help section, shared by the plugin screens and
+	 * the last section of the PDF report.
+	 *
+	 * @return array{heading:string,text:string,points:string[],button:string}
+	 */
+	public static function help_content() {
+		return array(
+			'heading' => __( 'Need a deeper review, or help fixing what ShieldScope found?', 'shieldscope-site-security-scanner' ),
+			'text'    => __( 'ShieldScope checks the most common security problems automatically. For anything beyond that, you can contact me, Dhiren Patel, the developer of ShieldScope.', 'shieldscope-site-security-scanner' ),
+			'points'  => array(
+				__( 'A detailed audit of your site', 'shieldscope-site-security-scanner' ),
+				__( 'Fixes for the issues ShieldScope found', 'shieldscope-site-security-scanner' ),
+				__( 'Advice on keeping the site secure', 'shieldscope-site-security-scanner' ),
+			),
+			'button'  => __( 'Contact the developer', 'shieldscope-site-security-scanner' ),
+		);
+	}
+
+	/**
+	 * Show the developer's contact link in downloaded reports (PDF footer and
+	 * last section, last CSV row, JSON "help")? On by default; Settings → Downloaded reports.
 	 *
 	 * @return bool
 	 */
