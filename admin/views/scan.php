@@ -114,6 +114,8 @@ defined( 'ABSPATH' ) || exit;
 			</ol>
 		</div>
 
+		<?php ShieldScope_Admin::render_help_box(); ?>
+
 		<div class="shieldscope-card shieldscope-summary shieldscope-hidden" id="shieldscope-summary">
 			<h2><?php esc_html_e( 'Live findings', 'shieldscope-site-security-scanner' ); ?></h2>
 			<ul class="shieldscope-summary-grid">

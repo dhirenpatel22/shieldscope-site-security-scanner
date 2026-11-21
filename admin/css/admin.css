@@ -755,3 +755,16 @@ details.shieldscope-faq-item[open] > summary .shieldscope-faq-chevron {
 /* Report filter (S-09) */
 .shieldscope-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 16px 0; }
 .shieldscope-filter label[for] { font-weight: 600; }
+
+/* ── Developer help box (Scan, Report and Settings screens) ───────────────── */
+.shieldscope-help-box {
+	border-left: 4px solid #2271b1;
+}
+
+.shieldscope-help-box h2 {
+	font-size: 1.1em;
+}
+
+.shieldscope-help-box p:last-child {
+	margin-bottom: 0;
+}

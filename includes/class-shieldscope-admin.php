@@ -106,6 +106,46 @@ class ShieldScope_Admin {
 	}
 
 	/**
+	 * The developer's contact page, linked from the plugin screens and
+	 * (optionally) the PDF footer. A plain link: nothing is loaded from or
+	 * sent to it unless the user clicks, and no referral tracking (WordPress.org
+	 * plugin guidelines 7 and 11).
+	 */
+	const HELP_URL = 'https://www.dhirenpatel.me/contact/';
+
+	/**
+	 * The box offering the developer's help, shown on ShieldScope's
+	 * own screens only (Scan, Report, Settings), never elsewhere in wp-admin.
+	 *
+	 * @return void
+	 */
+	public static function render_help_box() {
+		?>
+		<div class="shieldscope-card shieldscope-help-box">
+			<h2><?php esc_html_e( 'Need a deeper review, or help fixing what ShieldScope found?', 'shieldscope-site-security-scanner' ); ?></h2>
+			<p><?php esc_html_e( 'ShieldScope checks the most common security problems automatically. If you want a more detailed audit of your site, or someone to fix the issues it found, you can contact me, Dhiren Patel, the developer of ShieldScope.', 'shieldscope-site-security-scanner' ); ?></p>
+			<p>
+				<a class="button" href="<?php echo esc_url( self::HELP_URL ); ?>" target="_blank" rel="noopener noreferrer">
+					<?php esc_html_e( 'Contact the developer', 'shieldscope-site-security-scanner' ); ?>
+					<span class="screen-reader-text"><?php esc_html_e( '(opens in a new tab)', 'shieldscope-site-security-scanner' ); ?></span>
+				</a>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Show the developer's contact link in the PDF footer? On by default;
+	 * Settings → PDF report.
+	 *
+	 * @return bool
+	 */
+	public static function pdf_help_link() {
+		$settings = (array) get_option( 'shieldscope_settings', array() );
+		return ! isset( $settings['pdf_help_link'] ) || ! empty( $settings['pdf_help_link'] );
+	}
+
+	/**
 	 * The one statement of what ShieldScope writes, used in every screen.
 	 *
 	 * @return string
@@ -345,6 +385,7 @@ class ShieldScope_Admin {
 				'pause_on_blur'      => 0,
 				'background_scan'    => 1,
 				'developer_review'   => 0,
+				'pdf_help_link'     => 1,
 			)
 		);
 		include SHIELDSCOPE_PLUGIN_DIR . 'admin/views/settings.php';
@@ -424,6 +465,7 @@ class ShieldScope_Admin {
 			'pause_on_blur'      => ! empty( $raw['pause_on_blur'] ) ? 1 : 0,
 			'background_scan'    => ! empty( $raw['background_scan'] ) ? 1 : 0,
 			'developer_review'   => ! empty( $raw['developer_review'] ) ? 1 : 0,
+			'pdf_help_link'     => ! empty( $raw['pdf_help_link'] ) ? 1 : 0,
 			'wpscan_api_key'     => $wpscan_key,
 		);
 		update_option( 'shieldscope_settings', $clean );
