@@ -111,6 +111,24 @@ class Test_S22_Plugin_Checksums extends TestCase {
 		$this->assertStringStartsWith( '2 plugin(s) not verified', $notes[0] );
 	}
 
+	public function test_many_unexpected_php_files_are_reported_once() {
+		for ( $i = 0; $i < 15; $i++ ) {
+			file_put_contents( SHIELDSCOPE_WP_PLUGINS_DIR . "/good/inc/extra$i.php", "<?php\n" );
+		}
+		list( $findings ) = $this->run_step();
+		$titles = array_column( $findings, 'title' );
+		$this->assertContains( 'Review: many PHP files not in the WordPress.org release: Good', $titles );
+		$this->assertNotContains( 'Review: PHP file not in the WordPress.org release: Good', $titles );
+	}
+
+	public function test_own_folder_is_skipped() {
+		$self = basename( rtrim( SHIELDSCOPE_PLUGIN_DIR, '/' ) );
+		$GLOBALS['ss_test_plugins'] = array( "$self/x.php" => array( 'Name' => 'Self', 'Version' => '1.0' ) );
+		list( $findings, $notes ) = $this->run_step();
+		$this->assertSame( array(), $findings );
+		$this->assertSame( array(), $notes );
+	}
+
 	public function test_privacy_statement_names_downloads_host() {
 		$this->assertStringContainsString( 'downloads.wordpress.org', ShieldScope_Admin::privacy_statement() );
 	}

@@ -204,8 +204,21 @@ function shieldscope_smoke_scan( array &$result ) {
 	$result['bg_runs']    = $bg_runs;
 	$result['bg_elapsed'] = round( microtime( true ) - $bg_started, 1 );
 
+	// Quick scan (S-11).
+	$q_started         = microtime( true );
+	$q_state           = $scanner->start( true );
+	while ( ShieldScope_Scanner::STATUS_RUNNING === $q_state['status'] && ( microtime( true ) - $q_started ) < $cap ) {
+		$q_state = $scanner->run_chunk( false );
+	}
+	$q_cov             = ShieldScope_Coverage::get( $q_state['scan_id'] );
+	$result['quick']   = array(
+		'status'  => $q_state['status'],
+		'secs'    => round( microtime( true ) - $q_started, 1 ),
+		'skipped' => null === $q_cov ? 0 : substr_count( wp_json_encode( $q_cov ), 'skipped in a quick scan' ),
+	);
+
 	// History and comparison (S-08): the background scan follows the first one.
 	$result['history'] = count( ShieldScope_History::all() );
-	$cmp               = ShieldScope_History::compare_with_previous( $bg_state['scan_id'], $logger->get_findings( $bg_state['scan_id'] ) );
+	$cmp               = ShieldScope_History::compare_with_previous( $q_state['scan_id'], $logger->get_findings( $q_state['scan_id'] ) );
 	$result['compare'] = null === $cmp ? null : array( 'new' => count( $cmp['new'] ), 'fixed' => count( $cmp['fixed'] ), 'open' => $cmp['open'] );
 }

@@ -40,6 +40,15 @@ class ShieldScope_Check_Filesystem extends ShieldScope_Check_Base {
 	 *
 	 * @return array
 	 */
+	/**
+	 * Steps a quick scan skips.
+	 *
+	 * @return string[]
+	 */
+	public function get_slow_steps() {
+		return array( 'uploads_php', 'backup_files' );
+	}
+
 	public function get_steps() {
 		return array( 'wp_config_perms', 'key_perms', 'readme', 'uploads_php', 'backup_files', 'directory_listing', 'directory_listing_all', 'wp_config_http', 'sensitive_urls' );
 	}

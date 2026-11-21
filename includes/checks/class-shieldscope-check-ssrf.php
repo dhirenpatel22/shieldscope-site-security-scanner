@@ -48,6 +48,15 @@ class ShieldScope_Check_SSRF extends ShieldScope_Check_Base {
 		return __( 'Server-Side Request Forgery (SSRF)', 'shieldscope-site-security-scanner' );
 	}
 
+	/**
+	 * Steps a quick scan skips.
+	 *
+	 * @return string[]
+	 */
+	public function get_slow_steps() {
+		return array( 'scan_plugins', 'scan_themes' );
+	}
+
 	/** @return array */
 	public function get_steps() {
 		return array( 'scan_plugins', 'scan_themes', 'wp_features' );

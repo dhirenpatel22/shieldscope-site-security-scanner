@@ -73,6 +73,15 @@ class ShieldScope_Check_Code_Patterns extends ShieldScope_Check_Base {
 	 *
 	 * @return array
 	 */
+	/**
+	 * Steps a quick scan skips.
+	 *
+	 * @return string[]
+	 */
+	public function get_slow_steps() {
+		return array( 'scan_plugins', 'scan_themes' );
+	}
+
 	public function get_steps() {
 		return array( 'scan_plugins', 'scan_themes' );
 	}

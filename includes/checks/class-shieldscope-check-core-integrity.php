@@ -89,6 +89,15 @@ class ShieldScope_Check_Core_Integrity extends ShieldScope_Check_Base {
 	 *
 	 * @return array
 	 */
+	/**
+	 * Steps a quick scan skips.
+	 *
+	 * @return string[]
+	 */
+	public function get_slow_steps() {
+		return array( 'verify', 'extras' );
+	}
+
 	public function get_steps() {
 		return array( 'fetch', 'verify', 'extras', 'persistence' );
 	}

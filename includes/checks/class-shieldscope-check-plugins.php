@@ -35,6 +35,15 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 	 *
 	 * @return array
 	 */
+	/**
+	 * Steps a quick scan skips.
+	 *
+	 * @return string[]
+	 */
+	public function get_slow_steps() {
+		return array( 'abandoned', 'checksums' );
+	}
+
 	public function get_steps() {
 		return array( 'updates', 'inactive', 'unknown_source', 'abandoned', 'checksums' );
 	}
@@ -375,6 +384,12 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 		while ( $cursor['i'] < count( $plugins ) ) {
 			list( $file, $slug, $data ) = $plugins[ $cursor['i'] ];
 
+			// ShieldScope does not audit its own folder (as the file walkers).
+			if ( defined( 'SHIELDSCOPE_PLUGIN_DIR' ) && basename( rtrim( SHIELDSCOPE_PLUGIN_DIR, '/\\' ) ) === $slug ) {
+				$cursor = array_merge( $cursor, array( 'i' => $cursor['i'] + 1, 'offset' => 0, 'modified' => array() ) );
+				continue;
+			}
+
 			$info = $this->wporg_info( $slug );
 			$sums = ( is_array( $info ) && ! empty( $info['last_updated'] ) ) ? $this->plugin_checksums( $slug, $data['Version'] ) : null;
 			if ( null === $sums ) {
@@ -475,19 +490,43 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 		}
 
 		// PHP files that are not part of the release.
-		$known = array_flip( $paths );
-		foreach ( self::php_files_under( $dir ) as $rel ) {
-			if ( ! isset( $known[ $rel ] ) ) {
-				$this->finding(
-					ShieldScope_Logger::SEVERITY_MEDIUM,
-					/* translators: %s: plugin name */
-					sprintf( __( 'Review: PHP file not in the WordPress.org release: %s', 'shieldscope-site-security-scanner' ), $name ),
-					__( 'This PHP file is inside the plugin folder but is not part of the official release of the installed version. Some plugins write cache or configuration files; a file nobody recognises can be a planted backdoor.', 'shieldscope-site-security-scanner' ),
-					__( 'Find out what created the file. If it is not needed, remove it, or reinstall the plugin from WordPress.org.', 'shieldscope-site-security-scanner' ),
-					SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $slug . '/' . $rel,
-					$ctx
-				);
-			}
+		$known      = array_flip( $paths );
+		$unexpected = array_values(
+			array_filter(
+				self::php_files_under( $dir ),
+				static function ( $rel ) use ( $known ) {
+					return ! isset( $known[ $rel ] );
+				}
+			)
+		);
+		if ( count( $unexpected ) > 10 ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				/* translators: %s: plugin name */
+				sprintf( __( 'Review: many PHP files not in the WordPress.org release: %s', 'shieldscope-site-security-scanner' ), $name ),
+				sprintf(
+					/* translators: 1: number of files, 2: plugin version, 3: example paths */
+					__( '%1$d PHP files in this plugin folder are not part of the WordPress.org release of version %2$s, for example: %3$s. The installed copy is probably a different build (for example a development or premium version); individual files were not listed.', 'shieldscope-site-security-scanner' ),
+					count( $unexpected ),
+					$data['Version'],
+					implode( ', ', array_slice( $unexpected, 0, 5 ) )
+				),
+				__( 'Confirm where this copy came from, or reinstall the plugin from WordPress.org.', 'shieldscope-site-security-scanner' ),
+				'plugin:' . $file,
+				$ctx
+			);
+			$unexpected = array();
+		}
+		foreach ( $unexpected as $rel ) {
+			$this->finding(
+				ShieldScope_Logger::SEVERITY_MEDIUM,
+				/* translators: %s: plugin name */
+				sprintf( __( 'Review: PHP file not in the WordPress.org release: %s', 'shieldscope-site-security-scanner' ), $name ),
+				__( 'This PHP file is inside the plugin folder but is not part of the official release of the installed version. Some plugins write cache or configuration files; a file nobody recognises can be a planted backdoor.', 'shieldscope-site-security-scanner' ),
+				__( 'Find out what created the file. If it is not needed, remove it, or reinstall the plugin from WordPress.org.', 'shieldscope-site-security-scanner' ),
+				SHIELDSCOPE_WP_PLUGINS_DIR . '/' . $slug . '/' . $rel,
+				$ctx
+			);
 		}
 	}
 

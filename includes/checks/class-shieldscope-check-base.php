@@ -142,6 +142,16 @@ abstract class ShieldScope_Check_Base {
 	}
 
 	/**
+	 * Steps that read many files or make many requests; a quick scan
+	 * skips them (S-11).
+	 *
+	 * @return string[]
+	 */
+	public function get_slow_steps() {
+		return array();
+	}
+
+	/**
 	 * Set the time budget for the next step.
 	 *
 	 * @param float $deadline microtime() at which work should stop; 0 for none.

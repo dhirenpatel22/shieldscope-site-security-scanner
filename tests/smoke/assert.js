@@ -57,12 +57,15 @@ if ( scan && scan.bg_status !== 'completed' ) {
 if ( scan && ( scan.history < 2 || ! scan.compare ) ) {
 	problems.push( 'history: expected 2 scans and a comparison, got ' + scan.history + ' / ' + JSON.stringify( scan.compare ) );
 }
+if ( scan && ( ! scan.quick || scan.quick.status !== 'completed' || scan.quick.skipped < 5 ) ) {
+	problems.push( 'quick: ' + JSON.stringify( scan.quick ) );
+}
 if ( scan && scan.pdf_ok !== true ) {
 	problems.push( 'pdf: not produced' + ( scan.pdf_unavailable ? ' (' + scan.pdf_unavailable + ')' : '' ) );
 }
 
 const facts = scan
-	? `php=${ scan.php } wp=${ scan.wp } status=${ scan.status } elapsed=${ scan.elapsed }s ticks=${ scan.ticks } steps=${ scan.steps } findings=${ JSON.stringify( scan.summary ) } pdf=${ scan.pdf_bytes || 0 }B/${ scan.pdf_secs || 0 }s coverage="${ scan.coverage }" background=${ scan.bg_status }/${ scan.bg_runs } cron runs/${ scan.bg_elapsed }s compare=${ JSON.stringify( scan.compare ) }`
+	? `php=${ scan.php } wp=${ scan.wp } status=${ scan.status } elapsed=${ scan.elapsed }s ticks=${ scan.ticks } steps=${ scan.steps } findings=${ JSON.stringify( scan.summary ) } pdf=${ scan.pdf_bytes || 0 }B/${ scan.pdf_secs || 0 }s coverage="${ scan.coverage }" background=${ scan.bg_status }/${ scan.bg_runs } cron runs/${ scan.bg_elapsed }s compare=${ JSON.stringify( scan.compare ) } quick=${ JSON.stringify( scan.quick ) }`
 	: 'no scan result';
 
 if ( problems.length ) {

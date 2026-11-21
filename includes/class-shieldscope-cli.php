@@ -48,6 +48,9 @@ class ShieldScope_CLI {
 	 *   - none
 	 * ---
 	 *
+	 * [--quick]
+	 * : Skip the steps that read every file or make many requests.
+	 *
 	 * [--timeout=<seconds>]
 	 * : Give up after this many seconds.
 	 * ---
@@ -71,7 +74,7 @@ class ShieldScope_CLI {
 			WP_CLI::error( 'A scan is already running or paused. Abort it in the admin first.' );
 		}
 
-		$state   = $scanner->start();
+		$state   = $scanner->start( ! empty( $assoc_args['quick'] ) );
 		$started = microtime( true );
 		WP_CLI::log( 'Scanning (' . $state['total_steps'] . ' steps)…' );
 		while ( ShieldScope_Scanner::STATUS_RUNNING === $state['status'] && ( microtime( true ) - $started ) < $timeout ) {
