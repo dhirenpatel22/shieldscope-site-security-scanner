@@ -102,7 +102,13 @@ class ShieldScope_Admin {
 	 * @return string
 	 */
 	public static function method_statement() {
-		return __( 'ShieldScope checks WordPress configuration, versions, users, file permissions, server settings and plugin and theme code from inside the site. Findings labelled "Needs review" are pattern matches or heuristics that a person must confirm by reading the code; they are not confirmed vulnerabilities. Known-vulnerability results depend on the data source used (a limited built-in list, or WPScan with an API key). It does not test the site from outside like an attacker, does not compare files with a database of known malicious code, and does not monitor the site between scans. A report with no findings does not mean the site is secure.', 'shieldscope-site-security-scanner' );
+		$sources = ShieldScope_Check_Vuln_DB::wpv_enabled()
+			? __( 'Known vulnerabilities are looked up on WPVulnerability for WordPress and the plugins and themes listed on WordPress.org; when a lookup fails, plugins are compared with a limited built-in list (and WPScan, with an API key).', 'shieldscope-site-security-scanner' ) . ' ' . ShieldScope_Check_Vuln_DB::wpv_credit()
+			: __( 'Known-vulnerability results come from a limited built-in list, or WPScan with an API key (WPVulnerability lookups are off in Settings).', 'shieldscope-site-security-scanner' );
+
+		return __( 'ShieldScope checks WordPress configuration, versions, users, file permissions, server settings and plugin and theme code from inside the site. Findings labelled "Needs review" are pattern matches or heuristics that a person must confirm by reading the code; they are not confirmed vulnerabilities.', 'shieldscope-site-security-scanner' )
+			. ' ' . $sources . ' '
+			. __( 'It does not test the site from outside like an attacker, does not compare files with a database of known malicious code, and does not monitor the site between scans. A report with no findings does not mean the site is secure.', 'shieldscope-site-security-scanner' );
 	}
 
 	/**
