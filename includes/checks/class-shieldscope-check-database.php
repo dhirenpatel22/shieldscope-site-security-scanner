@@ -151,7 +151,7 @@ class ShieldScope_Check_Database extends ShieldScope_Check_Base {
 	/**
 	 * Post types that hold cached or temporary copies, not site content.
 	 */
-	const CONTENT_SKIP_TYPES = "'revision','attachment','nav_menu_item','oembed_cache','customize_changeset'";
+	const CONTENT_SKIP_TYPES = array( 'revision', 'attachment', 'nav_menu_item', 'oembed_cache', 'customize_changeset' );
 
 	/**
 	 * Content rules, worst first: key => array( severity, title ).
@@ -245,8 +245,21 @@ class ShieldScope_Check_Database extends ShieldScope_Check_Base {
 				continue;
 			}
 
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- read-only scan; CONTENT_SKIP_TYPES is a constant.
-			$posts = $wpdb->get_results( $wpdb->prepare( "SELECT ID, post_type, post_content FROM {$wpdb->posts} WHERE ID > %d AND post_type NOT IN (" . self::CONTENT_SKIP_TYPES . ') ORDER BY ID ASC LIMIT %d', (int) $cursor['after'], self::CONTENT_BATCH ), ARRAY_A );
+			$skip_types = self::CONTENT_SKIP_TYPES;
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only scan of stored content.
+			$posts = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT ID, post_type, post_content FROM {$wpdb->posts} WHERE ID > %d AND post_type NOT IN (%s, %s, %s, %s, %s) ORDER BY ID ASC LIMIT %d",
+					(int) $cursor['after'],
+					$skip_types[0],
+					$skip_types[1],
+					$skip_types[2],
+					$skip_types[3],
+					$skip_types[4],
+					self::CONTENT_BATCH
+				),
+				ARRAY_A
+			);
 			foreach ( (array) $posts as $post ) {
 				$cursor['after'] = (int) $post['ID'];
 				$this->report_content_match(

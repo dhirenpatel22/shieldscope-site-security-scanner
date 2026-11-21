@@ -169,7 +169,7 @@ class ShieldScope_Ignore {
 
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- nonce checked above.
 		$do  = isset( $_POST['do'] ) ? sanitize_key( wp_unslash( $_POST['do'] ) ) : '';
-		$fp  = isset( $_POST['fp'] ) ? preg_replace( '/[^a-f0-9]/', '', (string) wp_unslash( $_POST['fp'] ) ) : '';
+		$fp  = isset( $_POST['fp'] ) ? preg_replace( '/[^a-f0-9]/', '', sanitize_key( wp_unslash( $_POST['fp'] ) ) ) : '';
 		$msg = '';
 		if ( 'restore' === $do ) {
 			self::restore( $fp );

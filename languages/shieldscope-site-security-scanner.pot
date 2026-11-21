@@ -4,10 +4,10 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: ShieldScope 1.3.2\n"
+"Project-Id-Version: ShieldScope 2.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/shieldscope-site-"
 "security-scanner/\n"
-"POT-Creation-Date: 2026-11-21 13:54+0530\n"
+"POT-Creation-Date: 2026-11-21 17:21+0530\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2483,48 +2483,48 @@ msgid "This option"
 msgstr ""
 
 #. translators: 1: post type, 2: post ID
-#: includes/checks/class-shieldscope-check-database.php:256
+#: includes/checks/class-shieldscope-check-database.php:269
 #, php-format
 msgid "This %1$s (ID %2$d)"
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-database.php:296
+#: includes/checks/class-shieldscope-check-database.php:309
 msgid ""
 "contains a <script> tag. Page builders, analytics and embeds add scripts "
 "legitimately; injected spam and redirect code also hides here."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-database.php:297
+#: includes/checks/class-shieldscope-check-database.php:310
 msgid ""
 "contains code that is typical of injected spam or redirects. Legitimate "
 "content rarely needs it."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-database.php:298
+#: includes/checks/class-shieldscope-check-database.php:311
 msgid "This is a pattern match, not a confirmed infection."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-database.php:299
+#: includes/checks/class-shieldscope-check-database.php:312
 msgid ""
 "Open the item in the editor (or the options table) and check the code. If "
 "nobody added it, remove it and change administrator passwords."
 msgstr ""
 
 #. translators: %s: rule title
-#: includes/checks/class-shieldscope-check-database.php:325
+#: includes/checks/class-shieldscope-check-database.php:338
 #, php-format
 msgid "More items matched: %s"
 msgstr ""
 
 #. translators: 1: items matched, 2: items listed
-#: includes/checks/class-shieldscope-check-database.php:328
+#: includes/checks/class-shieldscope-check-database.php:341
 #, php-format
 msgid ""
 "%1$d items matched this rule; the first %2$d are listed. Embeds and page "
 "builders can produce many matches."
 msgstr ""
 
-#: includes/checks/class-shieldscope-check-database.php:332
+#: includes/checks/class-shieldscope-check-database.php:345
 msgid ""
 "Review the listed items first; if they are all legitimate, the rest are "
 "likely the same kind of content."
