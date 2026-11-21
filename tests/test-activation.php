@@ -99,11 +99,11 @@ class Test_Activation extends TestCase {
 		ShieldScope_Core::on_activate();
 
 		$this->assertSame( array( 'wp_shieldscope_findings' ), $this->created_tables() );
-		$this->assertSame( '1.3.2', get_option( 'shieldscope_version' ) );
+		$this->assertSame( SHIELDSCOPE_VERSION, get_option( 'shieldscope_version' ) );
 	}
 
 	public function test_maybe_upgrade_skips_when_version_current_and_table_present() {
-		update_option( 'shieldscope_version', '1.3.2' );
+		update_option( 'shieldscope_version', SHIELDSCOPE_VERSION );
 		$this->wpdb->tables = array( 'wp_shieldscope_findings' );
 
 		ShieldScope_Core::instance()->maybe_upgrade();
@@ -118,11 +118,11 @@ class Test_Activation extends TestCase {
 		ShieldScope_Core::instance()->maybe_upgrade();
 
 		$this->assertSame( array( 'wp_shieldscope_findings' ), $this->created_tables() );
-		$this->assertSame( '1.3.2', get_option( 'shieldscope_version' ) );
+		$this->assertSame( SHIELDSCOPE_VERSION, get_option( 'shieldscope_version' ) );
 	}
 
 	public function test_maybe_upgrade_creates_table_when_missing_even_if_version_current() {
-		update_option( 'shieldscope_version', '1.3.2' );
+		update_option( 'shieldscope_version', SHIELDSCOPE_VERSION );
 
 		ShieldScope_Core::instance()->maybe_upgrade();
 
@@ -131,7 +131,7 @@ class Test_Activation extends TestCase {
 
 	public function test_maybe_upgrade_creates_table_for_the_current_sub_site() {
 		// Network activation: sub-site 2 has the version option but never got its own table.
-		update_option( 'shieldscope_version', '1.3.2' );
+		update_option( 'shieldscope_version', SHIELDSCOPE_VERSION );
 		$this->wpdb->prefix = 'wp_2_';
 		$this->wpdb->tables = array( 'wp_shieldscope_findings' );
 
