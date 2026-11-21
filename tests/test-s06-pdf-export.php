@@ -195,4 +195,17 @@ class Test_S06_PDF_Export extends TestCase {
 		$this->expectExceptionMessage( 'There is no completed scan to export' );
 		ShieldScope_PDF_Report::handle();
 	}
+
+	public function test_pdf_ends_with_the_developer_help_section() {
+		$html = ShieldScope_PDF_Report::build_html( $this->report( array( $this->finding( 'info', 'Info' ) ) ) );
+		$this->assertStringContainsString( 'Need a deeper review, or help fixing what ShieldScope found?', $html );
+		$this->assertStringContainsString( 'href="https://www.dhirenpatel.me/contact/"', $html );
+		$this->assertGreaterThan( strpos( $html, 'Method and limits' ), strpos( $html, 'class="help"' ), 'last section' );
+	}
+
+	public function test_pdf_help_section_follows_the_downloads_setting() {
+		update_option( 'shieldscope_settings', array( 'report_help_link' => 0 ) );
+		$html = ShieldScope_PDF_Report::build_html( $this->report( array( $this->finding( 'info', 'Info' ) ) ) );
+		$this->assertStringNotContainsString( 'class="help"', $html );
+	}
 }

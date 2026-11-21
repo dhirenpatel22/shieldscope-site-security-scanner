@@ -386,6 +386,23 @@ class ShieldScope_PDF_Report {
 		}
 		$html .= '<p class="small">' . $e( __( 'File paths are shown relative to the WordPress root folder.', 'shieldscope-site-security-scanner' ) ) . '</p>';
 
+		// Last section: the developer help box (Settings → Downloaded reports).
+		if ( ShieldScope_Admin::report_help_link() ) {
+			$help   = ShieldScope_Admin::help_content();
+			$points = '';
+			foreach ( $help['points'] as $point ) {
+				$points .= '<li>' . $e( $point ) . '</li>';
+			}
+			$html .= '<div class="help"><table><tr><td class="help-body">'
+				. '<div class="help-title">' . $e( $help['heading'] ) . '</div>'
+				. '<p>' . $e( $help['text'] ) . '</p>'
+				. '<ul class="help-points">' . $points . '</ul>'
+				. '</td><td class="help-action">'
+				. '<a class="help-button" href="' . $e( ShieldScope_Admin::HELP_URL ) . '">' . $e( $help['button'] ) . '</a>'
+				. '<div class="help-url">' . $e( ShieldScope_Admin::HELP_URL ) . '</div>'
+				. '</td></tr></table></div>';
+		}
+
 		$html .= '</body></html>';
 		return $html;
 	}
@@ -426,6 +443,16 @@ class ShieldScope_PDF_Report {
 			. '.small{font-size:8.5px;color:#50575e}'
 			. '.cov{margin:2px 0 8px}'
 			. 'table.checks{width:100%;border-collapse:collapse;font-size:8.5px}'
+			. '.help{margin-top:22px;border:1px solid #c5d9ed;border-left:4px solid #2271b1;background:#f0f6fc;padding:12px 14px;page-break-inside:avoid}'
+			. '.help table{width:100%;border-collapse:collapse}'
+			. '.help td{vertical-align:middle;padding:0}'
+			. '.help-title{font-size:14px;font-weight:bold;color:#1a3a5c;margin-bottom:4px}'
+			. '.help p{margin:0 0 6px;color:#3c434a}'
+			. 'ul.help-points{margin:0 0 0 14px;padding:0}'
+			. 'ul.help-points li{margin:1px 0;font-weight:bold}'
+			. 'td.help-action{width:175px;text-align:center;padding-left:14px}'
+			. 'a.help-button{display:block;white-space:nowrap;background:#2271b1;color:#fff;text-decoration:none;font-weight:bold;font-size:11px;padding:9px 8px;border-radius:3px}'
+			. '.help-url{font-size:7.5px;color:#50575e;margin-top:4px}'
 			. 'table.checks td{border-bottom:1px solid #f0f0f1;padding:2px 4px;vertical-align:top}'
 			. '.st-partial{color:#6b4d00}.st-error,.st-not_run{color:#8a1a1a}'
 			. '.conf{font-size:7.5px;font-weight:bold;border:1px solid #c3c4c7;padding:0 3px;color:#50575e}'
