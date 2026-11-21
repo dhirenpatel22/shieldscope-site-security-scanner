@@ -121,6 +121,20 @@ abstract class ShieldScope_Check_Base {
 	}
 
 	/**
+	 * Arguments for requests to WordPress.org. The user-agent replaces
+	 * WordPress's default, which includes the site's home URL (IM2-06).
+	 *
+	 * @param int $timeout Seconds.
+	 * @return array
+	 */
+	public static function wporg_request_args( $timeout ) {
+		return array(
+			'timeout'    => (int) $timeout,
+			'user-agent' => 'ShieldScope/' . ( defined( 'SHIELDSCOPE_VERSION' ) ? SHIELDSCOPE_VERSION : '0' ),
+		);
+	}
+
+	/**
 	 * Is the optional "Developer review" mode on? It enables the injection
 	 * and SSRF code-pattern scans, which only produce findings to review.
 	 *

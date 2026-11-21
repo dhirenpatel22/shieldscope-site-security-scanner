@@ -192,10 +192,13 @@ class ShieldScope_Check_SSRF extends ShieldScope_Check_Base {
 	 * @return void
 	 */
 	private function check_wp_ssrf_features() {
-		// oEmbed proxy endpoint — unauthenticated server-side HTTP fetcher.
+		// oEmbed proxy endpoint. The URL asked for is the site's own home page,
+		// so an open proxy does not contact any third party (IM2-06). Core
+		// answers 401/403 to a logged-out request; 200, or 404 with
+		// oembed_invalid_url, means the request was allowed.
 		$proxy_url = add_query_arg(
 			array(
-				'url'    => 'https://example.com/',
+				'url'    => rawurlencode( home_url( '/' ) ),
 				'format' => 'json',
 			),
 			rest_url( 'oembed/1.0/proxy' )
@@ -209,7 +212,9 @@ class ShieldScope_Check_SSRF extends ShieldScope_Check_Base {
 			)
 		);
 
-		if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) {
+		$code = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+		$open = 200 === $code || ( 404 === $code && false !== strpos( (string) wp_remote_retrieve_body( $response ), 'oembed_invalid_url' ) );
+		if ( $open ) {
 			$this->finding(
 				ShieldScope_Logger::SEVERITY_MEDIUM,
 				__( 'oEmbed proxy answered a logged-out request', 'shieldscope-site-security-scanner' ),

@@ -323,7 +323,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 			),
 			self::WPORG_API
 		);
-		$response = wp_remote_get( $url, array( 'timeout' => 10 ) );
+		$response = wp_remote_get( $url, self::wporg_request_args( 10 ) );
 		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
 			// 404 is "not listed": the API answers {"error":"Plugin not found."}.
 			if ( ! is_wp_error( $response ) && 404 === (int) wp_remote_retrieve_response_code( $response ) ) {
@@ -573,7 +573,7 @@ class ShieldScope_Check_Plugins extends ShieldScope_Check_Base {
 		if ( is_array( $cached ) ) {
 			return empty( $cached ) ? null : $cached;
 		}
-		$response = wp_remote_get( sprintf( self::CHECKSUMS_URL, rawurlencode( $slug ), rawurlencode( $version ) ), array( 'timeout' => 15 ) );
+		$response = wp_remote_get( sprintf( self::CHECKSUMS_URL, rawurlencode( $slug ), rawurlencode( $version ) ), self::wporg_request_args( 15 ) );
 		if ( is_wp_error( $response ) ) {
 			return null;
 		}
