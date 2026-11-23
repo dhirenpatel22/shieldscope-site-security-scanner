@@ -646,6 +646,7 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 		$items   = array();
 		$fixes   = array();
 		$unfixed = false;
+		$upto    = false;
 		$top     = 0.0;
 		$kev     = false;
 
@@ -702,16 +703,26 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 			$score = self::wpv_score( $vuln );
 			$top   = max( $top, $score );
 			$kev   = $kev || ! empty( $vuln['impact']['ssvc']['kev'] );
-			$fixed = ( ! $core && ! empty( $op['max_version'] ) && 'lt' === ( isset( $op['max_operator'] ) ? $op['max_operator'] : '' ) ) ? (string) $op['max_version'] : '';
+			// "lt X": X is the fix. "le X": affected up to and including X; the
+			// fix is a later release. Only an explicit unfixed flag, or no upper
+			// bound at all, means there is no fix yet.
+			$max_op      = isset( $op['max_operator'] ) ? (string) $op['max_operator'] : '';
+			$max         = ! empty( $op['max_version'] ) ? (string) $op['max_version'] : '';
+			$no_fix      = ( isset( $op['unfixed'] ) && '' !== (string) $op['unfixed'] && '0' !== (string) $op['unfixed'] ) || '' === $max;
+			$fixed       = ( ! $core && ! $no_fix && 'lt' === $max_op ) ? $max : '';
+			$affected_to = ( ! $core && ! $no_fix && 'le' === $max_op ) ? $max : '';
 			if ( '' !== $fixed ) {
 				$fixes[] = $fixed;
+			} elseif ( '' !== $affected_to ) {
+				$upto = true;
 			} elseif ( ! $core ) {
 				$unfixed = true;
 			}
 
 			$items[ $key ] = array(
-				'label'    => $label,
-				'fixed_in' => $fixed,
+				'label'       => $label,
+				'fixed_in'    => $fixed,
+				'affected_to' => $affected_to,
 				'cvss'     => $score > 0 ? $score : 'unrated',
 				'link'     => $link,
 			);
@@ -740,6 +751,9 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 			if ( '' !== $item['fixed_in'] ) {
 				/* translators: %s: version */
 				$parts[] = sprintf( __( 'fixed in %s', 'shieldscope-site-security-scanner' ), $item['fixed_in'] );
+			} elseif ( '' !== $item['affected_to'] ) {
+				/* translators: %s: version */
+				$parts[] = sprintf( __( 'affected up to %s', 'shieldscope-site-security-scanner' ), $item['affected_to'] );
 			} elseif ( ! $core ) {
 				$parts[] = __( 'no fix yet', 'shieldscope-site-security-scanner' );
 			}
@@ -771,6 +785,11 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 			$rec = __( 'Update WordPress to the latest version (Dashboard → Updates). Every listed issue is fixed in a later release.', 'shieldscope-site-security-scanner' );
 		} elseif ( $unfixed ) {
 			$rec = __( 'At least one issue has no fix yet. Deactivate and remove it until a fixed version is released, or replace it; update to the latest version for the issues that are fixed.', 'shieldscope-site-security-scanner' );
+		} elseif ( $upto ) {
+			$rec = '' !== $latest_fix
+				/* translators: %s: version */
+				? sprintf( __( 'Update to the latest version (%s or later). For issues listed as "affected up to" a version, the fix is in a later release; the advisory names it.', 'shieldscope-site-security-scanner' ), $latest_fix )
+				: __( 'Update to the latest version. For issues listed as "affected up to" a version, the fix is in a later release; the advisory names it.', 'shieldscope-site-security-scanner' );
 		} else {
 			/* translators: %s: version */
 			$rec = sprintf( __( 'Update to version %s or later.', 'shieldscope-site-security-scanner' ), $latest_fix );
