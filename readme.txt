@@ -197,6 +197,8 @@ It is designed to help site owners and developers find security risks on sites t
 * Fixed: An advisory that affects versions "up to and including" a version is shown as "affected up to" that version, with advice to update, instead of "no fix yet" and advice to remove the plugin. Only issues the database marks as unfixed, or with no upper version, count as having no fix.
 * Changed: WPVulnerability requests don't follow redirects and accept at most 1 MB; a rate-limit answer (HTTP 429) stops further lookups for that scan; only the fields ShieldScope uses are cached, with length limits.
 * Changed: Advisory names from WPVulnerability are shown as plain text up to 200 characters, and advisory links are kept only when they are plain https links.
+* Fixed: A plugin version written with a leading "v" (such as v2.1) is compared correctly, so it is no longer reported as vulnerable by mistake.
+* Changed: The advice on WordPress core vulnerabilities no longer claims every listed issue is fixed in a later release; it says to update and scan again.
 
 = 2.1.0 =
 * New: Known vulnerabilities in WordPress core, plugins and themes are looked up on WPVulnerability, a free database that combines CVE, Patchstack, Wordfence, WPScan and other sources (on by default; Settings → Vulnerability lookups). Only the WordPress version and the slugs of plugins and themes listed on WordPress.org are sent; answers are cached for 12 hours.

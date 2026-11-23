@@ -694,9 +694,10 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 		if ( $core ) {
 			return true;
 		}
-		$min     = isset( $operator['min_version'] ) ? (string) $operator['min_version'] : '';
+		$version = self::normalise_version( $version );
+		$min     = isset( $operator['min_version'] ) ? self::normalise_version( $operator['min_version'] ) : '';
 		$min_op  = isset( $operator['min_operator'] ) ? (string) $operator['min_operator'] : '';
-		$max     = isset( $operator['max_version'] ) ? (string) $operator['max_version'] : '';
+		$max     = isset( $operator['max_version'] ) ? self::normalise_version( $operator['max_version'] ) : '';
 		$max_op  = isset( $operator['max_operator'] ) ? (string) $operator['max_operator'] : '';
 		$unfixed = ! empty( $operator['unfixed'] ) && '0' !== (string) $operator['unfixed'];
 
@@ -710,6 +711,17 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 			return version_compare( $version, $max, 'le' === $max_op ? '<=' : '<' );
 		}
 		return $unfixed;
+	}
+
+	/**
+	 * Version string ready for version_compare(): trimmed, without a leading
+	 * "v" ("v2.1" would otherwise compare lower than "2.0" and look vulnerable).
+	 *
+	 * @param mixed $version Version.
+	 * @return string
+	 */
+	public static function normalise_version( $version ) {
+		return (string) preg_replace( '/^v(?=\d)/i', '', trim( (string) $version ) );
 	}
 
 	/**
@@ -748,6 +760,10 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 		// The same issue is often listed once per source. An entry without a
 		// CVE number that has the same fix as an entry with one is treated as
 		// the same issue; entries without a CVE are merged per fix version.
+		// Trade-off (reviewed 2026-11-23): a separate issue without a CVE that
+		// happens to share a fix version drops out of the count, but the
+		// advice (update to that version) is the same, and counting every
+		// source's copy of one issue would overstate the risk more often.
 		$affecting = array();
 		$cve_fixes = array();
 		foreach ( (array) $data['vulnerability'] as $vuln ) {
@@ -878,7 +894,7 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 		$desc .= ' ' . self::wpv_credit();
 
 		if ( $core ) {
-			$rec = __( 'Update WordPress to the latest version (Dashboard → Updates). Every listed issue is fixed in a later release.', 'shieldscope-site-security-scanner' );
+			$rec = __( 'Update WordPress to the latest version (Dashboard → Updates), then scan again: issues fixed in that release no longer appear.', 'shieldscope-site-security-scanner' );
 		} elseif ( $unfixed ) {
 			$rec = __( 'At least one issue has no fix yet. Deactivate and remove it until a fixed version is released, or replace it; update to the latest version for the issues that are fixed.', 'shieldscope-site-security-scanner' );
 		} elseif ( $upto ) {
