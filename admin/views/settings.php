@@ -121,6 +121,32 @@ defined( 'ABSPATH' ) || exit;
 					</td>
 				</tr>
 				<tr>
+					<th scope="row"><?php esc_html_e( 'Vulnerability lookups', 'shieldscope-site-security-scanner' ); ?></th>
+					<td>
+						<label>
+							<input name="shieldscope_settings[wpvulnerability]" type="checkbox" value="1" <?php checked( ! empty( $settings['wpvulnerability'] ) ); ?> />
+							<?php esc_html_e( 'Look up WordPress, plugins and themes on WPVulnerability during a scan.', 'shieldscope-site-security-scanner' ); ?>
+						</label>
+						<p class="description">
+							<?php
+							printf(
+								/* translators: %s: www.wpvulnerability.net */
+								esc_html__( 'A free database of known WordPress vulnerabilities (from CVE, Patchstack, Wordfence, WPScan and others). ShieldScope sends only the WordPress version and the slugs of plugins and themes listed on WordPress.org to %s, and caches the answers for 12 hours. Turn this off to use only the limited built-in list and WPScan.', 'shieldscope-site-security-scanner' ),
+								'<strong>www.wpvulnerability.net</strong>'
+							);
+							?>
+							<br>
+							<?php
+							printf(
+								/* translators: %s: link to wpvulnerability.com */
+								esc_html__( 'Vulnerability data from %s.', 'shieldscope-site-security-scanner' ),
+								'<a href="' . esc_url( ShieldScope_Check_Vuln_DB::WPV_SITE ) . '" target="_blank" rel="noopener noreferrer">WPVulnerability</a>'
+							);
+							?>
+						</p>
+					</td>
+				</tr>
+				<tr>
 					<th scope="row">
 						<label for="shieldscope_wpscan_api_key"><?php esc_html_e( 'WPScan API Key', 'shieldscope-site-security-scanner' ); ?></label>
 					</th>
@@ -144,7 +170,7 @@ defined( 'ABSPATH' ) || exit;
 							<?php
 							printf(
 								/* translators: %s: wpscan.com */
-								esc_html__( 'Optional. When set, the Vulnerability Database check looks up each plugin listed on WordPress.org, and the active theme, on %s (it sends only the slug). The free key allows 25 requests a day and is for non-commercial use; check WPScan\'s terms before using it on client sites.', 'shieldscope-site-security-scanner' ),
+								esc_html__( 'Optional. When set, plugins and themes listed on WordPress.org that WPVulnerability could not answer (or all of them, if WPVulnerability lookups are off) are looked up on %s (it sends only the slug). The free key allows 25 requests a day and is for non-commercial use; check WPScan\'s terms before using it on client sites.', 'shieldscope-site-security-scanner' ),
 								'<strong>wpscan.com</strong>'
 							);
 							?>
@@ -163,7 +189,7 @@ defined( 'ABSPATH' ) || exit;
 								<?php
 								printf(
 									/* translators: %d: number of plugins in the built-in list */
-									esc_html__( 'Without a key, only a limited built-in list of %d plugins is checked.', 'shieldscope-site-security-scanner' ),
+									esc_html__( 'Without a key, plugins WPVulnerability could not answer are compared with a limited built-in list of %d plugins.', 'shieldscope-site-security-scanner' ),
 									(int) ShieldScope_Check_Vuln_DB::built_in_plugin_count()
 								);
 								?>

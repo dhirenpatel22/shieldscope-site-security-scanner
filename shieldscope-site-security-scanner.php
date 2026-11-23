@@ -3,7 +3,7 @@
  * Plugin Name:       ShieldScope – Site Security Scanner
  * Plugin URI:        https://wordpress.org/plugins/shieldscope-site-security-scanner/
  * Description:       Security audit for WordPress core, plugins, themes, users, files and server settings. Runs from your admin screen in short steps and reports findings by severity.
- * Version:           2.0.0
+ * Version:           2.1.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Dhiren Patel
@@ -26,7 +26,7 @@ if ( defined( 'SHIELDSCOPE_VERSION' ) ) {
 }
 
 // Plugin constants.
-define( 'SHIELDSCOPE_VERSION', '2.0.0' );
+define( 'SHIELDSCOPE_VERSION', '2.1.0' );
 define( 'SHIELDSCOPE_PLUGIN_FILE', __FILE__ );
 define( 'SHIELDSCOPE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SHIELDSCOPE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

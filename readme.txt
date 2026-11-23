@@ -5,7 +5,7 @@ Tags: security, security audit, security scanner, hardening, security report
 Requires at least: 5.8
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.0.0
+Stable tag: 2.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -66,7 +66,7 @@ WordPress features that make the server send requests, such as pingbacks and the
 Database and WordPress versions against end-of-support dates.
 
 = Vulnerability Database =
-Without a key, installed plugins are checked against a limited built-in list of widely used plugins. With an optional WPScan API key, each plugin listed on WordPress.org and the active theme are looked up on WPScan (the free key allows 25 requests a day and is for non-commercial use).
+WordPress core and every installed plugin and theme listed on WordPress.org are looked up on WPVulnerability, a free database of known WordPress vulnerabilities that combines CVE, Patchstack, Wordfence, WPScan and other sources. Each affected component gets one finding with the known issues, the fixed version and links to the original advisories. If a lookup fails, plugins are compared with a limited built-in list, and with WPScan if you add an optional API key. The lookups can be turned off in Settings.
 
 **What ShieldScope changes.** ShieldScope does not change your files, settings, users or content. It stores only its own data: its settings and scan progress (options), cached lookups (transients), a findings table, and scheduled tasks (one daily clean-up, plus short-lived ones while a scan runs). Deleting the plugin removes all of it.
 
@@ -96,6 +96,14 @@ During the Plugins check, for each plugin listed on WordPress.org, the plugin do
 
 * Service: https://downloads.wordpress.org/plugin-checksums/
 * Privacy policy: https://automattic.com/privacy/
+
+= WPVulnerability (on by default) =
+
+During the Vulnerability Database check, ShieldScope looks up known vulnerabilities on WPVulnerability. It sends your WordPress version and the slugs (folder names) of the installed plugins and themes that are listed on WordPress.org, nothing else; custom and premium plugins are not sent. Answers are cached for 12 hours. You can turn the lookups off in Settings → Vulnerability lookups. The data is published under CC0 1.0. Vulnerability data from WPVulnerability.
+
+* Service: https://www.wpvulnerability.net/
+* About and licence: https://www.wpvulnerability.com/license/
+* Privacy policy: https://www.wpvulnerability.com/privacy/
 
 = WPScan Vulnerability Database (optional) =
 
@@ -153,13 +161,17 @@ The full rule catalogue, with an ID, severity and the limits of each check, is i
 
 Go to **ShieldScope → Report**. Findings are grouped by severity so you can start with the most important ones. **Download PDF report** saves them as a PDF.
 
+= Where does the vulnerability data come from? =
+
+From WPVulnerability (https://www.wpvulnerability.com/), a free database that combines CVE, Patchstack, Wordfence, WPScan and other sources. ShieldScope sends only your WordPress version and the slugs of plugins and themes listed on WordPress.org. If a lookup fails or you turn it off in Settings, plugins are compared with a limited built-in list instead.
+
 = What is the WPScan API key for? =
 
-It lets the Vulnerability Database check look up each plugin listed on WordPress.org, and the active theme, on WPScan. The free key allows 25 requests a day and is licensed for non-commercial use, so check WPScan's terms before using it on client sites. Without a key, only a limited built-in list of widely used plugins is checked.
+It is optional. With a key, plugins and themes that WPVulnerability could not answer (or all of them, if WPVulnerability lookups are off) are looked up on WPScan. The free key allows 25 requests a day and is licensed for non-commercial use, so check WPScan's terms before using it on client sites.
 
 = Is any of my site data sent to external servers? =
 
-During a scan ShieldScope contacts api.wordpress.org (it sends your WordPress version and locale, and the folder names of installed plugins), downloads.wordpress.org (plugin folder names and versions, for file checksums) and, only if you add a WPScan API key, wpscan.com (it sends plugin and theme slugs). It also sends requests to your own site. File contents, passwords, user data and scan results are not sent anywhere. Details are in the Third-Party Services section.
+During a scan ShieldScope contacts api.wordpress.org (it sends your WordPress version and locale, and the folder names of installed plugins), downloads.wordpress.org (plugin folder names and versions, for file checksums), www.wpvulnerability.net unless you turn it off in Settings (your WordPress version and the slugs of plugins and themes listed on WordPress.org) and, only if you add a WPScan API key, wpscan.com (it sends plugin and theme slugs). It also sends requests to your own site. File contents, passwords, user data and scan results are not sent anywhere. Details are in the Third-Party Services section.
 
 = How long does a scan take? =
 
@@ -179,6 +191,11 @@ ShieldScope uses automated checks to point out potential security issues. Review
 It is designed to help site owners and developers find security risks on sites they manage. It does not find every vulnerability. For questions, please use the support forum.
 
 == Changelog ==
+
+= 2.1.0 =
+* New: Known vulnerabilities in WordPress core, plugins and themes are looked up on WPVulnerability, a free database that combines CVE, Patchstack, Wordfence, WPScan and other sources (on by default; Settings → Vulnerability lookups). Only the WordPress version and the slugs of plugins and themes listed on WordPress.org are sent; answers are cached for 12 hours.
+* New: One finding per affected component, with each known issue, the version that fixes it, its CVSS score and a link to the original advisory. Issues listed as exploited in the wild (CISA KEV) are rated at least High.
+* Changed: WPScan (with an optional key) is used only for plugins and themes WPVulnerability could not answer, so the 25-requests-a-day free quota lasts longer. The built-in list is the fallback when no online source answered.
 
 = 2.0.0 =
 * New: Download the report as PDF, CSV or JSON. Paths are shown relative to the WordPress folder; CSV cells cannot run as spreadsheet formulas.
@@ -251,6 +268,9 @@ It is designed to help site owners and developers find security risks on sites t
 * Initial release.
 
 == Upgrade Notice ==
+
+= 2.1.0 =
+Known vulnerabilities in WordPress core, plugins and themes are now looked up on WPVulnerability (free, no key; can be turned off in Settings).
 
 = 2.0.0 =
 Background scanning, PDF/CSV/JSON reports with evidence and coverage, ignore and history, WordPress.org plugin checks, and more accurate findings. The scan no longer sends login or write requests to your site.
