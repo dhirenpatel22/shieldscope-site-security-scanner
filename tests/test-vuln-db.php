@@ -47,7 +47,7 @@ class Test_Vuln_DB extends TestCase {
 			$slug                                   = explode( '/', $file )[0];
 			$GLOBALS['ss_test_plugins'][ $file ]     = array( 'Name' => ucfirst( $slug ), 'Version' => $version );
 			if ( ! in_array( $file, $not_on_org, true ) ) {
-				$no_update[ $file ] = (object) array( 'slug' => $slug );
+				$no_update[ $file ] = (object) array( 'id' => 'w.org/plugins/' . $slug, 'slug' => $slug );
 			}
 		}
 		$GLOBALS['ss_test_site_transients']['update_plugins'] = (object) array(
@@ -403,7 +403,7 @@ class Test_Vuln_DB extends TestCase {
 		$GLOBALS['ss_test_theme']                            = new SS_Test_Theme( 'twentytwenty', array( 'Name' => 'Twenty Twenty', 'Version' => '1.0' ) );
 		$GLOBALS['ss_test_site_transients']['update_themes'] = (object) array(
 			'response'  => array(),
-			'no_update' => array( 'twentytwenty' => array( 'theme' => 'twentytwenty' ) ),
+			'no_update' => array( 'twentytwenty' => array( 'theme' => 'twentytwenty', 'url' => 'https://wordpress.org/themes/twentytwenty/' ) ),
 		);
 		$this->mock_wpscan(
 			function ( $slug ) {

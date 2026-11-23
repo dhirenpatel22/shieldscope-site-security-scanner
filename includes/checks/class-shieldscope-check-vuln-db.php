@@ -177,7 +177,7 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 				'version' => $version,
 				'name'    => $plugin_data['Name'],
 				'target'  => $plugin_file,
-				'on_org'  => $this->listed_in_update_transient( $plugin_updates, $plugin_file ),
+				'on_org'  => $this->listed_in_update_transient( $plugin_updates, $plugin_file, 'plugins', isset( $plugin_data['UpdateURI'] ) ? $plugin_data['UpdateURI'] : '' ),
 			);
 		}
 
@@ -203,7 +203,7 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 				'version' => $version,
 				'name'    => $theme->get( 'Name' ),
 				'target'  => $slug,
-				'on_org'  => $this->listed_in_update_transient( $theme_updates, $slug ),
+				'on_org'  => $this->listed_in_update_transient( $theme_updates, $slug, 'themes', (string) $theme->get( 'UpdateURI' ) ),
 			);
 		}
 
@@ -224,22 +224,69 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 	}
 
 	/**
-	 * Whether WordPress.org knows this plugin/theme, per the core update transient.
+	 * Whether this plugin/theme is the WordPress.org one, per the core update transient.
 	 *
-	 * @param mixed  $transient Value of the update_plugins / update_themes site transient.
-	 * @param string $key       Plugin file or theme stylesheet.
+	 * Being in the transient is not enough: since WordPress 5.8 plugins with
+	 * their own Update URI, and premium updaters, add entries there too. Only
+	 * entries that WordPress.org itself returned count, and a plugin or theme
+	 * whose Update URI points elsewhere never does (as in wp_update_plugins()).
+	 *
+	 * @param mixed  $transient  Value of the update_plugins / update_themes site transient.
+	 * @param string $key        Plugin file or theme stylesheet.
+	 * @param string $type       'plugins' or 'themes'.
+	 * @param string $update_uri The Update URI header, if any.
 	 * @return bool
 	 */
-	private function listed_in_update_transient( $transient, $key ) {
+	private function listed_in_update_transient( $transient, $key, $type, $update_uri = '' ) {
+		if ( '' !== trim( (string) $update_uri ) && ! self::is_wporg_update_uri( $update_uri ) ) {
+			return false;
+		}
 		if ( ! is_object( $transient ) ) {
 			return false;
 		}
 		foreach ( array( 'response', 'no_update' ) as $list ) {
 			if ( isset( $transient->$list ) && is_array( $transient->$list ) && isset( $transient->{$list}[ $key ] ) ) {
-				return true;
+				return self::is_wporg_entry( $transient->{$list}[ $key ], $type );
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Whether an Update URI header points at WordPress.org (hosts w.org or
+	 * wordpress.org, the same rule core uses). "false" and other hosts don't.
+	 *
+	 * @param string $update_uri Update URI header.
+	 * @return bool
+	 */
+	public static function is_wporg_update_uri( $update_uri ) {
+		$uri = strtolower( trim( (string) $update_uri ) );
+		if ( false === strpos( $uri, '://' ) ) {
+			$uri = 'https://' . $uri;
+		}
+		$host = wp_parse_url( $uri, PHP_URL_HOST );
+		return in_array( $host, array( 'w.org', 'wordpress.org' ), true );
+	}
+
+	/**
+	 * Whether an update-transient entry came from WordPress.org.
+	 *
+	 * Plugin entries from WordPress.org carry an id "w.org/plugins/<slug>";
+	 * theme entries carry their wordpress.org/themes/ page as url.
+	 *
+	 * @param mixed  $entry Entry (object for plugins, array for themes).
+	 * @param string $type  'plugins' or 'themes'.
+	 * @return bool
+	 */
+	public static function is_wporg_entry( $entry, $type ) {
+		$entry = (array) $entry;
+		if ( 'plugins' === $type ) {
+			return isset( $entry['id'] ) && 0 === strpos( (string) $entry['id'], 'w.org/plugins/' );
+		}
+		$url  = isset( $entry['url'] ) ? (string) $entry['url'] : '';
+		$host = wp_parse_url( $url, PHP_URL_HOST );
+		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+		return 'wordpress.org' === $host && 0 === strpos( $path, '/themes/' );
 	}
 
 	/**
@@ -250,8 +297,9 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 	 * @return array Updated cursor.
 	 */
 	private function check_component( array $component, array $cursor ) {
-		// 1. WPVulnerability, for components listed on WordPress.org (a custom
-		// plugin could share a slug with an unrelated WordPress.org plugin).
+		// 1. WPVulnerability, only for components WordPress.org itself lists
+		// (see listed_in_update_transient(): premium and custom plugins, even
+		// one sharing a slug with a WordPress.org plugin, are never sent).
 		if ( self::wpv_enabled() && $component['on_org'] ) {
 			$cursor['wpv_eligible']++;
 			$lookup = $cursor['wpv_failed'] >= 2
