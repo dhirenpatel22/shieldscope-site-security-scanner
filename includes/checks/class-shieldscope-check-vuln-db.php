@@ -54,6 +54,11 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 	const WPV_MAX_LISTED = 8;
 
 	/**
+	 * Most WPVulnerability entries kept per component (popular plugins list a few hundred).
+	 */
+	const WPV_MAX_ENTRIES = 500;
+
+	/**
 	 * Transient TTL for WPScan responses (seconds).
 	 */
 	const CACHE_TTL = DAY_IN_SECONDS;
@@ -556,7 +561,14 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 		}
 
 		$paths    = array( 'plugins' => 'plugin', 'themes' => 'theme', 'core' => 'core' );
-		$response = wp_remote_get( self::WPV_API . $paths[ $type ] . '/' . rawurlencode( $slug ) . '/', self::wporg_request_args( 8 ) );
+		$args     = array_merge(
+			self::wporg_request_args( 8 ),
+			array(
+				'redirection'         => 0,             // The API answers directly; never follow it elsewhere.
+				'limit_response_size' => MB_IN_BYTES,   // A truncated answer fails to decode and counts as unreadable.
+			)
+		);
+		$response = wp_remote_get( self::WPV_API . $paths[ $type ] . '/' . rawurlencode( $slug ) . '/', $args );
 
 		$error       = '';
 		$unreachable = false;
@@ -569,11 +581,11 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 			if ( 200 !== $code ) {
 				/* translators: %d: HTTP status code */
 				$error       = sprintf( __( 'WPVulnerability error, HTTP %d', 'shieldscope-site-security-scanner' ), $code );
-				$unreachable = $code >= 500;
+				$unreachable = $code >= 500 || 429 === $code; // Rate limited: stop asking for the rest of this scan.
 			} elseif ( ! is_array( $body ) || ! empty( $body['error'] ) || ! isset( $body['data'] ) || ! is_array( $body['data'] ) ) {
 				$error = __( 'WPVulnerability returned an unreadable response', 'shieldscope-site-security-scanner' );
 			} else {
-				$data = array( 'vulnerability' => isset( $body['data']['vulnerability'] ) && is_array( $body['data']['vulnerability'] ) ? $body['data']['vulnerability'] : array() );
+				$data = array( 'vulnerability' => self::wpv_slim( isset( $body['data']['vulnerability'] ) && is_array( $body['data']['vulnerability'] ) ? $body['data']['vulnerability'] : array() ) );
 				set_transient( $cache_key, $data, self::WPV_CACHE_TTL );
 				return array( 'data' => $data );
 			}
@@ -581,6 +593,60 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 
 		set_transient( $cache_key, array( 'lookup_failed' => $error ), 15 * MINUTE_IN_SECONDS );
 		return array( 'error' => $error, 'unreachable' => $unreachable );
+	}
+
+	/**
+	 * Keep only the fields ShieldScope reads from WPVulnerability entries, with
+	 * caps on counts and string lengths, so the cache holds no descriptions or
+	 * other bulk and a hostile answer can't grow it.
+	 *
+	 * @param array $vulns Raw "vulnerability" entries.
+	 * @return array[] Entries with name, operator, source[id,name,link], impact (cvss3/cvss score, ssvc kev).
+	 */
+	public static function wpv_slim( array $vulns ) {
+		$text = static function ( $value, $max ) {
+			return is_scalar( $value ) ? mb_substr( (string) $value, 0, $max, 'UTF-8' ) : '';
+		};
+		$out  = array();
+		foreach ( array_slice( $vulns, 0, self::WPV_MAX_ENTRIES ) as $vuln ) {
+			if ( ! is_array( $vuln ) ) {
+				continue;
+			}
+			$op       = isset( $vuln['operator'] ) && is_array( $vuln['operator'] ) ? $vuln['operator'] : array();
+			$operator = array();
+			foreach ( array( 'min_version', 'min_operator', 'max_version', 'max_operator', 'unfixed' ) as $key ) {
+				if ( isset( $op[ $key ] ) && is_scalar( $op[ $key ] ) ) {
+					$operator[ $key ] = $text( $op[ $key ], 64 );
+				}
+			}
+			$sources = array();
+			foreach ( isset( $vuln['source'] ) && is_array( $vuln['source'] ) ? array_slice( $vuln['source'], 0, 10 ) : array() as $src ) {
+				if ( is_array( $src ) ) {
+					$sources[] = array(
+						'id'   => $text( isset( $src['id'] ) ? $src['id'] : '', 64 ),
+						'name' => $text( isset( $src['name'] ) ? $src['name'] : '', 300 ),
+						'link' => $text( isset( $src['link'] ) ? $src['link'] : '', 500 ),
+					);
+				}
+			}
+			$impact = isset( $vuln['impact'] ) && is_array( $vuln['impact'] ) ? $vuln['impact'] : array();
+			$slim   = array();
+			foreach ( array( 'cvss3', 'cvss' ) as $key ) {
+				if ( isset( $impact[ $key ]['score'] ) && is_scalar( $impact[ $key ]['score'] ) ) {
+					$slim[ $key ] = array( 'score' => (float) $impact[ $key ]['score'] );
+				}
+			}
+			if ( ! empty( $impact['ssvc']['kev'] ) ) {
+				$slim['ssvc'] = array( 'kev' => true );
+			}
+			$out[] = array(
+				'name'     => $text( isset( $vuln['name'] ) ? $vuln['name'] : '', 300 ),
+				'operator' => $operator,
+				'source'   => $sources,
+				'impact'   => $slim,
+			);
+		}
+		return $out;
 	}
 
 	/**
