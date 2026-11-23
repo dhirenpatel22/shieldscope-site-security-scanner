@@ -59,6 +59,11 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 	const WPV_MAX_ENTRIES = 500;
 
 	/**
+	 * Longest label (CVE list or advisory name) shown for one vulnerability.
+	 */
+	const WPV_MAX_LABEL = 200;
+
+	/**
 	 * Transient TTL for WPScan responses (seconds).
 	 */
 	const CACHE_TTL = DAY_IN_SECONDS;
@@ -650,6 +655,30 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 	}
 
 	/**
+	 * An advisory link from WPVulnerability, or '' unless it is a plain https
+	 * URL with a host name (no other schemes, credentials or control
+	 * characters). Links are shown as text, never as anchors, but they reach
+	 * client reports, so only well-formed https links are kept.
+	 *
+	 * @param string $link Link from the API.
+	 * @return string
+	 */
+	public static function wpv_safe_link( $link ) {
+		$link = trim( (string) $link );
+		if ( '' === $link || strlen( $link ) > 500 || preg_match( '/[\s\x00-\x1f\x7f]/', $link ) ) {
+			return '';
+		}
+		$parts = wp_parse_url( $link );
+		if ( ! is_array( $parts ) || ! isset( $parts['scheme'], $parts['host'] ) || 'https' !== strtolower( $parts['scheme'] ) ) {
+			return '';
+		}
+		if ( isset( $parts['user'] ) || isset( $parts['pass'] ) || ! preg_match( '/^[a-z0-9.-]+\.[a-z]{2,}$/i', $parts['host'] ) ) {
+			return '';
+		}
+		return $link;
+	}
+
+	/**
 	 * Does a WPVulnerability entry affect the installed version?
 	 *
 	 * Core entries are per version (the lookup is for this exact version).
@@ -752,7 +781,7 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 					$label = html_entity_decode( wp_strip_all_tags( (string) $src['name'] ), ENT_QUOTES, 'UTF-8' );
 				}
 				if ( '' === $link && ! empty( $src['link'] ) ) {
-					$link = (string) $src['link'];
+					$link = self::wpv_safe_link( (string) $src['link'] );
 				}
 			}
 			$cves     = array_keys( $cves );
@@ -760,7 +789,8 @@ class ShieldScope_Check_Vuln_DB extends ShieldScope_Check_Base {
 			if ( ! $cves && ! $core && isset( $cve_fixes[ $fix_key ] ) ) {
 				continue; // Same issue as a CVE entry with this fix, from another source.
 			}
-			$label = $cves ? implode( ', ', $cves ) : ( '' !== $label ? $label : (string) ( isset( $vuln['name'] ) ? $vuln['name'] : '' ) );
+			$label = $cves ? implode( ', ', $cves ) : ( '' !== $label ? $label : html_entity_decode( wp_strip_all_tags( (string) ( isset( $vuln['name'] ) ? $vuln['name'] : '' ) ), ENT_QUOTES, 'UTF-8' ) );
+			$label = mb_substr( trim( $label ), 0, self::WPV_MAX_LABEL, 'UTF-8' );
 			$key   = ( $cves || $core ? strtolower( $label ) : 'no-cve' ) . '|' . $fix_key;
 			if ( isset( $items[ $key ] ) ) {
 				continue; // Same issue listed by another source.
