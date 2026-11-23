@@ -194,6 +194,7 @@ It is designed to help site owners and developers find security risks on sites t
 
 = 2.1.1 =
 * Fixed: Premium and custom plugins and themes are never sent to WPVulnerability or WPScan. A plugin now counts as listed on WordPress.org only when the WordPress.org update data says so, not when a premium updater adds it to the same list, and plugins or themes with their own Update URI are always skipped. This also stops a custom plugin that shares a slug with a WordPress.org plugin from getting that plugin's advisories.
+* Fixed: An advisory that affects versions "up to and including" a version is shown as "affected up to" that version, with advice to update, instead of "no fix yet" and advice to remove the plugin. Only issues the database marks as unfixed, or with no upper version, count as having no fix.
 
 = 2.1.0 =
 * New: Known vulnerabilities in WordPress core, plugins and themes are looked up on WPVulnerability, a free database that combines CVE, Patchstack, Wordfence, WPScan and other sources (on by default; Settings → Vulnerability lookups). Only the WordPress version and the slugs of plugins and themes listed on WordPress.org are sent; answers are cached for 12 hours.
